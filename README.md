@@ -5,7 +5,7 @@
 Clone this repo and run `cd penne && pip install -e .`.
 
 
-## Usage
+## Training
 
 ### Download data
 
@@ -41,7 +41,7 @@ Run `tensorboard --logdir runs/<run>/logs`. If you are running training
 remotely, you must create a SSH connection with port forwarding to view
 Tensorboard. This can be done with `ssh -L 6006:localhost:6006
 <user>@<server-ip-address>`. Then, open `localhost:6006` in your browser.
-Some IDEs such as VS Code will do this automatically.
+Some IDEs (e.g., VS Code) will do this automatically.
 
 
 ### Test
@@ -50,6 +50,8 @@ Tests are written using `pytest`. Run `pip install pytest` to install pytest.
 Complete all TODOs in `test_model.py` and `test_data.py`, then run `pytest`.
 Adding project-specific tests for preprocessing and inference is encouraged.
 
+
+## Usage
 
 ### Computing pitch and periodicity from audio
 
