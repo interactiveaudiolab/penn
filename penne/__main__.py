@@ -1,7 +1,7 @@
 import argparse
 import os
 
-import torchcrepe
+import penne
 
 
 ###############################################################################
@@ -29,11 +29,11 @@ def parse_args():
         type=int,
         help='The hop length of the analysis window')
 
-    # Optionally save harmonicity
+    # Optionally save periodicity
     parser.add_argument(
-        '--output_harmonicity_files',
+        '--output_periodicity_files',
         nargs='+',
-        help='The file to save harmonicity')
+        help='The file to save periodicity')
 
     # Optionally create embedding instead of pitch contour
     parser.add_argument(
@@ -49,7 +49,7 @@ def parse_args():
         help='The minimum frequency allowed')
     parser.add_argument(
         '--fmax',
-        default=torchcrepe.MAX_FMAX,
+        default=penne.MAX_FMAX,
         type=float,
         help='The maximum frequency allowed')
     parser.add_argument(
@@ -85,39 +85,39 @@ def main():
 
     # Ensure output directory exist
     [make_parent_directory(file) for file in args.output_files]
-    if args.output_harmonicity_files is not None:
-        [make_parent_directory(file) for file in args.output_harmonicity_files]
+    if args.output_periodicity_files is not None:
+        [make_parent_directory(file) for file in args.output_periodicity_files]
 
     # Get inference device
     device = 'cpu' if args.gpu is None else f'cuda:{args.gpu}'
 
     # Get decoder
     if args.decoder == 'argmax':
-        decoder = torchcrepe.decode.argmax
+        decoder = penne.decode.argmax
     elif args.decoder == 'weighted_argmax':
-        decoder = torchcrepe.decode.weighted_argmax
+        decoder = penne.decode.weighted_argmax
     elif args.decoder == 'viterbi':
-        decoder = torchcrepe.decode.viterbi
+        decoder = penne.decode.viterbi
 
     # Infer pitch or embedding and save to disk
     if args.embed:
-        torchcrepe.embed_from_files_to_files(args.audio_files,
-                                             args.output_files,
-                                             args.hop_length,
-                                             args.model,
-                                             args.batch_size,
-                                             device)
+        penne.embed_from_files_to_files(args.audio_files,
+                                        args.output_files,
+                                        args.hop_length,
+                                        args.model,
+                                        args.batch_size,
+                                        device)
     else:
-        torchcrepe.predict_from_files_to_files(args.audio_files,
-                                               args.output_files,
-                                               args.output_harmonicity_files,
-                                               args.hop_length,
-                                               args.fmin,
-                                               args.fmax,
-                                               args.model,
-                                               decoder,
-                                               args.batch_size,
-                                               device)
+        penne.predict_from_files_to_files(args.audio_files,
+                                          args.output_files,
+                                          args.output_periodicity_files,
+                                          args.hop_length,
+                                          args.fmin,
+                                          args.fmax,
+                                          args.model,
+                                          decoder,
+                                          args.batch_size,
+                                          device)
 
 
 # Run module entry point

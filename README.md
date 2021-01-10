@@ -1,33 +1,65 @@
-# torchcrepe
-[![PyPI](https://img.shields.io/pypi/v/torchcrepe.svg)](https://pypi.python.org/pypi/torchcrepe) 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Downloads](https://pepy.tech/badge/torchcrepe)](https://pepy.tech/project/torchcrepe)
-
-Pytorch implementation of the CREPE [1] pitch tracker. The original Tensorflow
-implementation can be found [here](https://github.com/marl/crepe/). The
-provided model weights were obtained by converting the "tiny" and "full" models
-using [MMdnn](https://github.com/microsoft/MMdnn), an open-source model
-management framework.
-
+# Pitch Estimating Neural NEtworks (PENNE)
 
 ## Installation
-Perform the system-dependent PyTorch install using the instructions found
-[here](https://pytorch.org/).
 
-`pip install torchcrepe`
+Clone this repo and run `cd penne && pip install -e .`.
 
 
 ## Usage
 
-### Computing pitch and harmonicity from audio
+### Download data
+
+Place datasets in `data/DATASET`, where `DATASET` is the name of the dataset.
+
+
+### Partition data
+
+Complete all TODOs in `partition.py`, then run `python -m penne.partition
+DATASET`.
+
+
+### Train
+
+Complete all TODOs in `data.py` and `model.py`. Then, create a directory in
+`runs` for your experiment. Logs, checkpoints, and results should be saved to
+this directory. In your new directory, run `python -m penne.train --dataset
+DATASET <args>`. See the [PyTorch Lightning trainer flags](https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#trainer-flags)
+for additional arguments. Model-specific arguments should be added in
+`penne.Model.add_model_specific_args`.
+
+
+### Evaluate
+
+Complete all TODOs in `evaluate.py`, then run `python -m penne.evaluate
+DATASET CHECKPOINT <args>`, where `CHECKPOINT` is the filename of a checkpoint
+and `<args>` are the model-specific arguments.
+
+
+### Monitor
+
+Run `tensorboard --logdir runs/<run>/logs`. If you are running training
+remotely, you must create a SSH connection with port forwarding to view
+Tensorboard. This can be done with `ssh -L 6006:localhost:6006
+<user>@<server-ip-address>`. Then, open `localhost:6006` in your browser.
+Some IDEs such as VS Code will do this automatically.
+
+
+### Test
+
+Tests are written using `pytest`. Run `pip install pytest` to install pytest.
+Complete all TODOs in `test_model.py` and `test_data.py`, then run `pytest`.
+Adding project-specific tests for preprocessing and inference is encouraged.
+
+
+### Computing pitch and periodicity from audio
 
 
 ```python
-import torchcrepe
+import penne
 
 
 # Load audio
-audio, sr = torchcrepe.load.audio( ... )
+audio, sr = penne.load.audio( ... )
 
 # Here we'll use a 5 millisecond hop length
 hop_length = int(sr / 200.)
@@ -47,7 +79,7 @@ device = 'cuda:0'
 batch_size = 2048
 
 # Compute pitch using first gpu
-pitch = torchcrepe.predict(audio,
+pitch = penne.predict(audio,
                            sr,
                            hop_length,
                            fmin,
@@ -57,10 +89,10 @@ pitch = torchcrepe.predict(audio,
                            device=device)
 ```
 
-A harmonicity metric similar to the Crepe confidence score can also be
-extracted by passing `return_harmonicity=True` to `torchcrepe.predict`.
+A periodicity metric similar to the Crepe confidence score can also be
+extracted by passing `return_periodicity=True` to `penne.predict`.
 
-By default, `torchcrepe` uses Viterbi decoding on the softmax of the network
+By default, `penne` uses Viterbi decoding on the softmax of the network
 output. This is different than the original implementation, which uses a
 weighted average near the argmax of binary cross-entropy probabilities.
 The argmax operation can cause double/half frequency errors. These can be
@@ -69,18 +101,18 @@ submodule provides some options for decoding.
 
 ```python
 # Decode using viterbi decoding (default)
-torchcrepe.predict(..., decoder=torchcrepe.decode.viterbi)
+penne.predict(..., decoder=penne.decode.viterbi)
 
 # Decode using weighted argmax (as in the original implementation)
-torchcrepe.predict(..., decoder=torchcrepe.decode.weighted_argmax)
+penne.predict(..., decoder=penne.decode.weighted_argmax)
 
 # Decode using argmax
-torchcrepe.predict(..., decoder=torchcrepe.decode.argmax)
+penne.predict(..., decoder=penne.decode.argmax)
 ```
 
-When harmonicity is low, the pitch is less reliable. For some problems, it
-makes sense to mask these less reliable pitch values. However, the harmonicity
-can be noisy and the pitch has quantization artifacts. `torchcrepe` provides
+When periodicity is low, the pitch is less reliable. For some problems, it
+makes sense to mask these less reliable pitch values. However, the periodicity
+can be noisy and the pitch has quantization artifacts. `penne` provides
 submodules `filter` and `threshold` for this purpose. The filter and threshold
 parameters should be tuned to your data. For clean speech, a 10-20 millisecond
 window with a threshold of 0.21 has worked.
@@ -90,26 +122,26 @@ window with a threshold of 0.21 has worked.
 win_length = 3
 
 # Median filter noisy confidence value
-harmonicity = torchcrepe.filter.median(harmonicity, win_length)
+periodicity = penne.filter.median(periodicity, win_length)
 
 # Remove inharmonic regions
-pitch = torchcrepe.threshold.At(.21)(pitch, harmonicity)
+pitch = penne.threshold.At(.21)(pitch, periodicity)
 
 # Optionally smooth pitch to remove quantization artifacts
-pitch = torchcrepe.filter.mean(pitch, win_length)
+pitch = penne.filter.mean(pitch, win_length)
 ```
 
 For more fine-grained control over pitch thresholding, see
-`torchcrepe.threshold.Hysteresis`. This is especially useful for removing
-spurious voiced regions caused by noise in the harmonicity values, but
+`penne.threshold.Hysteresis`. This is especially useful for removing
+spurious voiced regions caused by noise in the periodicity values, but
 has more parameters and may require more manual tuning to your data.
 
 
-### Computing the CREPE model output activations
+### Computing the model output activations
 
 ```python
-batch = next(torchcrepe.preprocess(audio, sr, hop_length))
-probabilities = torchcrepe.infer(batch)
+batch = next(penne.preprocess(audio, sr, hop_length))
+probabilities = penne.infer(batch)
 ```
 
 
@@ -119,37 +151,37 @@ As in Differentiable Digital Signal Processing [2], this uses the output of the
 fifth max-pooling layer as a pretrained pitch embedding
 
 ```python
-embeddings = torchcrepe.embed(audio, sr, hop_length)
+embeddings = penne.embed(audio, sr, hop_length)
 ```
 
 ### Computing from files
 
-`torchcrepe` defines the following functions convenient for predicting
+`penne` defines the following functions convenient for predicting
 directly from audio files on disk. Each of these functions also takes
 a `device` argument that can be used for device placement (e.g.,
 `device='cuda:0'`).
 
 ```python
-torchcrepe.predict_from_file(audio_file, ...)
-torchcrepe.predict_from_file_to_file(
-    audio_file, output_pitch_file, output_harmonicity_file, ...)
-torchcrepe.predict_from_files_to_files(
-    audio_files, output_pitch_files, output_harmonicity_files, ...)
+penne.predict_from_file(audio_file, ...)
+penne.predict_from_file_to_file(
+    audio_file, output_pitch_file, output_periodicity_file, ...)
+penne.predict_from_files_to_files(
+    audio_files, output_pitch_files, output_periodicity_files, ...)
 
-torchcrepe.embed_from_file(audio_file, ...)
-torchcrepe.embed_from_file_to_file(audio_file, output_file, ...)
-torchcrepe.embed_from_files_to_files(audio_files, output_files, ...)
+penne.embed_from_file(audio_file, ...)
+penne.embed_from_file_to_file(audio_file, output_file, ...)
+penne.embed_from_files_to_files(audio_files, output_files, ...)
 ```
 
 ### Command-line interface
 
 ```bash
-usage: python -m torchcrepe
+usage: python -m penne
     [-h]
     --audio_files AUDIO_FILES [AUDIO_FILES ...]
     --output_files OUTPUT_FILES [OUTPUT_FILES ...]
     [--hop_length HOP_LENGTH]
-    [--output_harmonicity_files OUTPUT_HARMONICITY_FILES [OUTPUT_HARMONICITY_FILES ...]]
+    [--output_periodicity_files OUTPUT_periodicity_FILES [OUTPUT_periodicity_FILES ...]]
     [--embed]
     [--fmin FMIN]
     [--fmax FMAX]
@@ -165,8 +197,8 @@ optional arguments:
                         The file to save pitch or embedding
   --hop_length HOP_LENGTH
                         The hop length of the analysis window
-  --output_harmonicity_files OUTPUT_HARMONICITY_FILES [OUTPUT_HARMONICITY_FILES ...]
-                        The file to save harmonicity
+  --output_periodicity_files OUTPUT_periodicity_FILES [OUTPUT_periodicity_FILES ...]
+                        The file to save periodicity
   --embed               Performs embedding instead of pitch prediction
   --fmin FMIN           The minimum frequency allowed
   --fmax FMAX           The maximum frequency allowed

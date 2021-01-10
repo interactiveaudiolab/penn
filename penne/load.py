@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import torch
-import torchcrepe
+import penne
 from scipy.io import wavfile
 
 
@@ -21,16 +21,16 @@ def audio(filename):
 def model(device, capacity='full'):
     """Preloads model from disk"""
     # Bind model and capacity
-    torchcrepe.infer.capacity = capacity
-    torchcrepe.infer.model = torchcrepe.Crepe(capacity)
+    penne.infer.capacity = capacity
+    penne.infer.model = penne.Crepe(capacity)
 
     # Load weights
     file = os.path.join(os.path.dirname(__file__), 'assets', f'{capacity}.pth')
-    torchcrepe.infer.model.load_state_dict(
+    penne.infer.model.load_state_dict(
         torch.load(file, map_location=device))
 
     # Place on device
-    torchcrepe.infer.model = torchcrepe.infer.model.to(torch.device(device))
+    penne.infer.model = penne.infer.model.to(torch.device(device))
 
     # Eval mode
-    torchcrepe.infer.model.eval()
+    penne.infer.model.eval()

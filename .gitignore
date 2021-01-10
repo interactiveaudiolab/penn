@@ -1,3 +1,9 @@
+# Directories for large, project-specific files
+data/*
+!data/.gitkeep
+runs/*
+!runs/.gitkeep
+
 *.egg-info/
 .empty/
 .ipynb_checkpoints/

@@ -6,15 +6,15 @@ with open('README.md') as file:
 
 
 setup(
-    name='torchcrepe',
-    description='Pytorch implementation of CREPE pitch tracker',
-    version='0.0.12',
-    author='Max Morrison',
+    name='penne',
+    description='Pitch Estimating Neural NEtworks (PENNE)',
+    version='0.0.1',
+    author='Caedon Hsieh and Max Morrison',
     author_email='maxrmorrison@gmail.com',
-    url='https://github.com/maxrmorrison/torchcrepe',
+    url='https://github.com/interactiveaudiolab/penne',
     install_requires=['librosa', 'resampy', 'scipy', 'torch', 'tqdm'],
-    packages=['torchcrepe'],
-    package_data={'torchcrepe': ['assets/*']},
+    packages=['penne'],
+    package_data={'penne': ['assets/*']},
     long_description=long_description,
     long_description_content_type='text/markdown',
     keywords=['pitch', 'audio', 'speech', 'music', 'pytorch', 'crepe'],
