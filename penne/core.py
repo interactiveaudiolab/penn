@@ -506,7 +506,7 @@ def postprocess(probabilities,
     # Convert frequency range to pitch bin range
     minidx = penne.convert.frequency_to_bins(torch.tensor(fmin))
     maxidx = penne.convert.frequency_to_bins(torch.tensor(fmax),
-                                                  torch.ceil)
+                                             torch.ceil)
 
     # Remove frequencies outside of allowable range
     probabilities[:, :minidx] = -float('inf')
@@ -607,7 +607,7 @@ def periodicity(probabilities, bins):
     # shape=(batch * time / hop_length, 1)
     bins_stacked = bins.reshape(-1, 1).to(torch.int64)
 
-    # Use maximum logit over pitch bins as periodicity
+    # Use the probabilities of the decoded pitch bins
     periodicity = probs_stacked.gather(1, bins_stacked)
 
     # shape=(batch, time / hop_length)

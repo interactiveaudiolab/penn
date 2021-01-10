@@ -27,8 +27,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __init__(self, name, partition):
         # Get list of stems
-        with open(penne.ASSETS_DIR / name / 'partition.json') as file:
-            self.stems = json.load(file)[partition]
+        self.stems = partitions(name)[partition]
 
     def __getitem__(self, index):
         """Retrieve the indexth item"""
@@ -119,4 +118,66 @@ def collate_fn(batch):
     #        https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
     #        for more information on the collate function (note that
     #        automatic batching is enabled).
+    raise NotImplementedError
+
+
+###############################################################################
+# Utilities
+###############################################################################
+
+
+def partitions(name):
+    """Retrieve the data partitions for a dataset
+
+    Arguments
+        name - string
+            The dataset name
+
+    Returns
+        partitions - dict(string, list(string))
+            The dataset partitions. The key is the partition name and the
+            value is the list of stems belonging to that partition.
+    """
+    if not hasattr(partitions, name):
+        with open(penne.ASSETS_DIR / name / 'partition.json') as file:
+            setattr(partitions, name, json.load(file))
+    return getattr(partitions, name)
+
+
+def stem_to_file(name, stem):
+    """Resolve stem to a file in the dataset
+
+    Arguments
+        name - string
+            The name of the dataset
+        stem - string
+            The stem representing one item in the dataset
+
+    Returns
+        file - Path
+            The corresponding file
+    """
+    directory = penne.DATA_DIR / name
+
+    # TODO - replace with your datasets
+    if name == 'DATASET':
+        return DATASET_stem_to_file(directory, stem)
+
+    raise ValueError(f'Dataset {name} is not implemented')
+
+
+def DATASET_stem_to_file(directory, stem):
+    """Resolve stem to a file in DATASET
+
+    Arguments
+        directory - Path
+            The root directory of the dataset
+        stem - string
+            The stem representing one item in the dataset
+
+    Returns
+        file - Path
+            The corresponding file
+    """
+    # TODO
     raise NotImplementedError

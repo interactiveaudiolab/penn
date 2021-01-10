@@ -27,14 +27,11 @@ def main():
                                   args.batch_size,
                                   args.num_workers)
 
-    # Setup model
-    # TODO - instantiate model from pl model args
-
     # Setup trainer
     trainer = pl.Trainer.from_argparse_args(args, logger=logger)
 
     # Train
-    trainer.fit(penne.model.NeuralViterbiDecoding(), datamodule=datamodule)
+    trainer.fit(penne.Model(args), datamodule=datamodule)
 
 
 def parse_args():

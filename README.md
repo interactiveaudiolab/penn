@@ -30,9 +30,10 @@ for additional arguments. Model-specific arguments should be added in
 
 ### Evaluate
 
-Complete all TODOs in `evaluate.py`, then run `python -m penne.evaluate
-DATASET CHECKPOINT <args>`, where `CHECKPOINT` is the filename of a checkpoint
-and `<args>` are the model-specific arguments.
+Complete all TODOs in `evaluate.py`, then run `python -m penne.evaluate DATASET
+<partition> <checkpoint> <file>`, where `<partition>` is the name of the
+partition to evaluate, `<checkpoint>` is the checkpoint file to evaluate, and
+`<file>` is the json file to write results to.
 
 
 ### Monitor
@@ -47,8 +48,8 @@ Some IDEs (e.g., VS Code) will do this automatically.
 ### Test
 
 Tests are written using `pytest`. Run `pip install pytest` to install pytest.
-Complete all TODOs in `test_model.py` and `test_data.py`, then run `pytest`.
-Adding project-specific tests for preprocessing and inference is encouraged.
+Run tests with the command `pytest`. Adding project-specific tests for
+data loading and inference is encouraged.
 
 
 ## Usage
@@ -82,13 +83,13 @@ batch_size = 2048
 
 # Compute pitch using first gpu
 pitch = penne.predict(audio,
-                           sr,
-                           hop_length,
-                           fmin,
-                           fmax,
-                           model,
-                           batch_size=batch_size,
-                           device=device)
+                      sr,
+                      hop_length,
+                      fmin,
+                      fmax,
+                      model,
+                      batch_size=batch_size,
+                      device=device)
 ```
 
 A periodicity metric similar to the Crepe confidence score can also be
