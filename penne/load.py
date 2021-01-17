@@ -22,7 +22,7 @@ def model(device, capacity='full'):
     """Preloads model from disk"""
     # Bind model and capacity
     penne.infer.capacity = capacity
-    penne.infer.model = penne.Crepe(capacity)
+    penne.infer.model = penne.Model(capacity)
 
     # Load weights
     file = os.path.join(os.path.dirname(__file__), 'assets', f'{capacity}.pth')

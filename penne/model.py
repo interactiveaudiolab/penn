@@ -10,73 +10,74 @@ import penne
 # Model definition
 ###############################################################################
 
-# TODO - convert the CREPE model (below) to this Pytorch lightning template and
-#        complete the template TODOs
+# TODO - Convert the Crepe model (below) to this Pytorch lightning template and
+#        complete the template TODOs. You only need to convert the "full"
+#        model.
 
-class Model(pl.LightningModule):
-    """PyTorch Lightning model definition"""
+# class Model(pl.LightningModule):
+#     """PyTorch Lightning model definition"""
 
-    # TODO - add hyperparameters as input args
-    def __init__(self):
-        super().__init__()
+#     # TODO - add hyperparameters as input args
+#     def __init__(self):
+#         super().__init__()
 
-        # Save hyperparameters with checkpoints
-        self.save_hyperparameters()
+#         # Save hyperparameters with checkpoints
+#         self.save_hyperparameters()
 
-        # TODO - define model
-        raise NotImplementedError
+#         # TODO - define model
+#         raise NotImplementedError
 
-    ###########################################################################
-    # Forward pass
-    ###########################################################################
+#     ###########################################################################
+#     # Forward pass
+#     ###########################################################################
 
-    def forward(self):
-        """Perform model inference"""
-        # TODO - define model arguments and implement forward pass
-        raise NotImplementedError
+#     def forward(self):
+#         """Perform model inference"""
+#         # TODO - define model arguments and implement forward pass
+#         raise NotImplementedError
 
-    ###########################################################################
-    # PyTorch Lightning - model-specific argparse argument hook
-    ###########################################################################
+#     ###########################################################################
+#     # PyTorch Lightning - model-specific argparse argument hook
+#     ###########################################################################
 
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        """Add model hyperparameters as argparse arguments"""
-        parser = argparse.ArgumentParser(
-            parents=[parent_parser], add_help=False)
-        # TODO - add hyperparameters as command-line args using
-        #        parser.add_argument()
-        return parser
+#     @staticmethod
+#     def add_model_specific_args(parent_parser):
+#         """Add model hyperparameters as argparse arguments"""
+#         parser = argparse.ArgumentParser(
+#             parents=[parent_parser], add_help=False)
+#         # TODO - add hyperparameters as command-line args using
+#         #        parser.add_argument()
+#         return parser
 
-    ###########################################################################
-    # PyTorch Lightning - step model hooks
-    ###########################################################################
+#     ###########################################################################
+#     # PyTorch Lightning - step model hooks
+#     ###########################################################################
 
-    def training_step(self, batch, index):
-        """Performs one step of training"""
-        # TODO - implement training step
-        raise NotImplementedError
+#     def training_step(self, batch, index):
+#         """Performs one step of training"""
+#         # TODO - implement training step
+#         raise NotImplementedError
 
-    def validation_step(self, batch, index):
-        """Performs one step of validation"""
-        # TODO - implement validation step
-        raise NotImplementedError
+#     def validation_step(self, batch, index):
+#         """Performs one step of validation"""
+#         # TODO - implement validation step
+#         raise NotImplementedError
 
-    def test_step(self, batch, index):
-        """Performs one step of testing"""
-        # OPTIONAL - only implement if you have meaningful objective metrics
-        raise NotImplementedError
+#     def test_step(self, batch, index):
+#         """Performs one step of testing"""
+#         # OPTIONAL - only implement if you have meaningful objective metrics
+#         raise NotImplementedError
 
-    ###########################################################################
-    # PyTorch Lightning - optimizer
-    ###########################################################################
+#     ###########################################################################
+#     # PyTorch Lightning - optimizer
+#     ###########################################################################
 
-    def configure_optimizer(self):
-        """Configure optimizer for training"""
-        return torch.optim.Adam(self.parameters())
+#     def configure_optimizer(self):
+#         """Configure optimizer for training"""
+#         return torch.optim.Adam(self.parameters())
 
 
-class Crepe(torch.nn.Module):
+class Model(torch.nn.Module):
     """Crepe model definition"""
 
     def __init__(self, model='full'):
