@@ -11,6 +11,7 @@ import penne
 
 __all__ = ['ASSETS_DIR',
            'CENTS_PER_BIN',
+           'DATA_DIR',
            'MAX_FMAX',
            'PITCH_BINS',
            'SAMPLE_RATE',
@@ -36,6 +37,7 @@ __all__ = ['ASSETS_DIR',
 
 
 ASSETS_DIR = Path(__file__).parent / 'assets'
+DATA_DIR = Path(__file__).parent.parent / 'data'
 CENTS_PER_BIN = 20  # cents
 MAX_FMAX = 2006.  # hz
 PITCH_BINS = 360

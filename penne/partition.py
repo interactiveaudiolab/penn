@@ -3,6 +3,10 @@
 
 import argparse
 import json
+import random
+import math
+import os
+from pathlib import Path
 
 import penne
 
@@ -26,8 +30,10 @@ def dataset(name):
     """
     # Get a list of filenames without extension to be partitioned
     # TODO - replace with your datasets
-    if name == 'DATASET':
-        stems = DATASET_stems()
+    if name == 'MDB':
+        stems = MDB_stems()
+    elif name == 'PTDB':
+        stems = PTDB_stems()
     else:
         raise ValueError(f'Dataset {name} is not implemented')
 
@@ -64,7 +70,21 @@ def from_stems(stems):
             value is the list of stems belonging to that partition.
     """
     # TODO - partition the stems
-    raise NotImplementedError
+    percents = {"train": .70, "valid": .15, "test": .15}
+    partitions = {}
+    
+    random.seed(0)
+    random.shuffle(stems)
+    num_stems = len(stems)
+
+    num_valid = math.floor(percents["valid"] * num_stems)
+    num_test = math.floor(percents["test"] * num_stems)
+
+    partitions["valid"] = stems[0:num_valid]
+    partitions["test"] = stems[num_valid:num_valid + num_test]
+    partitions["train"] = stems[num_valid + num_test:]
+
+    return partitions
 
 
 ###############################################################################
@@ -72,15 +92,31 @@ def from_stems(stems):
 ###############################################################################
 
 
-def DATASET_stems():
-    """Get a list of filenames without extension to be partitioned
+# def DATASET_stems():
+#     """Get a list of filenames without extension to be partitioned
 
-    Returns
-        stems - list(string)
-            The list of file stems to partition
-    """
-    # TODO - return a list of stems for this dataset
-    raise NotImplementedError
+#     Returns
+#         stems - list(string)
+#             The list of file stems to partition
+#     """
+#     # TODO - return a list of stems for this dataset
+#     raise NotImplementedError
+
+def MDB_stems():
+    audio_dir = os.path.join(penne.DATA_DIR, "MDB", "audio_stems")
+    stems = []
+    for name in os.listdir(audio_dir):
+        if name[0] != '.':
+            stems.append(name[:name.index(".RESYN.wav")])
+    return stems
+
+def PTDB_stems():
+    stems = []
+    for root, dirs, files in os.walk(os.path.join(penne.DATA_DIR, "PTDB")):
+        if "LAR" in root:
+            curr_stems = [name[name.index("_")+1:name.index(".wav")] for name in files]
+            stems += curr_stems
+    return stems
 
 
 ###############################################################################
