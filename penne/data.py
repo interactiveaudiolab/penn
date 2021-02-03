@@ -42,10 +42,12 @@ class Dataset(torch.utils.data.Dataset):
         # resample
         hop_length = sample_rate // 100
         if sample_rate != penne.SAMPLE_RATE:
+            # torch audio resampling?
             audio = penne.resample(audio, sample_rate)
             hop_length = int(hop_length * penne.SAMPLE_RATE / sample_rate)
 
         truth = stem_to_truth(self.name, stem)
+        import pdb; pdb.set_trace()
         return (audio, truth)
 
     def __len__(self):
@@ -207,7 +209,7 @@ def PTDB_stem_to_file(directory, stem):
     return directory / gender / 'MIC' / sub_folder / ("mic_" + stem + ".wav")
 
 def stem_to_truth(name, stem):
-    """Resolve stem to a file in the dataset
+    """Resolve stem to a truth numpy array in the dataset
 
     Arguments
         name - string
@@ -230,18 +232,19 @@ def stem_to_truth(name, stem):
 
 def MDB_stem_to_truth(directory, stem):
     truth_path = directory / 'annotation_stems' / (stem + ".RESYN.csv")
-    arr = np.loadtxt(open(truth_path), delimiter=',')[:,1]
+    annotation = np.loadtxt(open(truth_path), delimiter=',')
+    xp, fp = annotation[:,0], annotation[:,1]
+    # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
     hopsize = 128 / 44100
-    curr = 0.01
-    mask = []
-    for i in range(0, len(arr)):
-        if i * hopsize >= curr:
-            curr += 0.01
-            mask.append(i)
-    return torch.tensor(np.copy(arr[mask]))[None]
+    interpx = np.arange(0, hopsize*len(xp), 0.01)
+    new_annotation = np.interp(interpx, xp, fp)
+    return torch.tensor(np.copy(new_annotation))[None]
 
 
 def PTDB_stem_to_truth(directory, stem):
+    # This file contains a four column matrix which includes the pitch, a voicing decision, the 
+    # root mean square values and the peak-normalized autocorrelation values respectively
+    # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     sub_folder = stem[:3]
     gender = 'FEMALE' if sub_folder[0] == "F" else 'MALE'
     truth_path = directory / gender / 'REF' / sub_folder / ("ref_" + stem + ".f0")
