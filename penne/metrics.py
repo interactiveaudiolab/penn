@@ -10,17 +10,17 @@ import torch
 
 class Metric(abc.ABC):
 
-    @abstractmethod
+    @abc.abstractmethod
     def __call__(self):
         """Retrieve the value for the metric"""
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def update(self):
         """Update the metric with one batch"""
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def reset(self):
         """Reset the metric"""
         pass

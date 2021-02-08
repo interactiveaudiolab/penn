@@ -34,3 +34,17 @@ def model(device, capacity='full'):
 
     # Eval mode
     penne.infer.model.eval()
+
+def MDB_pitch(path):
+    annotation = np.loadtxt(open(path), delimiter=',')
+    xp, fp = annotation[:,0], annotation[:,1]
+    # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
+    hopsize = 128 / 44100
+    interpx = np.arange(0, hopsize*len(xp), 0.01)
+    new_annotation = np.interp(interpx, xp, fp)
+    return torch.tensor(np.copy(new_annotation))[None]
+
+def PTDB_pitch(path):
+    arr = np.loadtxt(open(path), delimiter=' ')[:,0]
+    # 32 ms window size, 10 ms hop size
+    return torch.tensor(np.copy(arr))[None]

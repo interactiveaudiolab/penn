@@ -178,7 +178,7 @@ def partitions(name):
     return getattr(partitions, name)
 
 
-def stem_to_file(name, stem):
+def stem_to_file(name, stem, filetype='audio'):
     """Resolve stem to a file in the dataset
 
     Arguments
@@ -196,19 +196,23 @@ def stem_to_file(name, stem):
     if name == 'MDB':
         return MDB_stem_to_file(directory, stem)
     elif name == 'PTDB':
-        return PTDB_stem_to_file(directory, stem)
+        return PTDB_stem_to_file(directory, stem, filetype)
 
     raise ValueError(f'Dataset {name} is not implemented')
 
 def MDB_stem_to_file(directory, stem):
     return directory / 'audio_stems' / (stem + ".RESYN.wav")
 
-def PTDB_stem_to_file(directory, stem):
+def PTDB_stem_to_file(directory, stem, filetype='audio'):
     sub_folder = stem[:3]
     gender = 'FEMALE' if sub_folder[0] == "F" else 'MALE'
-    return directory / gender / 'MIC' / sub_folder / ("mic_" + stem + ".wav")
+    if filetype == 'audio':
+        return directory / gender / 'MIC' / sub_folder / ("mic_" + stem + ".wav")
+    if filetype == 'laryn':
+        return directory / gender / 'LAR' / sub_folder / ("lar_" + stem + ".wav")
+    raise ValueError("Filetype doesn't exist")
 
-def stem_to_truth(name, stem):
+def stem_to_annotation(name, stem):
     """Resolve stem to a truth numpy array in the dataset
 
     Arguments
@@ -218,36 +222,36 @@ def stem_to_truth(name, stem):
             The stem representing one item in the dataset
 
     Returns
-        truth - numpy array
-            The ground truth frequencies in a numpy array
+        file - Path
+            The corresponding file
     """
     directory = penne.DATA_DIR / name
 
     if name == 'MDB':
-        return MDB_stem_to_truth(directory, stem)
+        return MDB_stem_to_annotation(directory, stem)
     elif name == 'PTDB':
-        return PTDB_stem_to_truth(directory, stem)
+        return PTDB_stem_to_annotation(directory, stem)
 
     raise ValueError(f'Dataset {name} is not implemented')
 
-def MDB_stem_to_truth(directory, stem):
-    truth_path = directory / 'annotation_stems' / (stem + ".RESYN.csv")
-    annotation = np.loadtxt(open(truth_path), delimiter=',')
-    xp, fp = annotation[:,0], annotation[:,1]
-    # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
-    hopsize = 128 / 44100
-    interpx = np.arange(0, hopsize*len(xp), 0.01)
-    new_annotation = np.interp(interpx, xp, fp)
-    return torch.tensor(np.copy(new_annotation))[None]
+def MDB_stem_to_annotation(directory, stem):
+    return directory / 'annotation_stems' / (stem + ".RESYN.csv")
+    # annotation = np.loadtxt(open(truth_path), delimiter=',')
+    # xp, fp = annotation[:,0], annotation[:,1]
+    # # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
+    # hopsize = 128 / 44100
+    # interpx = np.arange(0, hopsize*len(xp), 0.01)
+    # new_annotation = np.interp(interpx, xp, fp)
+    # return torch.tensor(np.copy(new_annotation))[None]
 
 
-def PTDB_stem_to_truth(directory, stem):
+def PTDB_stem_to_annotation(directory, stem):
     # This file contains a four column matrix which includes the pitch, a voicing decision, the 
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     sub_folder = stem[:3]
     gender = 'FEMALE' if sub_folder[0] == "F" else 'MALE'
-    truth_path = directory / gender / 'REF' / sub_folder / ("ref_" + stem + ".f0")
-    arr = np.loadtxt(open(truth_path), delimiter=' ')[:,0]
-    # 32 ms window size, 10 ms hop size
-    return torch.tensor(np.copy(arr))[None]
+    return directory / gender / 'REF' / sub_folder / ("ref_" + stem + ".f0")
+    # arr = np.loadtxt(open(truth_path), delimiter=' ')[:,0]
+    # # 32 ms window size, 10 ms hop size
+    # return torch.tensor(np.copy(arr))[None]
