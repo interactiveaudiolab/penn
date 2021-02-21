@@ -10,6 +10,7 @@ import numpy as np
 import random
 
 import penne
+from scipy.io import wavfile
 
 
 ###############################################################################
@@ -27,27 +28,49 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, name, partition):
+    def __init__(self, name, partition, random_slice=False):
         # Get list of stems
         self.stems = partitions(name)[partition]
         self.name = name
+        self.random_slice = random_slice
 
     def __getitem__(self, index):
         """Retrieve the indexth item"""
         stem = self.stems[index]
 
         filepath = stem_to_file(self.name, stem)
-        audio, sample_rate = penne.load.audio(filepath)
+        sample_rate, audio = wavfile.read(filepath)
+
+        if audio.dtype == np.int16:
+            audio = audio.astype(np.float32) / np.iinfo(np.int16).max
+
+        if self.random_slice:
+            length = sample_rate
+            if self.name == 'PTDB':
+                length += int(penne.WINDOW_SIZE * sample_rate / penne.SAMPLE_RATE)
+            start = random.randint(0, len(audio) - length)
+            audio = audio[start:start+length]
 
         # resample
         hop_length = sample_rate // 100
         if sample_rate != penne.SAMPLE_RATE:
             # torch audio resampling?
-            audio = penne.resample(audio, sample_rate)
+            audio = penne.resample(torch.tensor(np.copy(audio))[None], sample_rate)
             hop_length = int(hop_length * penne.SAMPLE_RATE / sample_rate)
 
-        truth = stem_to_truth(self.name, stem)
-        import pdb; pdb.set_trace()
+        if self.name == 'MDB':
+            audio = torch.nn.functional.pad(audio, (penne.WINDOW_SIZE//2, penne.WINDOW_SIZE//2))
+
+        annotation_path = stem_to_annotation(self.name, stem)
+
+        truth = penne.load.pitch_annotation(self.name, annotation_path)
+        if self.random_slice:
+            resampled_start = int(start/sample_rate * penne.SAMPLE_RATE)
+            if self.name == 'MDB':
+                start = penne.convert.samples_to_frames(resampled_start)
+            elif self.name == 'PTDB':
+                start = penne.convert.samples_to_frames(resampled_start - penne.WINDOW_SIZE)
+            truth = truth[:,start:start+int(penne.SAMPLE_RATE/penne.HOP_SIZE)+1]
         return (audio, truth)
 
     def __len__(self):
@@ -99,7 +122,7 @@ class DataModule(pl.LightningDataModule):
 def loader(dataset, partition, batch_size=64, num_workers=None):
     """Retrieve a data loader"""
     return torch.utils.data.DataLoader(
-        dataset=Dataset(dataset, partition),
+        dataset=Dataset(dataset, partition, partition != 'test'),
         batch_size=batch_size,
         shuffle='train' in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
@@ -129,7 +152,7 @@ def collate_fn(batch):
     #        https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
     #        for more information on the collate function (note that
     #        automatic batching is enabled).
-    num_frames = 100
+    num_frames = penne.convert.seconds_to_frames(1)
     hop_size = penne.SAMPLE_RATE // 100
     features, targets = zip(*batch)
     col_features = []
@@ -142,16 +165,16 @@ def collate_fn(batch):
                 kernel_size=(1, penne.WINDOW_SIZE),
                 stride=(1, hop_size))
         curr_frames = min(frames.shape[2], target.shape[1])
-        if curr_frames >= num_frames:
+        if curr_frames > num_frames:
             start = random.randint(0, curr_frames - num_frames)
             frames = frames[:,:,start:start+num_frames]
             target = target[:,start:start+num_frames]
         else:
-            # pad zeros
+            # no files are shorter than 1 second (100 frames), so we don't need to pad
             pass
         col_features.append(frames)
         col_targets.append(target)
-        
+    
     return (torch.cat(col_features), torch.cat(col_targets))
 
 

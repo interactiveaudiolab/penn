@@ -35,6 +35,14 @@ def model(device, capacity='full'):
     # Eval mode
     penne.infer.model.eval()
 
+def pitch_annotation(name, path):
+    if name == 'MDB':
+        return MDB_pitch(path)
+    elif name == 'PTDB':
+        return PTDB_pitch(path)
+    else:
+        ValueError(f'Dataset {name} is not implemented')
+
 def MDB_pitch(path):
     annotation = np.loadtxt(open(path), delimiter=',')
     xp, fp = annotation[:,0], annotation[:,1]

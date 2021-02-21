@@ -55,6 +55,22 @@ class F1:
         self.false_positives += (~source_voiced & target_voiced).sum().item()
         self.false_negatives += (source_voiced & ~target_voiced).sum().item()
 
+    def compute_f1(self, source, target):
+        source_voiced = ~torch.isnan(source)
+        target_voiced = ~torch.isnan(target)
+        overlap = source_voiced & target_voiced
+        true_positives = overlap.sum().item()
+        false_positives = (~source_voiced & target_voiced).sum().item()
+        false_negatives = (source_voiced & ~target_voiced).sum().item()
+
+        precision = \
+            true_positives / (true_positives + false_positives)
+        recall = \
+            true_positives / (true_positives + false_negatives)
+        f1 = 2 * precision * recall / (precision + recall)
+        return f1
+
+
     def reset(self):
         """Reset the F1 score"""
         self.true_positives = 0

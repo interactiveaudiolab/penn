@@ -15,6 +15,7 @@ __all__ = ['ASSETS_DIR',
            'MAX_FMAX',
            'PITCH_BINS',
            'SAMPLE_RATE',
+           'HOP_SIZE',
            'WINDOW_SIZE',
            'UNVOICED',
            'embed',
@@ -42,6 +43,7 @@ CENTS_PER_BIN = 20  # cents
 MAX_FMAX = 2006.  # hz
 PITCH_BINS = 360
 SAMPLE_RATE = 16000  # hz
+HOP_SIZE = 160
 WINDOW_SIZE = 1024  # samples
 UNVOICED = np.nan
 

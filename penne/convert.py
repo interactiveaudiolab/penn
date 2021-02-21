@@ -42,6 +42,15 @@ def frequency_to_cents(frequency):
     """Convert frequency in Hz to cents"""
     return 1200 * torch.log2(frequency / 10.)
 
+def seconds_to_frames(seconds):
+    return samples_to_frames(seconds_to_samples(seconds))
+
+def seconds_to_samples(seconds):
+    return seconds * penne.SAMPLE_RATE
+
+def samples_to_frames(samples):
+    return 1 + int(samples / penne.HOP_SIZE)
+
 
 ###############################################################################
 # Utilities

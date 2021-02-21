@@ -44,15 +44,13 @@ def parse_args():
         type=int,
         default=64,
         help='The size of a batch')
-    # TODO - If you have one dataset, change default to the name of that
-    #        dataset. Otherwise, delete the default.
     parser.add_argument(
         '--dataset',
-        default='DATASET',
         help='The name of the dataset')
     parser.add_argument(
         '--num_workers',
         type=int,
+        default=6,
         help='Number data loading jobs to launch. If None, uses number of ' +
              'cpu cores.')
 
