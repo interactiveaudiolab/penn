@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 
 import penne
+import argparse
 
 
 ###############################################################################
@@ -22,19 +23,25 @@ class Model(pl.LightningModule):
     def __init__(self, model='full', learning_rate=1e-3, epsilon=0.0010000000474974513, momentum=0.0):
         super().__init__()
 
+        self.best_loss = float('inf')
+
         # Save hyperparameters with checkpoints
         self.save_hyperparameters()
 
-        if model == 'full':
-            in_channels = [1, 1024, 128, 128, 128, 256]
-            out_channels = [1024, 128, 128, 128, 256, 512]
-            self.in_features = 2048
-        elif model == 'tiny':
-            in_channels = [1, 128, 16, 16, 16, 32]
-            out_channels = [128, 16, 16, 16, 32, 64]
-            self.in_features = 256
-        else:
-            raise ValueError(f'Model {model} is not supported')
+        # if model == 'full':
+        #     in_channels = [1, 1024, 128, 128, 128, 256]
+        #     out_channels = [1024, 128, 128, 128, 256, 512]
+        #     self.in_features = 2048
+        # elif model == 'tiny':
+        #     in_channels = [1, 128, 16, 16, 16, 32]
+        #     out_channels = [128, 16, 16, 16, 32, 64]
+        #     self.in_features = 256
+        # else:
+        #     raise ValueError(f'Model {model} is not supported')
+
+        in_channels = [1, 1024, 128, 128, 128, 256]
+        out_channels = [1024, 128, 128, 128, 256, 512]
+        self.in_features = 2048
 
         # Shared layer parameters
         kernel_sizes = [(512, 1)] + 5 * [(64, 1)]
@@ -140,9 +147,8 @@ class Model(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        # y_hat = y_hat.permute(0, 2, 1).reshape(-1, penne.PITCH_BINS)
-        # y = y.reshape(-1)
-        return F.cross_entropy(y_hat, y)
+        y = y.reshape(-1)
+        return F.cross_entropy(y_hat, y.long())
 
     def my_acc(self, y_hat, y):
         return y_hat.eq(y).sum().item()/y.numel()
@@ -170,11 +176,31 @@ class Model(pl.LightningModule):
         # OPTIONAL - only implement if you have meaningful objective metrics
         raise NotImplementedError
 
+    def training_epoch_end(self, outputs):
+        loss_sum = 0
+        for x in outputs:
+            loss_sum += x['loss']
+        loss_mean = loss_sum / len(outputs)
+
+        self.logger.experiment.add_scalar("Loss/Train", loss_mean, self.current_epoch)
+
+    def validation_epoch_end(self, outputs):
+        loss_sum = 0
+        for x in outputs:
+            loss_sum += x['loss']
+        loss_mean = loss_sum / len(outputs)
+
+        self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
+
+        if loss_mean < self.best_loss and self.current_epoch > 5:
+            self.best_loss = loss_mean
+            self.trainer.save_checkpoint(os.path.join('checkpoints', 'training_tests', str(self.current_epoch)+'.ckpt'))
+
     ###########################################################################
     # PyTorch Lightning - optimizer
     ###########################################################################
 
-    def configure_optimizer(self):
+    def configure_optimizers(self):
         """Configure optimizer for training"""
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
 
@@ -185,6 +211,8 @@ class Model(pl.LightningModule):
     def embed(self, x):
         """Map input audio to pitch embedding"""
         # shape=(batch, 1, 1024, 1)
+        batch_size, window_size, nframes = x.shape
+        x = x.permute(0, 2, 1).reshape((batch_size*nframes, window_size))
         x = x[:, None, :, None]
 
         # Forward pass through first five layers

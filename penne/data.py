@@ -39,7 +39,7 @@ class Dataset(torch.utils.data.Dataset):
         stem = self.stems[index]
 
         filepath = stem_to_file(self.name, stem)
-        sample_rate, audio = wavfile.read(filepath)
+        sample_rate, audio = wavfile.read(filepath, mmap=True)
 
         if audio.dtype == np.int16:
             audio = audio.astype(np.float32) / np.iinfo(np.int16).max
@@ -71,6 +71,7 @@ class Dataset(torch.utils.data.Dataset):
             elif self.name == 'PTDB':
                 start = penne.convert.samples_to_frames(resampled_start - penne.WINDOW_SIZE)
             truth = truth[:,start:start+int(penne.SAMPLE_RATE/penne.HOP_SIZE)+1]
+        
         return (audio, truth)
 
     def __len__(self):
@@ -160,6 +161,8 @@ def collate_fn(batch):
     for i in range(len(targets)):
         audio = features[i]
         target = targets[i]
+        if target.shape[1] != 101:
+            print(target)
         frames = torch.nn.functional.unfold(
                 audio[:, None, None, :],
                 kernel_size=(1, penne.WINDOW_SIZE),
@@ -174,7 +177,6 @@ def collate_fn(batch):
             pass
         col_features.append(frames)
         col_targets.append(target)
-    
     return (torch.cat(col_features), torch.cat(col_targets))
 
 

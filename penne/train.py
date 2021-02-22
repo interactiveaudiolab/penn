@@ -23,7 +23,7 @@ def main():
     logger = pl.loggers.TensorBoardLogger('logs', name=Path().parent.name)
 
     # Setup data
-    datamodule = penne.DataModule(args.dataset,
+    datamodule = penne.data.DataModule(args.dataset,
                                   args.batch_size,
                                   args.num_workers)
 

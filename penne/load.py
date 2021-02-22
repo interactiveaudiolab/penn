@@ -50,9 +50,13 @@ def MDB_pitch(path):
     hopsize = 128 / 44100
     interpx = np.arange(0, hopsize*len(xp), 0.01)
     new_annotation = np.interp(interpx, xp, fp)
-    return torch.tensor(np.copy(new_annotation))[None]
+    bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(new_annotation))[None])
+    bin_annotation[bin_annotation < 0] = 0
+    return bin_annotation
 
 def PTDB_pitch(path):
     arr = np.loadtxt(open(path), delimiter=' ')[:,0]
     # 32 ms window size, 10 ms hop size
-    return torch.tensor(np.copy(arr))[None]
+    bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(arr))[None])
+    bin_annotation[bin_annotation < 0] = 0
+    return bin_annotation
