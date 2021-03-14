@@ -44,15 +44,33 @@ class Dataset(torch.utils.data.Dataset):
         if audio.dtype == np.int16:
             audio = audio.astype(np.float32) / np.iinfo(np.int16).max
 
+        hop_length = sample_rate // 100
+
+        # TEMPORARY
+        # REMOVE THIS
+        # FOR OVERFIT BATCHES
+        # random.seed(0)
+
         if self.random_slice:
-            length = sample_rate
-            if self.name == 'PTDB':
-                length += int(penne.WINDOW_SIZE * sample_rate / penne.SAMPLE_RATE)
-            start = random.randint(0, len(audio) - length)
-            audio = audio[start:start+length]
+            resampled_nsamples = int(len(audio) * penne.SAMPLE_RATE / sample_rate)
+            if self.name == 'MDB':
+                nframes = penne.convert.samples_to_frames(resampled_nsamples)
+                start_index = random.randint(0, nframes-penne.convert.seconds_to_frames(1)-1)
+                start = hop_length * start_index
+                length = sample_rate
+                audio = audio[start:start+length]
+            elif self.name == 'PTDB':
+                resampled_window_size = int(penne.WINDOW_SIZE * sample_rate / penne.SAMPLE_RATE)
+                nframes = penne.convert.samples_to_frames(resampled_nsamples-penne.WINDOW_SIZE)
+                start_index = random.randint(0, nframes-penne.convert.seconds_to_frames(1)-penne.convert.samples_to_frames(penne.WINDOW_SIZE)-1)
+                start = resampled_window_size // 2 + hop_length * start_index
+                length = sample_rate + resampled_window_size
+                audio = audio[start:start+length]
+            else:
+                raise ValueError(f'Dataset {name} is not implemented')
+            
 
         # resample
-        hop_length = sample_rate // 100
         if sample_rate != penne.SAMPLE_RATE:
             # torch audio resampling?
             audio = penne.resample(torch.tensor(np.copy(audio))[None], sample_rate)
@@ -69,8 +87,8 @@ class Dataset(torch.utils.data.Dataset):
             if self.name == 'MDB':
                 start = penne.convert.samples_to_frames(resampled_start)
             elif self.name == 'PTDB':
-                start = penne.convert.samples_to_frames(resampled_start - penne.WINDOW_SIZE)
-            truth = truth[:,start:start+int(penne.SAMPLE_RATE/penne.HOP_SIZE)+1]
+                start = penne.convert.samples_to_frames(resampled_start-penne.WINDOW_SIZE // 2)
+            truth = truth[:,start:start+int(penne.SAMPLE_RATE/penne.HOP_SIZE)+1].long()
         
         return (audio, truth)
 
@@ -154,19 +172,17 @@ def collate_fn(batch):
     #        for more information on the collate function (note that
     #        automatic batching is enabled).
     num_frames = penne.convert.seconds_to_frames(1)
-    hop_size = penne.SAMPLE_RATE // 100
     features, targets = zip(*batch)
     col_features = []
     col_targets = []
     for i in range(len(targets)):
         audio = features[i]
         target = targets[i]
-        if target.shape[1] != 101:
-            print(target)
         frames = torch.nn.functional.unfold(
                 audio[:, None, None, :],
                 kernel_size=(1, penne.WINDOW_SIZE),
-                stride=(1, hop_size))
+                stride=(1, penne.HOP_SIZE))
+        
         curr_frames = min(frames.shape[2], target.shape[1])
         if curr_frames > num_frames:
             start = random.randint(0, curr_frames - num_frames)
@@ -177,7 +193,13 @@ def collate_fn(batch):
             pass
         col_features.append(frames)
         col_targets.append(target)
-    return (torch.cat(col_features), torch.cat(col_targets))
+    
+    col_features = torch.cat(col_features)
+    col_targets = torch.cat(col_targets)
+    col_features = col_features.permute(0, 2, 1).reshape((len(batch)*num_frames, penne.WINDOW_SIZE))
+    col_targets = col_targets.reshape((len(batch)*num_frames,))
+    col_targets[col_targets==0] = torch.randint(0, penne.PITCH_BINS, col_targets[col_targets==0].shape)
+    return (col_features, col_targets)
 
 
 ###############################################################################
@@ -280,3 +302,29 @@ def PTDB_stem_to_annotation(directory, stem):
     # arr = np.loadtxt(open(truth_path), delimiter=' ')[:,0]
     # # 32 ms window size, 10 ms hop size
     # return torch.tensor(np.copy(arr))[None]
+
+def file_to_stem(name, path):
+    """Resolve stem to a truth numpy array in the dataset
+
+    Arguments
+        name - string
+            The name of the dataset
+        path - Path
+            The path to the file
+
+    Returns
+        stem - Path
+            The stem of the file
+    """
+    if name == 'MDB':
+        return MDB_file_to_stem(path)
+    elif name == 'PTDB':
+        return PTDB_file_to_stem(path)
+
+    raise ValueError(f'Dataset {name} is not implemented')
+
+def MDB_file_to_stem(path):
+    return path.stem.split('.')[0]
+
+def PTDB_file_to_stem(path):
+    return path.stem[path.stem.index('_')+1:]

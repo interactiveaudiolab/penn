@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import penne
 from scipy.io import wavfile
+import librosa
 
 
 def audio(filename):
@@ -18,20 +19,26 @@ def audio(filename):
     return torch.tensor(np.copy(audio))[None], sample_rate
 
 
-def model(device, capacity='full'):
+def model(device, checkpoint=penne.FULL_CHECKPOINT):
     """Preloads model from disk"""
     # Bind model and capacity
-    penne.infer.capacity = capacity
-    penne.infer.model = penne.Model(capacity)
+    penne.infer.checkpoint = checkpoint
 
-    # Load weights
-    file = os.path.join(os.path.dirname(__file__), 'assets', f'{capacity}.pth')
-    penne.infer.model.load_state_dict(
-        torch.load(file, map_location=device))
+    if checkpoint.suffix == '.pth':
+        penne.infer.model = penne.Model()
 
+        # Load weights
+        penne.infer.model.load_state_dict(
+            torch.load(checkpoint, map_location=device))
+
+    elif checkpoint.suffix =='.ckpt':
+        penne.infer.model = penne.Model.load_from_checkpoint(checkpoint)
+    else:
+        raise ValueError(f'Invalid checkpoint extension for {checkpoint}')
+    
     # Place on device
     penne.infer.model = penne.infer.model.to(torch.device(device))
-
+    
     # Eval mode
     penne.infer.model.eval()
 
@@ -48,7 +55,8 @@ def MDB_pitch(path):
     xp, fp = annotation[:,0], annotation[:,1]
     # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
     hopsize = 128 / 44100
-    interpx = np.arange(0, hopsize*len(xp), 0.01)
+    duration = librosa.get_duration(filename=penne.data.stem_to_file('MDB', penne.data.file_to_stem('MDB', path)))
+    interpx = 0.01 * np.arange(0, penne.convert.seconds_to_frames(duration))
     new_annotation = np.interp(interpx, xp, fp)
     bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(new_annotation))[None])
     bin_annotation[bin_annotation < 0] = 0

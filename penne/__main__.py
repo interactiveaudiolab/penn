@@ -2,6 +2,7 @@ import argparse
 import os
 
 import penne
+from pathlib import Path
 
 
 ###############################################################################
@@ -53,9 +54,10 @@ def parse_args():
         type=float,
         help='The maximum frequency allowed')
     parser.add_argument(
-        '--model',
-        default='full',
-        help='The model capacity. One of "tiny" or "full"')
+        '--checkpoint',
+        default=penne.FULL_CHECKPOINT,
+        type=Path,
+        help='The model checkpoint file')
     parser.add_argument(
         '--decoder',
         default='viterbi',

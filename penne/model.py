@@ -6,6 +6,10 @@ import pytorch_lightning as pl
 
 import penne
 import argparse
+import os
+import matplotlib.pyplot as plt
+
+# import pathlib
 
 
 ###############################################################################
@@ -20,24 +24,22 @@ class Model(pl.LightningModule):
     """PyTorch Lightning model definition"""
 
     # TODO - add hyperparameters as input args
-    def __init__(self, model='full', learning_rate=1e-3, epsilon=0.0010000000474974513, momentum=0.0):
+    def __init__(self, name='default'):
         super().__init__()
+
+        self.epsilon = 0.0010000000474974513
+        self.learning_rate = 1e-3
+        self.momentum = 0.0
+        self.name = name
+
+        self.ex_batch = None
 
         self.best_loss = float('inf')
 
-        # Save hyperparameters with checkpoints
-        self.save_hyperparameters()
+        # import pdb; pdb.set_trace()
 
-        # if model == 'full':
-        #     in_channels = [1, 1024, 128, 128, 128, 256]
-        #     out_channels = [1024, 128, 128, 128, 256, 512]
-        #     self.in_features = 2048
-        # elif model == 'tiny':
-        #     in_channels = [1, 128, 16, 16, 16, 32]
-        #     out_channels = [128, 16, 16, 16, 32, 64]
-        #     self.in_features = 256
-        # else:
-        #     raise ValueError(f'Model {model} is not supported')
+        # Save hyperparameters with checkpoints
+        # self.save_hyperparameters()
 
         in_channels = [1, 1024, 128, 128, 128, 256]
         out_channels = [1024, 128, 128, 128, 256, 512]
@@ -49,8 +51,8 @@ class Model(pl.LightningModule):
 
         # Overload with eps and momentum conversion given by MMdnn
         batch_norm_fn = functools.partial(torch.nn.BatchNorm2d,
-                                          eps=self.hparams.epsilon,
-                                          momentum=self.hparams.momentum)
+                                          eps=self.epsilon,
+                                          momentum=self.momentum)
 
         # Layer definitions
         self.conv1 = torch.nn.Conv2d(
@@ -124,7 +126,8 @@ class Model(pl.LightningModule):
         x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
 
         # Compute logits
-        return torch.sigmoid(self.classifier(x))
+        return self.classifier(x)
+        # return torch.sigmoid(self.classifier(x))
 
     ###########################################################################
     # PyTorch Lightning - model-specific argparse argument hook
@@ -137,9 +140,6 @@ class Model(pl.LightningModule):
             parents=[parent_parser], add_help=False)
         # TODO - add hyperparameters as command-line args using
         #        parser.add_argument()
-        parser.add_argument('--learning_rate', type=float, default=1e-3)
-        parser.add_argument('--epsilon', type=float, default=0.0010000000474974513)
-        parser.add_argument('--momentum', type=float, default=0.0)
         return parser
 
     ###########################################################################
@@ -147,8 +147,13 @@ class Model(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        y = y.reshape(-1)
-        return F.cross_entropy(y_hat, y.long())
+        # import pdb; pdb.set_trace()
+        if penne.LOSS_FUNCTION == 'BCE':
+            y = F.one_hot(y, penne.PITCH_BINS)
+            # import pdb; pdb.set_trace()
+            assert y_hat.shape == y.shape
+            return F.binary_cross_entropy_with_logits(y_hat, y.float())
+        return F.cross_entropy(y_hat, y)
 
     def my_acc(self, y_hat, y):
         return y_hat.eq(y).sum().item()/y.numel()
@@ -194,7 +199,26 @@ class Model(pl.LightningModule):
 
         if loss_mean < self.best_loss and self.current_epoch > 5:
             self.best_loss = loss_mean
-            self.trainer.save_checkpoint(os.path.join('checkpoints', 'training_tests', str(self.current_epoch)+'.ckpt'))
+            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
+            self.trainer.save_checkpoint(checkpoint_path)
+
+        if self.current_epoch % 20 == 0:
+            if self.ex_batch is None:
+                ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")  
+                self.ex_batch = next(penne.preprocess(ex_audio, ex_sr, penne.HOP_SIZE, device='cuda'))[:1500,:]
+                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
+                # self.ex_batch = next(penne.preprocess(ex_audio, ex_sr, penne.HOP_SIZE, device='cuda'))[1000:,:]
+
+            probabilities = penne.infer(self.ex_batch, model=self).cpu()
+            probabilities = torch.nn.Softmax(dim=1)(probabilities)
+            self.write_posterior_distribution(probabilities)
+
+    def write_posterior_distribution(self, probabilities):
+        checkpoint_label = str(self.current_epoch)+'.ckpt'
+        fig = plt.figure(figsize=(12, 3))
+        plt.imshow(probabilities.detach().numpy().T, origin='lower')
+        plt.title(checkpoint_label)
+        self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.current_epoch)
 
     ###########################################################################
     # PyTorch Lightning - optimizer
@@ -202,7 +226,7 @@ class Model(pl.LightningModule):
 
     def configure_optimizers(self):
         """Configure optimizer for training"""
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     ###########################################################################
     # Forward pass utilities
@@ -211,8 +235,6 @@ class Model(pl.LightningModule):
     def embed(self, x):
         """Map input audio to pitch embedding"""
         # shape=(batch, 1, 1024, 1)
-        batch_size, window_size, nframes = x.shape
-        x = x.permute(0, 2, 1).reshape((batch_size*nframes, window_size))
         x = x[:, None, :, None]
 
         # Forward pass through first five layers
@@ -231,126 +253,3 @@ class Model(pl.LightningModule):
         x = F.relu(x)
         x = batch_norm(x)
         return F.max_pool2d(x, (2, 1), (2, 1))
-
-
-# class Model(torch.nn.Module):
-#     """Crepe model definition"""
-
-#     def __init__(self, model='full'):
-#         super().__init__()
-
-#         # Model-specific layer parameters
-#         if model == 'full':
-#             in_channels = [1, 1024, 128, 128, 128, 256]
-#             out_channels = [1024, 128, 128, 128, 256, 512]
-#             self.in_features = 2048
-#         elif model == 'tiny':
-#             in_channels = [1, 128, 16, 16, 16, 32]
-#             out_channels = [128, 16, 16, 16, 32, 64]
-#             self.in_features = 256
-#         else:
-#             raise ValueError(f'Model {model} is not supported')
-
-#         # Shared layer parameters
-#         kernel_sizes = [(512, 1)] + 5 * [(64, 1)]
-#         strides = [(4, 1)] + 5 * [(1, 1)]
-
-#         # Overload with eps and momentum conversion given by MMdnn
-#         batch_norm_fn = functools.partial(torch.nn.BatchNorm2d,
-#                                           eps=0.0010000000474974513,
-#                                           momentum=0.0)
-
-#         # Layer definitions
-#         self.conv1 = torch.nn.Conv2d(
-#             in_channels=in_channels[0],
-#             out_channels=out_channels[0],
-#             kernel_size=kernel_sizes[0],
-#             stride=strides[0])
-#         self.conv1_BN = batch_norm_fn(
-#             num_features=out_channels[0])
-
-#         self.conv2 = torch.nn.Conv2d(
-#             in_channels=in_channels[1],
-#             out_channels=out_channels[1],
-#             kernel_size=kernel_sizes[1],
-#             stride=strides[1])
-#         self.conv2_BN = batch_norm_fn(
-#             num_features=out_channels[1])
-
-#         self.conv3 = torch.nn.Conv2d(
-#             in_channels=in_channels[2],
-#             out_channels=out_channels[2],
-#             kernel_size=kernel_sizes[2],
-#             stride=strides[2])
-#         self.conv3_BN = batch_norm_fn(
-#             num_features=out_channels[2])
-
-#         self.conv4 = torch.nn.Conv2d(
-#             in_channels=in_channels[3],
-#             out_channels=out_channels[3],
-#             kernel_size=kernel_sizes[3],
-#             stride=strides[3])
-#         self.conv4_BN = batch_norm_fn(
-#             num_features=out_channels[3])
-
-#         self.conv5 = torch.nn.Conv2d(
-#             in_channels=in_channels[4],
-#             out_channels=out_channels[4],
-#             kernel_size=kernel_sizes[4],
-#             stride=strides[4])
-#         self.conv5_BN = batch_norm_fn(
-#             num_features=out_channels[4])
-
-#         self.conv6 = torch.nn.Conv2d(
-#             in_channels=in_channels[5],
-#             out_channels=out_channels[5],
-#             kernel_size=kernel_sizes[5],
-#             stride=strides[5])
-#         self.conv6_BN = batch_norm_fn(
-#             num_features=out_channels[5])
-
-#         self.classifier = torch.nn.Linear(
-#             in_features=self.in_features,
-#             out_features=penne.PITCH_BINS)
-
-#     def forward(self, x, embed=False):
-#         # Forward pass through first five layers
-#         x = self.embed(x)
-
-#         if embed:
-#             return x
-
-#         # Forward pass through layer six
-#         x = self.layer(x, self.conv6, self.conv6_BN)
-
-#         # shape=(batch, self.in_features)
-#         x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
-
-#         # Compute logits
-#         return torch.sigmoid(self.classifier(x))
-
-#     ###########################################################################
-#     # Forward pass utilities
-#     ###########################################################################
-
-#     def embed(self, x):
-#         """Map input audio to pitch embedding"""
-#         # shape=(batch, 1, 1024, 1)
-#         x = x[:, None, :, None]
-
-#         # Forward pass through first five layers
-#         x = self.layer(x, self.conv1, self.conv1_BN, (0, 0, 254, 254))
-#         x = self.layer(x, self.conv2, self.conv2_BN)
-#         x = self.layer(x, self.conv3, self.conv3_BN)
-#         x = self.layer(x, self.conv4, self.conv4_BN)
-#         x = self.layer(x, self.conv5, self.conv5_BN)
-
-#         return x
-
-#     def layer(self, x, conv, batch_norm, padding=(0, 0, 31, 32)):
-#         """Forward pass through one layer"""
-#         x = F.pad(x, padding)
-#         x = conv(x)
-#         x = F.relu(x)
-#         x = batch_norm(x)
-#         return F.max_pool2d(x, (2, 1), (2, 1))

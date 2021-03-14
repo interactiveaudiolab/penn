@@ -11,6 +11,7 @@ import penne
 
 __all__ = ['ASSETS_DIR',
            'CENTS_PER_BIN',
+           'CHECKPOINT_DIR',
            'DATA_DIR',
            'MAX_FMAX',
            'PITCH_BINS',
@@ -18,6 +19,8 @@ __all__ = ['ASSETS_DIR',
            'HOP_SIZE',
            'WINDOW_SIZE',
            'UNVOICED',
+           'FULL_CHECKPOINT',
+           'LOSS_FUNCTION',
            'embed',
            'embed_from_file',
            'embed_from_file_to_file',
@@ -39,6 +42,7 @@ __all__ = ['ASSETS_DIR',
 
 ASSETS_DIR = Path(__file__).parent / 'assets'
 DATA_DIR = Path(__file__).parent.parent / 'data'
+CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
 CENTS_PER_BIN = 20  # cents
 MAX_FMAX = 2006.  # hz
 PITCH_BINS = 360
@@ -46,6 +50,8 @@ SAMPLE_RATE = 16000  # hz
 HOP_SIZE = 160
 WINDOW_SIZE = 1024  # samples
 UNVOICED = np.nan
+FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
+LOSS_FUNCTION = 'BCE' # BCE or CCE
 
 
 ###############################################################################
@@ -58,7 +64,8 @@ def predict(audio,
             hop_length=None,
             fmin=50.,
             fmax=MAX_FMAX,
-            model='full',
+            checkpoint=FULL_CHECKPOINT,
+            model=None,
             decoder=penne.decode.viterbi,
             return_periodicity=False,
             batch_size=None,
@@ -106,7 +113,7 @@ def predict(audio,
         for frames in generator:
 
             # Infer independent probabilities for each pitch bin
-            probabilities = infer(frames, model)
+            probabilities = infer(frames, checkpoint, model)
 
             # shape=(batch, 360, time / hop_length)
             probabilities = probabilities.reshape(
@@ -141,7 +148,8 @@ def predict_from_file(audio_file,
                       hop_length=None,
                       fmin=50.,
                       fmax=MAX_FMAX,
-                      model='full',
+                      checkpoint=FULL_CHECKPOINT,
+                      model=None,
                       decoder=penne.decode.viterbi,
                       return_periodicity=False,
                       batch_size=None,
@@ -182,6 +190,7 @@ def predict_from_file(audio_file,
                    hop_length,
                    fmin,
                    fmax,
+                   checkpoint,
                    model,
                    decoder,
                    return_periodicity,
@@ -195,7 +204,8 @@ def predict_from_file_to_file(audio_file,
                               hop_length=None,
                               fmin=50.,
                               fmax=MAX_FMAX,
-                              model='full',
+                              checkpoint=FULL_CHECKPOINT,
+                              model=None,
                               decoder=penne.decode.viterbi,
                               batch_size=None,
                               device='cpu'):
@@ -228,6 +238,7 @@ def predict_from_file_to_file(audio_file,
                                    hop_length,
                                    fmin,
                                    fmax,
+                                   checkpoint,
                                    model,
                                    decoder,
                                    output_periodicity_file is not None,
@@ -248,7 +259,7 @@ def predict_from_files_to_files(audio_files,
                                 hop_length=None,
                                 fmin=50.,
                                 fmax=MAX_FMAX,
-                                model='full',
+                                checkpoint=FULL_CHECKPOINT,
                                 decoder=penne.decode.viterbi,
                                 batch_size=None,
                                 device='cpu'):
@@ -291,7 +302,7 @@ def predict_from_files_to_files(audio_files,
                                   hop_length,
                                   fmin,
                                   fmax,
-                                  model,
+                                  checkpoint,
                                   decoder,
                                   batch_size,
                                   device)
@@ -304,7 +315,8 @@ def predict_from_files_to_files(audio_files,
 def embed(audio,
           sample_rate,
           hop_length=None,
-          model='full',
+          checkpoint=FULL_CHECKPOINT,
+          model=None,
           batch_size=None,
           device='cpu'):
     """Embeds audio to the output of CREPE's fifth maxpool layer
@@ -334,7 +346,7 @@ def embed(audio,
     for frames in generator:
 
         # Infer pitch embeddings
-        embedding = infer(frames, model, embed=True)
+        embedding = infer(frames, checkpoint, model, embed=True)
 
         # shape=(batch, time / hop_length, 32, embedding_size)
         result = embedding.reshape(audio.size(0), frames.size(0), 32, -1)
@@ -348,7 +360,8 @@ def embed(audio,
 
 def embed_from_file(audio_file,
                     hop_length=None,
-                    model='full',
+                    checkpoint=FULL_CHECKPOINT,
+                    model=None,
                     batch_size=None,
                     device='cpu'):
     """Embeds audio from disk to the output of CREPE's fifth maxpool layer
@@ -373,13 +386,14 @@ def embed_from_file(audio_file,
     audio, sample_rate = penne.load.audio(audio_file)
 
     # Embed
-    return embed(audio, sample_rate, hop_length, model, batch_size, device)
+    return embed(audio, sample_rate, hop_length, checkpoint, model, batch_size, device)
 
 
 def embed_from_file_to_file(audio_file,
                             output_file,
                             hop_length=None,
-                            model='full',
+                            checkpoint=FULL_CHECKPOINT,
+                            model=None,
                             batch_size=None,
                             device='cpu'):
     """Embeds audio from disk and saves to disk
@@ -404,6 +418,7 @@ def embed_from_file_to_file(audio_file,
         # Embed
         embedding = embed_from_file(audio_file,
                                     hop_length,
+                                    checkpoint,
                                     model,
                                     batch_size,
                                     device)
@@ -415,7 +430,8 @@ def embed_from_file_to_file(audio_file,
 def embed_from_files_to_files(audio_files,
                               output_files,
                               hop_length=None,
-                              model='full',
+                              checkpoint=FULL_CHECKPOINT,
+                              model=None,
                               batch_size=None,
                               device='cpu'):
     """Embeds audio from disk and saves to disk without reloading model
@@ -443,6 +459,7 @@ def embed_from_files_to_files(audio_files,
         embed_from_file_to_file(audio_file,
                                 output_file,
                                 hop_length,
+                                checkpoint,
                                 model,
                                 batch_size,
                                 device)
@@ -453,7 +470,7 @@ def embed_from_files_to_files(audio_files,
 ###############################################################################
 
 
-def infer(frames, model='full', embed=False):
+def infer(frames, checkpoint=FULL_CHECKPOINT, model=None, embed=False):
     """Forward pass through the model
 
     Arguments
@@ -469,16 +486,18 @@ def infer(frames, model='full', embed=False):
         embedding (torch.tensor [shape=(1 + int(time // hop_length),
                                        embedding_size)])
     """
-    # Load the model if necessary
-    if not hasattr(infer, 'model') or not hasattr(infer, 'capacity') or \
-       (hasattr(infer, 'capacity') and infer.capacity != model):
-        penne.load.model(frames.device, model)
+    if model is None:
+        # Load the model if necessary
+        if not hasattr(infer, 'model') or not hasattr(infer, 'checkpoint') or \
+        (hasattr(infer, 'checkpoint') and infer.checkpoint != checkpoint):
+            penne.load.model(frames.device, checkpoint)
 
-    # Move model to correct device (no-op if devices are the same)
-    infer.model = infer.model.to(frames.device)
+        # Move model to correct device (no-op if devices are the same)
+        infer.model = infer.model.to(frames.device)
 
-    # Apply model
-    return infer.model(frames, embed=embed)
+        # Apply model
+        return infer.model(frames, embed=embed)
+    return model(frames, embed=embed)
 
 
 def postprocess(probabilities,
@@ -603,8 +622,9 @@ def preprocess(audio,
 ###############################################################################
 
 
-def periodicity(probabilities, bins):
+def periodicity(logits, bins):
     """Computes the periodicity from the network output and pitch bins"""
+    probabilities = torch.sigmoid(logits)
     # shape=(batch * time / hop_length, 360)
     probs_stacked = probabilities.transpose(1, 2).reshape(-1, PITCH_BINS)
 

@@ -20,7 +20,7 @@ def main():
     args = parse_args()
 
     # Setup tensorboard
-    logger = pl.loggers.TensorBoardLogger('logs', name=Path().parent.name)
+    logger = pl.loggers.TensorBoardLogger('logs', name=args.name)
 
     # Setup data
     datamodule = penne.data.DataModule(args.dataset,
@@ -31,7 +31,7 @@ def main():
     trainer = pl.Trainer.from_argparse_args(args, logger=logger)
 
     # Train
-    trainer.fit(penne.Model(args), datamodule=datamodule)
+    trainer.fit(penne.Model(name=args.name), datamodule=datamodule)
 
 
 def parse_args():
@@ -53,6 +53,11 @@ def parse_args():
         default=6,
         help='Number data loading jobs to launch. If None, uses number of ' +
              'cpu cores.')
+    parser.add_argument(
+        '--name',
+        type=str,
+        default='training',
+        help='The name of the run for logging purposes.')
 
     # Add model arguments
     parser = penne.Model.add_model_specific_args(parser)
