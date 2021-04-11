@@ -38,7 +38,6 @@ class Dataset(torch.utils.data.Dataset):
         """Retrieve the indexth item"""
         stem = self.stems[index]
 
-        # filepath = stem_to_file(self.name, stem)
         filepath = stem_to_cache_file(self.name, stem)
         sample_rate, audio = wavfile.read(filepath, mmap=True)
 
@@ -72,10 +71,7 @@ class Dataset(torch.utils.data.Dataset):
         if self.name == 'MDB':
             audio = torch.nn.functional.pad(audio, (penne.WINDOW_SIZE//2, penne.WINDOW_SIZE//2))
 
-        # annotation_path = stem_to_annotation(self.name, stem)
         annotation_path = stem_to_cache_annotation(self.name, stem)
-
-        # truth = penne.load.pitch_annotation(self.name, annotation_path)
         truth = penne.load.annotation_from_cache(annotation_path)
         if self.random_slice:
             if self.name == 'MDB':
@@ -135,7 +131,7 @@ class DataModule(pl.LightningDataModule):
 def loader(dataset, partition, batch_size=64, num_workers=None):
     """Retrieve a data loader"""
     return torch.utils.data.DataLoader(
-        dataset=Dataset(dataset, partition, partition != 'test'),
+        dataset=Dataset(dataset, partition, partition != 'test' or penne.CHUNK_BATCH),
         batch_size=batch_size,
         shuffle='train' in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
@@ -178,9 +174,14 @@ def collate_fn(batch):
                 stride=(1, penne.HOP_SIZE))        
         curr_frames = min(frames.shape[2], target.shape[1])
         if curr_frames > num_frames:
-            start = random.randint(0, curr_frames - num_frames)
-            frames = frames[:,:,start:start+num_frames]
-            target = target[:,start:start+num_frames]
+            if penne.CHUNK_BATCH:
+                start = random.randint(0, curr_frames - num_frames)
+                frames = frames[:,:,start:start+num_frames]
+                target = target[:,start:start+num_frames]
+            else:
+                random_frames = random.sample(range(curr_frames), num_frames)
+                frames = frames[:,:,random_frames]
+                target = target[:,random_frames]
         else:
             # no files are shorter than 1 second (100 frames), so we don't need to pad
             pass

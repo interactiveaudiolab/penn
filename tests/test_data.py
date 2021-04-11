@@ -30,7 +30,7 @@ def test_getitem_slice():
 
 def test_MDB_loader():
     batch_size = 3
-    loader = data.loader('MDB', 'valid', batch_size = batch_size, num_workers = 1)
+    loader = data.loader('MDB', 'test', batch_size = batch_size, num_workers = 0)
     for i in tqdm.tqdm(range(50)):
         it = iter(loader)
         features, targets, unvoiced = next(it)
@@ -40,7 +40,7 @@ def test_MDB_loader():
 
 def test_PTDB_loader():
     batch_size = 3
-    loader = data.loader('PTDB', 'valid', batch_size = batch_size, num_workers = 1)
+    loader = data.loader('PTDB', 'test', batch_size = batch_size, num_workers = 0)
     for i in tqdm.tqdm(range(50)):
         it = iter(loader)
         features, targets, unvoiced = next(it)

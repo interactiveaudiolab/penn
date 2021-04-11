@@ -13,6 +13,7 @@ __all__ = ['ASSETS_DIR',
            'CENTS_PER_BIN',
            'CHECKPOINT_DIR',
            'CACHE_DIR',
+           'CHUNK_BATCH',
            'DATA_DIR',
            'MAX_FMAX',
            'PITCH_BINS',
@@ -58,6 +59,7 @@ FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
 LOSS_FUNCTION = 'BCE' # BCE or CCE
 WHITEN = False
 SMOOTH_TARGETS = False
+CHUNK_BATCH = False
 
 
 ###############################################################################
