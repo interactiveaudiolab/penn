@@ -12,6 +12,7 @@ import penne
 __all__ = ['ASSETS_DIR',
            'CENTS_PER_BIN',
            'CHECKPOINT_DIR',
+           'CACHE_DIR',
            'DATA_DIR',
            'MAX_FMAX',
            'PITCH_BINS',
@@ -21,6 +22,8 @@ __all__ = ['ASSETS_DIR',
            'UNVOICED',
            'FULL_CHECKPOINT',
            'LOSS_FUNCTION',
+           'SMOOTH_TARGETS',
+           'WHITEN',
            'embed',
            'embed_from_file',
            'embed_from_file_to_file',
@@ -42,6 +45,7 @@ __all__ = ['ASSETS_DIR',
 
 ASSETS_DIR = Path(__file__).parent / 'assets'
 DATA_DIR = Path(__file__).parent.parent / 'data'
+CACHE_DIR = Path(__file__).parent.parent / 'cache'
 CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
 CENTS_PER_BIN = 20  # cents
 MAX_FMAX = 2006.  # hz
@@ -52,6 +56,8 @@ WINDOW_SIZE = 1024  # samples
 UNVOICED = np.nan
 FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
 LOSS_FUNCTION = 'BCE' # BCE or CCE
+WHITEN = False
+SMOOTH_TARGETS = False
 
 
 ###############################################################################
@@ -624,7 +630,9 @@ def preprocess(audio,
 
 def periodicity(logits, bins):
     """Computes the periodicity from the network output and pitch bins"""
-    probabilities = torch.sigmoid(logits)
+    
+    # sig_probabilities = torch.sigmoid(logits)
+    probabilities = torch.nn.Softmax(dim=1)(logits)
     # shape=(batch * time / hop_length, 360)
     probs_stacked = probabilities.transpose(1, 2).reshape(-1, PITCH_BINS)
 

@@ -8,6 +8,7 @@ import penne
 import argparse
 import os
 import matplotlib.pyplot as plt
+import numpy as np
 
 # import pathlib
 
@@ -28,7 +29,7 @@ class Model(pl.LightningModule):
         super().__init__()
 
         self.epsilon = 0.0010000000474974513
-        self.learning_rate = 1e-3
+        self.learning_rate = 2e-4
         self.momentum = 0.0
         self.name = name
 
@@ -147,10 +148,14 @@ class Model(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        # import pdb; pdb.set_trace()
         if penne.LOSS_FUNCTION == 'BCE':
-            y = F.one_hot(y, penne.PITCH_BINS)
-            # import pdb; pdb.set_trace()
+            if penne.SMOOTH_TARGETS:
+                mean = penne.convert.bins_to_cents(y)
+                normal = torch.distributions.Normal(mean, 25)
+                bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS))
+                y = torch.exp(normal.log_prob(bins))
+            else:
+                y = F.one_hot(y, penne.PITCH_BINS)
             assert y_hat.shape == y.shape
             return F.binary_cross_entropy_with_logits(y_hat, y.float())
         return F.cross_entropy(y_hat, y)
@@ -161,7 +166,7 @@ class Model(pl.LightningModule):
     def training_step(self, batch, index):
         """Performs one step of training"""
         # TODO - implement training step
-        x, y = batch
+        x, y, uv = batch
         output = self(x)
         loss = self.my_loss(output, y)
         # y_hat = output.argmax(dim=1)
@@ -171,7 +176,7 @@ class Model(pl.LightningModule):
     def validation_step(self, batch, index):
         """Performs one step of validation"""
         # TODO - implement validation step
-        x, y = batch
+        x, y, uv = batch
         output = self(x)
         loss = self.my_loss(output, y)
         return {"loss": loss}
@@ -202,16 +207,32 @@ class Model(pl.LightningModule):
             checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
             self.trainer.save_checkpoint(checkpoint_path)
 
-        if self.current_epoch % 20 == 0:
+        if self.current_epoch % 1 == 0:
             if self.ex_batch is None:
-                ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")  
-                self.ex_batch = next(penne.preprocess(ex_audio, ex_sr, penne.HOP_SIZE, device='cuda'))[:1500,:]
-                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
-                # self.ex_batch = next(penne.preprocess(ex_audio, ex_sr, penne.HOP_SIZE, device='cuda'))[1000:,:]
+                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")  
+                # self.ex_batch = next(penne.preprocess(ex_audio, ex_sr, penne.HOP_SIZE, device='cuda'))[:1500,:]
+                
+                ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
+                ex_audio = penne.resample(ex_audio, ex_sr)
+                self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
 
-            probabilities = penne.infer(self.ex_batch, model=self).cpu()
-            probabilities = torch.nn.Softmax(dim=1)(probabilities)
-            self.write_posterior_distribution(probabilities)
+            logits = penne.infer(self.ex_batch, model=self).cpu()
+
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 10))
+            ax1.plot(logits[10].detach().numpy())
+            ax1.set_title('Frame 10')
+            ax2.plot(logits[80].detach().numpy())
+            ax2.set_title('Frame 80')
+            ax3.plot(logits[400].detach().numpy())
+            ax3.set_title('Frame 400')
+            ax4.plot(logits[650].detach().numpy())
+            ax4.set_title('Frame 650')
+
+            checkpoint_label = str(self.current_epoch)+'.ckpt'
+            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.current_epoch)
+
+            probabilities = torch.nn.Softmax(dim=1)(logits)
+            self.write_posterior_distribution(probabilities)        
 
     def write_posterior_distribution(self, probabilities):
         checkpoint_label = str(self.current_epoch)+'.ckpt'
@@ -252,4 +273,5 @@ class Model(pl.LightningModule):
         x = conv(x)
         x = F.relu(x)
         x = batch_norm(x)
-        return F.max_pool2d(x, (2, 1), (2, 1))
+        x = F.max_pool2d(x, (2, 1), (2, 1))
+        return F.dropout(x, p=0.25, training=self.training)

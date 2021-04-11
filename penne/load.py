@@ -42,6 +42,9 @@ def model(device, checkpoint=penne.FULL_CHECKPOINT):
     # Eval mode
     penne.infer.model.eval()
 
+def annotation_from_cache(path):
+    return torch.from_numpy(np.load(path))
+
 def pitch_annotation(name, path):
     if name == 'MDB':
         return MDB_pitch(path)

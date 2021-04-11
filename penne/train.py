@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument(
         '--batch_size',
         type=int,
-        default=64,
+        default=32,
         help='The size of a batch')
     parser.add_argument(
         '--dataset',

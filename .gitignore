@@ -3,6 +3,11 @@ data/*
 !data/.gitkeep
 runs/*
 !runs/.gitkeep
+cache/*
+!cache/.gitkeep
+penne/checkpoints/*
+logs/*
+notebooks/*
 
 *.egg-info/
 .empty/
@@ -12,4 +17,4 @@ runs/*
 __pycache__/
 build/
 dist/
-
+profile.out
