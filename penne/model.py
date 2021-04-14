@@ -152,8 +152,9 @@ class Model(pl.LightningModule):
             if penne.SMOOTH_TARGETS:
                 mean = penne.convert.bins_to_cents(y)
                 normal = torch.distributions.Normal(mean, 25)
-                bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS))
-                y = torch.exp(normal.log_prob(bins))
+                bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
+                bins = bins.expand(len(y), -1).permute(1,0)
+                y = torch.exp(normal.log_prob(bins)).permute(1,0)
             else:
                 y = F.one_hot(y, penne.PITCH_BINS)
             assert y_hat.shape == y.shape
@@ -274,4 +275,5 @@ class Model(pl.LightningModule):
         x = F.relu(x)
         x = batch_norm(x)
         x = F.max_pool2d(x, (2, 1), (2, 1))
-        return F.dropout(x, p=0.25, training=self.training)
+        return x
+        # return F.dropout(x, p=0.25, training=self.training)

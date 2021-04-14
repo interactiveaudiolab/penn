@@ -33,6 +33,9 @@ class Dataset(torch.utils.data.Dataset):
         self.stems = partitions(name)[partition]
         self.name = name
         self.random_slice = random_slice
+        with open(penne.CACHE_DIR / name / "offsets.json", 'w') as f:
+            offsets = json.load(f)
+            self.
 
     def __getitem__(self, index):
         """Retrieve the indexth item"""
@@ -171,7 +174,7 @@ def collate_fn(batch):
         frames = torch.nn.functional.unfold(
                 audio[:, None, None, :],
                 kernel_size=(1, penne.WINDOW_SIZE),
-                stride=(1, penne.HOP_SIZE))        
+                stride=(1, penne.HOP_SIZE))
         curr_frames = min(frames.shape[2], target.shape[1])
         if curr_frames > num_frames:
             if penne.CHUNK_BATCH:
