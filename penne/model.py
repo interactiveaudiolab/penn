@@ -32,6 +32,7 @@ class Model(pl.LightningModule):
         self.learning_rate = 2e-4
         self.momentum = 0.0
         self.name = name
+        self.val_epoch = 0
 
         self.ex_batch = None
 
@@ -167,7 +168,7 @@ class Model(pl.LightningModule):
     def training_step(self, batch, index):
         """Performs one step of training"""
         # TODO - implement training step
-        x, y, uv = batch
+        x, y = batch
         output = self(x)
         loss = self.my_loss(output, y)
         # y_hat = output.argmax(dim=1)
@@ -177,7 +178,7 @@ class Model(pl.LightningModule):
     def validation_step(self, batch, index):
         """Performs one step of validation"""
         # TODO - implement validation step
-        x, y, uv = batch
+        x, y = batch
         output = self(x)
         loss = self.my_loss(output, y)
         return {"loss": loss}
@@ -201,23 +202,29 @@ class Model(pl.LightningModule):
             loss_sum += x['loss']
         loss_mean = loss_sum / len(outputs)
 
-        self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
+        self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.val_epoch)
 
-        if loss_mean < self.best_loss and self.current_epoch > 5:
+        if loss_mean < self.best_loss and self.val_epoch > 5:
             self.best_loss = loss_mean
-            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
+            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.val_epoch)+'.ckpt')
             self.trainer.save_checkpoint(checkpoint_path)
 
-        if self.current_epoch % 1 == 0:
+        if self.val_epoch % 2 == 0:
             if self.ex_batch is None:
-                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")  
-                # self.ex_batch = next(penne.preprocess(ex_audio, ex_sr, penne.HOP_SIZE, device='cuda'))[:1500,:]
-                
+                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
+                # ex_audio = penne.resample(ex_audio, ex_sr)
+                # self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
+
                 ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
                 ex_audio = penne.resample(ex_audio, ex_sr)
                 self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
 
             logits = penne.infer(self.ex_batch, model=self).cpu()
+
+            fig = plt.figure(figsize=(12, 3))
+            plt.plot(logits.argmax(axis=1).detach().numpy())
+            plt.ylim(0, 360)
+            self.logger.experiment.add_figure(str(self.val_epoch) + '.ckpt', fig, global_step=self.val_epoch)
 
             fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 10))
             ax1.plot(logits[10].detach().numpy())
@@ -229,18 +236,21 @@ class Model(pl.LightningModule):
             ax4.plot(logits[650].detach().numpy())
             ax4.set_title('Frame 650')
 
-            checkpoint_label = str(self.current_epoch)+'.ckpt'
-            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.current_epoch)
+            checkpoint_label = str(self.val_epoch)+'.ckpt'
+            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.val_epoch)
 
             probabilities = torch.nn.Softmax(dim=1)(logits)
-            self.write_posterior_distribution(probabilities)        
+            self.write_posterior_distribution(probabilities)      
+              
+        self.val_epoch += 1
+
 
     def write_posterior_distribution(self, probabilities):
-        checkpoint_label = str(self.current_epoch)+'.ckpt'
+        checkpoint_label = str(self.val_epoch)+'.ckpt'
         fig = plt.figure(figsize=(12, 3))
         plt.imshow(probabilities.detach().numpy().T, origin='lower')
         plt.title(checkpoint_label)
-        self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.current_epoch)
+        self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.val_epoch)
 
     ###########################################################################
     # PyTorch Lightning - optimizer
@@ -275,5 +285,5 @@ class Model(pl.LightningModule):
         x = F.relu(x)
         x = batch_norm(x)
         x = F.max_pool2d(x, (2, 1), (2, 1))
-        return x
-        # return F.dropout(x, p=0.25, training=self.training)
+        # return x
+        return F.dropout(x, p=0.25, training=self.training)

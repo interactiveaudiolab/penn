@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 import torch
 import numpy as np
 import random
+import bisect
 
 import penne
 from scipy.io import wavfile
@@ -29,65 +30,48 @@ class Dataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, name, partition, random_slice=False):
-        # Get list of stems
-        self.stems = partitions(name)[partition]
         self.name = name
         self.random_slice = random_slice
-        with open(penne.CACHE_DIR / name / "offsets.json", 'w') as f:
-            offsets = json.load(f)
-            self.
+        subfolder = 'voiceonly' if penne.VOICE_ONLY else 'all'
+        with open(penne.CACHE_DIR / subfolder / name / "offsets.json", 'r') as f:
+            offset_json = json.load(f)
+            self.stems = list(offset_json[partition].keys())
+            self.offsets = []
+            for stem in self.stems:
+                self.offsets.append(offset_json[partition][stem][0])
+            # sort by offset
+            self.offsets, self.stems = zip(*(sorted(zip(self.offsets, self.stems))))
+            self.total_nframes = offset_json['totals'][partition]
 
     def __getitem__(self, index):
         """Retrieve the indexth item"""
-        stem = self.stems[index]
+        stem_idx = bisect.bisect_right(self.offsets, index) - 1
+        stem = self.stems[stem_idx]
+        frame_idx = index - self.offsets[stem_idx]
 
-        filepath = stem_to_cache_file(self.name, stem)
-        sample_rate, audio = wavfile.read(filepath, mmap=True)
+        frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, penne.VOICE_ONLY), mmap_mode='r')
+        frame = frames[:,:,frame_idx]
+        if frame.dtype == np.int16:
+            frame = frame.astype(np.float32) / np.iinfo(np.int16).max
+        frame = torch.from_numpy(frame.copy())
 
-        if audio.dtype == np.int16:
-            audio = audio.astype(np.float32) / np.iinfo(np.int16).max
+        if penne.WHITEN:
+            frame -= frame.mean(dim=1, keepdim=True)
+            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+                frame.std(dim=1, keepdim=True))
 
-        # TEMPORARY
-        # REMOVE THIS
-        # FOR OVERFIT BATCHES
-        # random.seed(0)
+        annotation_path = stem_to_cache_annotation(self.name, stem, penne.VOICE_ONLY)
+        annotations = penne.load.annotation_from_cache(annotation_path)
+        annotation = annotations[:,frame_idx]
 
-        if self.random_slice:
-            nsamples = len(audio)
-            if self.name == 'MDB':
-                nframes = penne.convert.samples_to_frames(nsamples)
-                start_index = random.randint(0, nframes-penne.convert.seconds_to_frames(1)-1)
-                start = penne.HOP_SIZE * start_index
-                length = sample_rate
-                audio = audio[start:start+length]
-            elif self.name == 'PTDB':
-                nframes = penne.convert.samples_to_frames(nsamples-penne.WINDOW_SIZE)
-                start_index = random.randint(0, nframes-penne.convert.seconds_to_frames(1)-penne.convert.samples_to_frames(penne.WINDOW_SIZE)-1)
-                start = penne.WINDOW_SIZE // 2 + penne.HOP_SIZE * start_index
-                length = sample_rate + penne.WINDOW_SIZE
-                audio = audio[start:start+length]
-            else:
-                raise ValueError(f'Dataset {name} is not implemented')
+        if annotation == 0:
+            annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
 
-        audio = torch.from_numpy(audio)
-
-        if self.name == 'MDB':
-            audio = torch.nn.functional.pad(audio, (penne.WINDOW_SIZE//2, penne.WINDOW_SIZE//2))
-
-        annotation_path = stem_to_cache_annotation(self.name, stem)
-        truth = penne.load.annotation_from_cache(annotation_path)
-        if self.random_slice:
-            if self.name == 'MDB':
-                start = penne.convert.samples_to_frames(start)
-            elif self.name == 'PTDB':
-                start = penne.convert.samples_to_frames(start-penne.WINDOW_SIZE // 2)
-            truth = truth[:,start:start+int(penne.SAMPLE_RATE/penne.HOP_SIZE)+1]
-        
-        return (audio[None,:], truth.long())
+        return (frame, annotation)
 
     def __len__(self):
         """Length of the dataset"""
-        return len(self.stems)
+        return self.total_nframes
 
 
 ###############################################################################
@@ -130,7 +114,6 @@ class DataModule(pl.LightningDataModule):
 # Data loader
 ###############################################################################
 
-
 def loader(dataset, partition, batch_size=64, num_workers=None):
     """Retrieve a data loader"""
     return torch.utils.data.DataLoader(
@@ -141,13 +124,16 @@ def loader(dataset, partition, batch_size=64, num_workers=None):
         pin_memory=True,
         collate_fn=collate_fn)
 
-
 ###############################################################################
 # Collate function
 ###############################################################################
-
-
 def collate_fn(batch):
+    features, targets = zip(*batch)
+    col_features = torch.cat(list(features))
+    col_targets = torch.cat(list(targets))
+    return (col_features, col_targets)
+
+def old_collate_fn(batch):
     """Turns __getitem__ output into a batch ready for inference
 
     Arguments
@@ -326,7 +312,7 @@ def MDB_file_to_stem(path):
 def PTDB_file_to_stem(path):
     return path.stem[path.stem.index('_')+1:]
 
-def stem_to_cache_file(name, stem, filetype='audio'):
+def stem_to_cache_file(name, stem, filetype='audio', voiceonly=False):
     """Resolve stem to a file in the dataset
 
     Arguments
@@ -339,7 +325,8 @@ def stem_to_cache_file(name, stem, filetype='audio'):
         file - Path
             The corresponding file
     """
-    directory = penne.CACHE_DIR / name
+    subfolder = 'voiceonly' if voiceonly else 'all'
+    directory = penne.CACHE_DIR / subfolder / name
 
     if name == 'MDB':
         return MDB_stem_to_cache_file(directory, stem)
@@ -358,7 +345,7 @@ def PTDB_stem_to_cache_file(directory, stem, filetype='audio'):
         return directory / 'audio' / ("lar_" + stem + ".wav")
     raise ValueError("Filetype doesn't exist")
 
-def stem_to_cache_annotation(name, stem):
+def stem_to_cache_annotation(name, stem, voiceonly=False):
     """Resolve stem to a truth numpy array in the dataset
 
     Arguments
@@ -371,7 +358,8 @@ def stem_to_cache_annotation(name, stem):
         file - Path
             The corresponding file
     """
-    directory = penne.CACHE_DIR / name
+    subfolder = 'voiceonly' if voiceonly else 'all'
+    directory = penne.CACHE_DIR / subfolder / name
 
     if name == 'MDB':
         return MDB_stem_to_cache_annotation(directory, stem)
@@ -389,3 +377,19 @@ def PTDB_stem_to_cache_annotation(directory, stem):
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     return directory / 'annotation' / ("ref_" + stem + ".npy")
+
+def stem_to_cache_frames(name, stem, voiceonly=False):
+    subfolder = 'voiceonly' if voiceonly else 'all'
+    directory = penne.CACHE_DIR / subfolder / name
+    if name == 'MDB':
+        return MDB_stem_to_cache_frames(directory, stem)
+    elif name == 'PTDB':
+        return PTDB_stem_to_cache_frames(directory, stem)
+
+    raise ValueError(f'Dataset {name} is not implemented')
+
+def MDB_stem_to_cache_frames(directory, stem):
+    return directory / 'frames' / (stem + ".RESYN.npy")
+
+def PTDB_stem_to_cache_frames(directory, stem):
+    return directory / 'frames' / ("mic_" + stem + ".npy")

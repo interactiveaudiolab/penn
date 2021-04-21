@@ -25,6 +25,7 @@ __all__ = ['ASSETS_DIR',
            'LOSS_FUNCTION',
            'SMOOTH_TARGETS',
            'WHITEN',
+           'VOICE_ONLY',
            'embed',
            'embed_from_file',
            'embed_from_file_to_file',
@@ -57,9 +58,10 @@ WINDOW_SIZE = 1024  # samples
 UNVOICED = np.nan
 FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
 LOSS_FUNCTION = 'BCE' # BCE or CCE
-WHITEN = False
-SMOOTH_TARGETS = False
+WHITEN = True
+SMOOTH_TARGETS = True
 CHUNK_BATCH = False
+VOICE_ONLY = True
 
 
 ###############################################################################
