@@ -45,10 +45,11 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         """Retrieve the indexth item"""
+        index = index * penne.convert.seconds_to_frames(20)
         stem_idx = bisect.bisect_right(self.offsets, index) - 1
         stem = self.stems[stem_idx]
         frame_idx = index - self.offsets[stem_idx]
-
+        # import pdb; pdb.set_trace()
         frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, penne.VOICE_ONLY), mmap_mode='r')
         frame = frames[:,:,frame_idx]
         if frame.dtype == np.int16:
@@ -71,7 +72,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         """Length of the dataset"""
-        return self.total_nframes
+        return 32
 
 
 ###############################################################################
@@ -119,7 +120,7 @@ def loader(dataset, partition, batch_size=64, num_workers=None):
     return torch.utils.data.DataLoader(
         dataset=Dataset(dataset, partition, partition != 'test' or penne.CHUNK_BATCH),
         batch_size=batch_size,
-        shuffle='train' in partition,
+        shuffle='test' not in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
         pin_memory=True,
         collate_fn=collate_fn)
