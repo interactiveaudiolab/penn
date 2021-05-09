@@ -15,17 +15,17 @@ __all__ = ['ASSETS_DIR',
            'CACHE_DIR',
            'CHUNK_BATCH',
            'DATA_DIR',
+           'FULL_CHECKPOINT',
+           'HOP_SIZE',
+           'LOSS_FUNCTION',
            'MAX_FMAX',
            'PITCH_BINS',
            'SAMPLE_RATE',
-           'HOP_SIZE',
-           'WINDOW_SIZE',
-           'UNVOICED',
-           'FULL_CHECKPOINT',
-           'LOSS_FUNCTION',
            'SMOOTH_TARGETS',
-           'WHITEN',
+           'UNVOICED',
            'VOICE_ONLY',
+           'WHITEN',
+           'WINDOW_SIZE',
            'embed',
            'embed_from_file',
            'embed_from_file_to_file',
@@ -44,24 +44,28 @@ __all__ = ['ASSETS_DIR',
 # Constants
 ###############################################################################
 
-
+# Paths
 ASSETS_DIR = Path(__file__).parent / 'assets'
 DATA_DIR = Path(__file__).parent.parent / 'data'
 CACHE_DIR = Path(__file__).parent.parent / 'cache'
 CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
+FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
+
+# Numerical Constants
 CENTS_PER_BIN = 20  # cents
+HOP_SIZE = 160
 MAX_FMAX = 2006.  # hz
 PITCH_BINS = 360
 SAMPLE_RATE = 16000  # hz
-HOP_SIZE = 160
-WINDOW_SIZE = 1024  # samples
 UNVOICED = np.nan
-FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
+WINDOW_SIZE = 1024  # samples
+
+# Options
+CHUNK_BATCH = False # shuffles train + validation examples if False
 LOSS_FUNCTION = 'BCE' # BCE or CCE
-WHITEN = True
 SMOOTH_TARGETS = True
-CHUNK_BATCH = False
 VOICE_ONLY = True
+WHITEN = True
 
 
 ###############################################################################
@@ -634,8 +638,6 @@ def preprocess(audio,
 
 def periodicity(logits, bins):
     """Computes the periodicity from the network output and pitch bins"""
-    
-    # sig_probabilities = torch.sigmoid(logits)
     probabilities = torch.nn.Softmax(dim=1)(logits)
     # shape=(batch * time / hop_length, 360)
     probs_stacked = probabilities.transpose(1, 2).reshape(-1, PITCH_BINS)

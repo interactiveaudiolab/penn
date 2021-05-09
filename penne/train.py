@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 import pytorch_lightning as pl
-
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import penne
 
 
@@ -27,8 +27,16 @@ def main():
                                   args.batch_size,
                                   args.num_workers)
 
+    early_stop_callback = EarlyStopping(
+        monitor='val_accuracy',
+        min_delta=0.00,
+        patience=32,
+        verbose=False,
+        mode='max'
+    )
+
     # Setup trainer
-    trainer = pl.Trainer.from_argparse_args(args, logger=logger)
+    trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[early_stop_callback])
 
     # Train
     trainer.fit(penne.Model(name=args.name), datamodule=datamodule)

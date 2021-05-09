@@ -1,6 +1,5 @@
 """data.py - data loading"""
 
-
 import json
 import os
 
@@ -13,11 +12,9 @@ import bisect
 import penne
 from scipy.io import wavfile
 
-
 ###############################################################################
 # Dataset
 ###############################################################################
-
 
 class Dataset(torch.utils.data.Dataset):
     """PyTorch dataset
@@ -29,9 +26,10 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, name, partition, random_slice=False):
+    def __init__(self, name, partition):
         self.name = name
-        self.random_slice = random_slice
+        
+        # read information from cache directory
         subfolder = 'voiceonly' if penne.VOICE_ONLY else 'all'
         with open(penne.CACHE_DIR / subfolder / name / "offsets.json", 'r') as f:
             offset_json = json.load(f)
@@ -44,29 +42,33 @@ class Dataset(torch.utils.data.Dataset):
             self.total_nframes = offset_json['totals'][partition]
 
     def __getitem__(self, index):
-        """Retrieve the indexth item"""
-        stem_idx = bisect.bisect_right(self.offsets, index) - 1
-        stem = self.stems[stem_idx]
-        frame_idx = index - self.offsets[stem_idx]
-        frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, penne.VOICE_ONLY), mmap_mode='r')
-        frame = frames[:,:,frame_idx]
-        if frame.dtype == np.int16:
-            frame = frame.astype(np.float32) / np.iinfo(np.int16).max
-        frame = torch.from_numpy(frame.copy())
+        try:
+            """Retrieve the indexth item"""
+            stem_idx = bisect.bisect_right(self.offsets, index) - 1
+            stem = self.stems[stem_idx]
+            frame_idx = index - self.offsets[stem_idx]
+            frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, penne.VOICE_ONLY), mmap_mode='r')
+            frame = frames[:,:,frame_idx]
+            if frame.dtype == np.int16:
+                frame = frame.astype(np.float32) / np.iinfo(np.int16).max
+            frame = torch.from_numpy(frame.copy())
 
-        if penne.WHITEN:
-            frame -= frame.mean(dim=1, keepdim=True)
-            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
-                frame.std(dim=1, keepdim=True))
+            if penne.WHITEN:
+                frame -= frame.mean(dim=1, keepdim=True)
+                frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+                    frame.std(dim=1, keepdim=True))
 
-        annotation_path = stem_to_cache_annotation(self.name, stem, penne.VOICE_ONLY)
-        annotations = penne.load.annotation_from_cache(annotation_path)
-        annotation = annotations[:,frame_idx]
+            annotation_path = stem_to_cache_annotation(self.name, stem, penne.VOICE_ONLY)
+            annotations = penne.load.annotation_from_cache(annotation_path)
+            annotation = annotations[:,frame_idx]
 
-        if annotation == 0:
-            annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
+            if annotation == 0:
+                annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
 
-        return (frame, annotation)
+            return (frame, annotation)
+        except Exception as e:
+            print(e)
+            print(index)
 
     def __len__(self):
         """Length of the dataset"""

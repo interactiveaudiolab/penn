@@ -30,13 +30,26 @@ class Model(pl.LightningModule):
 
         self.epsilon = 0.0010000000474974513
         self.learning_rate = 2e-4
-        self.momentum = 0.0
+        self.momentum = 0.01
         self.name = name
-        self.val_epoch = 0
 
         self.ex_batch = None
 
         self.best_loss = float('inf')
+
+        #metrics
+        thresh = penne.threshold.Hysteresis()
+        self.train_rmse = penne.metrics.WRMSE()
+        self.train_rpa = penne.metrics.RPA(thresh)
+        self.train_rca = penne.metrics.RCA(thresh)
+        self.val_rmse = penne.metrics.WRMSE()
+        self.val_rpa = penne.metrics.RPA(thresh)
+        self.val_rca = penne.metrics.RCA(thresh)
+
+        # self.train_target = np.array([])
+        # self.train_pred = np.array([])
+        # self.val_target = np.array([])
+        # self.val_pred = np.array([])
 
         # Save hyperparameters with checkpoints
         # self.save_hyperparameters()
@@ -162,7 +175,8 @@ class Model(pl.LightningModule):
         return F.cross_entropy(y_hat, y.long())
 
     def my_acc(self, y_hat, y):
-        return y_hat.eq(y).sum().item()/y.numel()
+        argmax_y_hat = y_hat.argmax(dim=1)
+        return argmax_y_hat.eq(y).sum().item()/y.numel()
 
     def topk_acc(self, y_hat, y, k):
         total = 0
@@ -172,21 +186,37 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        # TODO - implement training step
         x, y = batch
         output = self(x)
         loss = self.my_loss(output, y)
-        # y_hat = output.argmax(dim=1)
-        return {"loss": loss}
+        acc = self.my_acc(output, y)
+        y_hat = output.argmax(dim=1)
+        np_y_hat = y_hat.cpu().numpy()[None,:]
+        np_y = y.cpu().numpy()[None,:]
+        np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
+        # self.train_target = np.append(self.train_target, np_y.squeeze())
+        # self.train_pred = np.append(self.train_pred, np_y_hat.squeeze())
+        self.train_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        self.train_rpa.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        self.train_rca.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        # TODO - implement validation step
         x, y = batch
         output = self(x)
         loss = self.my_loss(output, y)
-        # y_hat = output.argmax(dim=1)
-        return {"loss": loss}
+        acc = self.my_acc(output, y)
+        y_hat = output.argmax(dim=1)
+        np_y_hat = y_hat.cpu().numpy()[None,:]
+        np_y = y.cpu().numpy()[None,:]
+        np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
+        # self.val_target = np.append(self.val_target, np_y.squeeze())
+        # self.val_pred = np.append(self.val_pred, np_y_hat.squeeze())
+        self.val_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        self.val_rpa.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        self.val_rca.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        return {"loss": loss, "accuracy": acc}
 
     def test_step(self, batch, index):
         """Performs one step of testing"""
@@ -195,33 +225,59 @@ class Model(pl.LightningModule):
 
     def training_epoch_end(self, outputs):
         loss_sum = 0
+        acc_sum = 0
         for x in outputs:
             loss_sum += x['loss']
+            acc_sum += x['accuracy']
         loss_mean = loss_sum / len(outputs)
+        acc_mean = acc_sum / len(outputs)
+        # self.write_bin_distribution(self.train_target, str(self.current_epoch) + "train_target")
+        # self.write_bin_distribution(self.train_pred, str(self.current_epoch) + "train_pred")
+        # self.train_target = np.array([])
+        # self.train_pred = np.array([])
         self.logger.experiment.add_scalar("Loss/Train", loss_mean, self.current_epoch)
+        self.logger.experiment.add_scalar("Accuracy/Train", acc_mean, self.current_epoch)
+        self.logger.experiment.add_scalar("RMSE/Train", self.train_rmse(), self.current_epoch)
+        self.logger.experiment.add_scalar("RPA/Train", self.train_rpa(), self.current_epoch)
+        self.logger.experiment.add_scalar("RCA/Train", self.train_rca(), self.current_epoch)
+        self.train_rmse.reset()
+        self.train_rpa.reset()
+        self.train_rca.reset()
 
     def validation_epoch_end(self, outputs):
         loss_sum = 0
+        acc_sum = 0
         for x in outputs:
             loss_sum += x['loss']
+            acc_sum += x['accuracy']
         loss_mean = loss_sum / len(outputs)
+        acc_mean = acc_sum / len(outputs)
+        # self.write_bin_distribution(self.val_target, str(self.current_epoch) + "val_target")
+        # self.write_bin_distribution(self.val_pred, str(self.current_epoch) + "val_pred")
+        # self.val_target = np.array([])
+        # self.val_pred = np.array([])
+        self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
+        self.logger.experiment.add_scalar("Accuracy/Val", acc_mean, self.current_epoch)
+        self.logger.experiment.add_scalar("RMSE/Val", self.val_rmse(), self.current_epoch)
+        self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
+        self.logger.experiment.add_scalar("RCA/VAl", self.val_rca(), self.current_epoch)
 
-        self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.val_epoch)
+        self.log('val_accuracy', acc_mean)
 
-        if self.val_epoch % 5 == 0 or loss_mean < self.best_loss and self.val_epoch > 3:
+        if self.current_epoch % 10 == 0 or (loss_mean < self.best_loss and self.current_epoch > 3):
             self.best_loss = loss_mean
-            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.val_epoch)+'.ckpt')
+            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
             self.trainer.save_checkpoint(checkpoint_path)
 
-        if self.val_epoch % 1 == 0:
+        if self.current_epoch < 20 or self.current_epoch % 10 == 0:
             if self.ex_batch is None:
-                ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
-                ex_audio = penne.resample(ex_audio, ex_sr)
-                self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
-
-                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
+                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
                 # ex_audio = penne.resample(ex_audio, ex_sr)
-                # self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
+                # self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
+
+                ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
+                ex_audio = penne.resample(ex_audio, ex_sr)
+                self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
 
             logits = penne.infer(self.ex_batch, model=self).cpu()
 
@@ -235,21 +291,29 @@ class Model(pl.LightningModule):
             ax4.plot(logits[650].detach().numpy())
             ax4.set_title('Frame 650')
 
-            checkpoint_label = str(self.val_epoch)+'.ckpt'
-            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.val_epoch)
+            checkpoint_label = str(self.current_epoch)+'.ckpt'
+            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.current_epoch)
 
             probabilities = torch.nn.Softmax(dim=1)(logits)
-            self.write_posterior_distribution(probabilities)      
-              
-        self.val_epoch += 1
+            self.write_posterior_distribution(probabilities)  
 
+        self.val_rmse.reset()
+        self.val_rpa.reset()
+        self.val_rca.reset()
 
     def write_posterior_distribution(self, probabilities):
-        checkpoint_label = str(self.val_epoch)+'.ckpt'
+        checkpoint_label = str(self.current_epoch)+'.ckpt'
         fig = plt.figure(figsize=(12, 3))
         plt.imshow(probabilities.detach().numpy().T, origin='lower')
         plt.title(checkpoint_label)
-        self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.val_epoch)
+        self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.current_epoch)
+
+    def write_bin_distribution(self, examples, title):
+        fig = plt.figure(figsize=(12, 3))
+        plt.hist(examples, bins=range(penne.PITCH_BINS))
+        plt.title(title)
+        self.logger.experiment.add_figure(title, fig, global_step=self.current_epoch)
+
 
     ###########################################################################
     # PyTorch Lightning - optimizer
@@ -267,7 +331,6 @@ class Model(pl.LightningModule):
         """Map input audio to pitch embedding"""
         # shape=(batch, 1, 1024, 1)
         x = x[:, None, :, None]
-
         # Forward pass through first five layers
         x = self.layer(x, self.conv1, self.conv1_BN, (0, 0, 254, 254))
         x = self.layer(x, self.conv2, self.conv2_BN)

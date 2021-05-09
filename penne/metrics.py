@@ -117,10 +117,12 @@ class RPA:
         convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
         convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
 
-        thresh_source = self.thresh_function(torch.from_numpy(convert_source), torch.from_numpy(source_periodicity)).numpy()
+        # thresh_source = self.thresh_function(torch.from_numpy(convert_source), torch.from_numpy(source_periodicity)).numpy()
+        # voiced = ~np.isnan(thresh_source) & target != 0
 
-        voiced = ~np.isnan(thresh_source) & target != 0
-        diff = thresh_source[voiced] - convert_target[voiced]
+        voiced = target != 0
+        # diff = thresh_source[voiced] - convert_target[voiced]
+        diff = convert_source[voiced] - convert_target[voiced]
         self.sum += (np.abs(diff) < 50).sum()
         self.count += voiced.sum()
 
@@ -144,11 +146,12 @@ class RCA:
         convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
         convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
 
-        thresh_source = self.thresh_function(torch.from_numpy(convert_source), torch.from_numpy(source_periodicity)).numpy()
+        # thresh_source = self.thresh_function(torch.from_numpy(convert_source), torch.from_numpy(source_periodicity)).numpy()
+        # voiced = ~np.isnan(thresh_source) & target != 0
 
-        voiced = ~np.isnan(thresh_source) & target != 0
-        diff = thresh_source[voiced] - convert_target[voiced]
-
+        voiced = target != 0
+        # diff = thresh_source[voiced] - convert_target[voiced]
+        diff = convert_source[voiced] - convert_target[voiced]
         diff[diff > 600] -= 1200
         diff[diff < -600] += 1200
         self.sum += (np.abs(diff) < 50).sum()
