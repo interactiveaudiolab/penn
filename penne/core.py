@@ -13,7 +13,6 @@ __all__ = ['ASSETS_DIR',
            'CENTS_PER_BIN',
            'CHECKPOINT_DIR',
            'CACHE_DIR',
-           'CHUNK_BATCH',
            'DATA_DIR',
            'FULL_CHECKPOINT',
            'HOP_SIZE',
@@ -61,7 +60,6 @@ UNVOICED = np.nan
 WINDOW_SIZE = 1024  # samples
 
 # Options
-CHUNK_BATCH = False # shuffles train + validation examples if False
 LOSS_FUNCTION = 'BCE' # BCE or CCE
 SMOOTH_TARGETS = True
 VOICE_ONLY = True

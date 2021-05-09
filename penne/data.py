@@ -69,6 +69,7 @@ class Dataset(torch.utils.data.Dataset):
         except Exception as e:
             print(e)
             print(index)
+            raise e
 
     def __len__(self):
         """Length of the dataset"""
@@ -118,7 +119,7 @@ class DataModule(pl.LightningDataModule):
 def loader(dataset, partition, batch_size=64, num_workers=None):
     """Retrieve a data loader"""
     return torch.utils.data.DataLoader(
-        dataset=Dataset(dataset, partition, partition != 'test' or penne.CHUNK_BATCH),
+        dataset=Dataset(dataset, partition),
         batch_size=batch_size,
         shuffle='test' not in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
