@@ -10,16 +10,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-# import pathlib
-
-
 ###############################################################################
 # Model definition
 ###############################################################################
-
-# TODO - Convert the Crepe model (below) to this Pytorch lightning template and
-#        complete the template TODOs. You only need to convert the "full"
-#        model.
 
 class Model(pl.LightningModule):
     """PyTorch Lightning model definition"""
@@ -30,14 +23,15 @@ class Model(pl.LightningModule):
 
         self.epsilon = 0.0010000000474974513
         self.learning_rate = 2e-4
+
+        # equivalent to Keras default momentum
         self.momentum = 0.01
+
         self.name = name
-
         self.ex_batch = None
-
         self.best_loss = float('inf')
 
-        #metrics
+        # metrics
         thresh = penne.threshold.Hysteresis()
         self.train_rmse = penne.metrics.WRMSE()
         self.train_rpa = penne.metrics.RPA(thresh)
@@ -45,14 +39,6 @@ class Model(pl.LightningModule):
         self.val_rmse = penne.metrics.WRMSE()
         self.val_rpa = penne.metrics.RPA(thresh)
         self.val_rca = penne.metrics.RCA(thresh)
-
-        # self.train_target = np.array([])
-        # self.train_pred = np.array([])
-        # self.val_target = np.array([])
-        # self.val_pred = np.array([])
-
-        # Save hyperparameters with checkpoints
-        # self.save_hyperparameters()
 
         in_channels = [1, 1024, 128, 128, 128, 256]
         out_channels = [1024, 128, 128, 128, 256, 512]
@@ -126,7 +112,6 @@ class Model(pl.LightningModule):
 
     def forward(self, x, embed=False):
         """Perform model inference"""
-        # TODO - define model arguments and implement forward pass
         x = self.embed(x)
 
         if embed:
@@ -150,8 +135,6 @@ class Model(pl.LightningModule):
         """Add model hyperparameters as argparse arguments"""
         parser = argparse.ArgumentParser(
             parents=[parent_parser], add_help=False)
-        # TODO - add hyperparameters as command-line args using
-        #        parser.add_argument()
         return parser
 
     ###########################################################################
@@ -161,7 +144,7 @@ class Model(pl.LightningModule):
     def my_loss(self, y_hat, y):
         if penne.LOSS_FUNCTION == 'BCE':
             if penne.SMOOTH_TARGETS:
-                # fix this
+                # apply Gaussian blur around target bin
                 mean = penne.convert.bins_to_cents(y)
                 normal = torch.distributions.Normal(mean, 25)
                 bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
@@ -190,12 +173,11 @@ class Model(pl.LightningModule):
         output = self(x)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
+
+        # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
-        np_y_hat = y_hat.cpu().numpy()[None,:]
-        np_y = y.cpu().numpy()[None,:]
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        # self.train_target = np.append(self.train_target, np_y.squeeze())
-        # self.train_pred = np.append(self.train_pred, np_y_hat.squeeze())
+        np_y = y.cpu().numpy()[None,:]
         self.train_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
         self.train_rpa.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
         self.train_rca.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
@@ -207,12 +189,11 @@ class Model(pl.LightningModule):
         output = self(x)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
+
+        # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
-        np_y_hat = y_hat.cpu().numpy()[None,:]
-        np_y = y.cpu().numpy()[None,:]
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        # self.val_target = np.append(self.val_target, np_y.squeeze())
-        # self.val_pred = np.append(self.val_pred, np_y_hat.squeeze())
+        np_y = y.cpu().numpy()[None,:]
         self.val_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
         self.val_rpa.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
         self.val_rca.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
@@ -224,6 +205,7 @@ class Model(pl.LightningModule):
         raise NotImplementedError
 
     def training_epoch_end(self, outputs):
+        # compute mean loss and accuracy
         loss_sum = 0
         acc_sum = 0
         for x in outputs:
@@ -231,20 +213,21 @@ class Model(pl.LightningModule):
             acc_sum += x['accuracy']
         loss_mean = loss_sum / len(outputs)
         acc_mean = acc_sum / len(outputs)
-        # self.write_bin_distribution(self.train_target, str(self.current_epoch) + "train_target")
-        # self.write_bin_distribution(self.train_pred, str(self.current_epoch) + "train_pred")
-        # self.train_target = np.array([])
-        # self.train_pred = np.array([])
+
+        # log metrics to tensorboard
         self.logger.experiment.add_scalar("Loss/Train", loss_mean, self.current_epoch)
         self.logger.experiment.add_scalar("Accuracy/Train", acc_mean, self.current_epoch)
         self.logger.experiment.add_scalar("RMSE/Train", self.train_rmse(), self.current_epoch)
         self.logger.experiment.add_scalar("RPA/Train", self.train_rpa(), self.current_epoch)
         self.logger.experiment.add_scalar("RCA/Train", self.train_rca(), self.current_epoch)
+
+        # reset metrics for next epoch
         self.train_rmse.reset()
         self.train_rpa.reset()
         self.train_rca.reset()
 
     def validation_epoch_end(self, outputs):
+        # compute mean loss and accuracy
         loss_sum = 0
         acc_sum = 0
         for x in outputs:
@@ -252,23 +235,24 @@ class Model(pl.LightningModule):
             acc_sum += x['accuracy']
         loss_mean = loss_sum / len(outputs)
         acc_mean = acc_sum / len(outputs)
-        # self.write_bin_distribution(self.val_target, str(self.current_epoch) + "val_target")
-        # self.write_bin_distribution(self.val_pred, str(self.current_epoch) + "val_pred")
-        # self.val_target = np.array([])
-        # self.val_pred = np.array([])
+
+        # log metrics to tensorboard
         self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
         self.logger.experiment.add_scalar("Accuracy/Val", acc_mean, self.current_epoch)
         self.logger.experiment.add_scalar("RMSE/Val", self.val_rmse(), self.current_epoch)
         self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
-        self.logger.experiment.add_scalar("RCA/VAl", self.val_rca(), self.current_epoch)
+        self.logger.experiment.add_scalar("RCA/Val", self.val_rca(), self.current_epoch)
 
+        # log mean validation accuracy for early stopping
         self.log('val_accuracy', acc_mean)
 
-        if self.current_epoch % 10 == 0 or (loss_mean < self.best_loss and self.current_epoch > 3):
+        # save the best checkpoint so far
+        if loss_mean < self.best_loss and self.current_epoch > 5:
             self.best_loss = loss_mean
             checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
             self.trainer.save_checkpoint(checkpoint_path)
 
+        # 
         if self.current_epoch < 20 or self.current_epoch % 10 == 0:
             if self.ex_batch is None:
                 # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
@@ -347,5 +331,4 @@ class Model(pl.LightningModule):
         x = F.relu(x)
         x = batch_norm(x)
         x = F.max_pool2d(x, (2, 1), (2, 1))
-        # return x
         return F.dropout(x, p=0.25, training=self.training)

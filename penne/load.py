@@ -58,16 +58,24 @@ def MDB_pitch(path):
     xp, fp = annotation[:,0], annotation[:,1]
     # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
     hopsize = 128 / 44100
+    
+    # get duration of original file
     duration = librosa.get_duration(filename=penne.data.stem_to_file('MDB', penne.data.file_to_stem('MDB', path)))
+    
+    # linearly interpolate at 0.01 second intervals
     interpx = 0.01 * np.arange(0, penne.convert.seconds_to_frames(duration))
     new_annotation = np.interp(interpx, xp, fp)
+    
+    # convert frequency annotations to bins
     bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(new_annotation))[None])
     bin_annotation[bin_annotation < 0] = 0
     return bin_annotation
 
 def PTDB_pitch(path):
+    # PTDB annotations are extracted using RAPT with 32 ms window size, 10 ms hop size
     arr = np.loadtxt(open(path), delimiter=' ')[:,0]
-    # 32 ms window size, 10 ms hop size
+    
+    # convert frequency annotations to bins
     bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(arr))[None])
     bin_annotation[bin_annotation < 0] = 0
     return bin_annotation

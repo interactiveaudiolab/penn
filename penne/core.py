@@ -62,7 +62,7 @@ WINDOW_SIZE = 1024  # samples
 # Options
 LOSS_FUNCTION = 'BCE' # BCE or CCE
 SMOOTH_TARGETS = True
-VOICE_ONLY = True
+VOICE_ONLY = False
 WHITEN = True
 
 

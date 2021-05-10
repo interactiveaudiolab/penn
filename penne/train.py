@@ -27,6 +27,7 @@ def main():
                                   args.batch_size,
                                   args.num_workers)
 
+    # Setup early stopping for 32 epochs of no val accuracy improvement
     early_stop_callback = EarlyStopping(
         monitor='val_accuracy',
         min_delta=0.00,
