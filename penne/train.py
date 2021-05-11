@@ -20,7 +20,7 @@ def main():
     args = parse_args()
 
     # Setup tensorboard
-    logger = pl.loggers.TensorBoardLogger('logs', name=args.name)
+    logger = pl.loggers.TensorBoardLogger(penne.RUNS_DIR / 'logs', name=args.name)
 
     # Setup data
     datamodule = penne.data.DataModule(args.dataset,

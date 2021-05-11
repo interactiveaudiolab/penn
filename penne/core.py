@@ -19,6 +19,7 @@ __all__ = ['ASSETS_DIR',
            'LOSS_FUNCTION',
            'MAX_FMAX',
            'PITCH_BINS',
+           'RUNS_DIR',
            'SAMPLE_RATE',
            'SMOOTH_TARGETS',
            'UNVOICED',
@@ -49,6 +50,7 @@ DATA_DIR = Path(__file__).parent.parent / 'data'
 CACHE_DIR = Path(__file__).parent.parent / 'cache'
 CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
 FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
+RUNS_DIR = Path(__file__).parent.parent / 'runs'
 
 # Numerical Constants
 CENTS_PER_BIN = 20  # cents

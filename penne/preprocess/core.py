@@ -22,6 +22,7 @@ def dataset(dataset, voiceonly=False):
     """
     subfolder = 'voiceonly' if voiceonly else 'all'
     output_directory = penne.CACHE_DIR / subfolder / dataset
+    output_directory.mkdir(exist_ok=True, parents=True)
 
     if dataset == 'MDB':
         MDB_process(output_directory, voiceonly)

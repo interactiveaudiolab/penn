@@ -12,7 +12,7 @@ setup(
     author='Caedon Hsieh and Max Morrison',
     author_email='maxrmorrison@gmail.com',
     url='https://github.com/interactiveaudiolab/penne',
-    install_requires=['librosa', 'resampy', 'scipy', 'torch', 'tqdm', 'torchaudio'],
+    install_requires=['librosa', 'resampy', 'scipy', 'torch', 'tqdm', 'torchaudio', 'pytorch_lightning', 'matplotlib'],
     packages=['penne'],
     package_data={'penne': ['assets/*']},
     long_description=long_description,
