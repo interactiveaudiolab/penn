@@ -29,7 +29,6 @@ def dataset(name):
             value is the list of stems belonging to that partition.
     """
     # Get a list of filenames without extension to be partitioned
-    # TODO - replace with your datasets
     if name == 'MDB':
         stems = MDB_stems()
     elif name == 'PTDB':
@@ -69,17 +68,18 @@ def from_stems(stems):
             The resulting partitions. The key is the partition name and the
             value is the list of stems belonging to that partition.
     """
-    # TODO - partition the stems
+    # define partition percentages
     percents = {"train": .70, "valid": .15, "test": .15}
     partitions = {}
     
+    # randomly shuffle all stems
     random.seed(0)
     random.shuffle(stems)
     num_stems = len(stems)
 
+    # partition shuffled stems based on percentages
     num_valid = math.floor(percents["valid"] * num_stems)
     num_test = math.floor(percents["test"] * num_stems)
-
     partitions["valid"] = stems[0:num_valid]
     partitions["test"] = stems[num_valid:num_valid + num_test]
     partitions["train"] = stems[num_valid + num_test:]
@@ -91,18 +91,8 @@ def from_stems(stems):
 # Dataset-specific
 ###############################################################################
 
-
-# def DATASET_stems():
-#     """Get a list of filenames without extension to be partitioned
-
-#     Returns
-#         stems - list(string)
-#             The list of file stems to partition
-#     """
-#     # TODO - return a list of stems for this dataset
-#     raise NotImplementedError
-
 def MDB_stems():
+    # look through MDB data directory and generate list of stems
     audio_dir = os.path.join(penne.DATA_DIR, "MDB", "audio_stems")
     stems = []
     for name in os.listdir(audio_dir):
@@ -111,6 +101,7 @@ def MDB_stems():
     return stems
 
 def PTDB_stems():
+    # look through PTDB data directory and generate list of stems
     stems = []
     for root, dirs, files in os.walk(os.path.join(penne.DATA_DIR, "PTDB")):
         if "LAR" in root:

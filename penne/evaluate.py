@@ -77,8 +77,8 @@ def from_stems(name, model, stems, device):
     thresh = penne.threshold.Hysteresis()
     f1 = penne.metrics.F1(thresh)
     wrmse = penne.metrics.WRMSE()
-    rpa = penne.metrics.RPA(thresh)
-    rca = penne.metrics.RCA(thresh)
+    rpa = penne.metrics.RPA()
+    rca = penne.metrics.RCA()
 
     for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc="Evaluating"):
         audio_file = penne.data.stem_to_file(name, stem)
@@ -96,8 +96,8 @@ def from_stems(name, model, stems, device):
 
         f1.update(np_pitch, np_annotation, np_periodicity)
         wrmse.update(np_pitch, np_annotation, np_periodicity)
-        rpa.update(np_pitch, np_annotation, np_periodicity)
-        rca.update(np_pitch, np_annotation, np_periodicity)
+        rpa.update(np_pitch, np_annotation)
+        rca.update(np_pitch, np_annotation)
 
     precision, recall, f1_val = f1()
     wrmse_val = wrmse()

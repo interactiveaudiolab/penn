@@ -34,11 +34,11 @@ class Model(pl.LightningModule):
         # metrics
         thresh = penne.threshold.Hysteresis()
         self.train_rmse = penne.metrics.WRMSE()
-        self.train_rpa = penne.metrics.RPA(thresh)
-        self.train_rca = penne.metrics.RCA(thresh)
+        self.train_rpa = penne.metrics.RPA()
+        self.train_rca = penne.metrics.RCA()
         self.val_rmse = penne.metrics.WRMSE()
-        self.val_rpa = penne.metrics.RPA(thresh)
-        self.val_rca = penne.metrics.RCA(thresh)
+        self.val_rpa = penne.metrics.RPA()
+        self.val_rca = penne.metrics.RCA()
 
         in_channels = [1, 1024, 128, 128, 128, 256]
         out_channels = [1024, 128, 128, 128, 256, 512]
@@ -179,8 +179,8 @@ class Model(pl.LightningModule):
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         np_y = y.cpu().numpy()[None,:]
         self.train_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.train_rpa.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.train_rca.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        self.train_rpa.update(np_y_hat_freq, np_y)
+        self.train_rca.update(np_y_hat_freq, np_y)
         return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
@@ -195,14 +195,9 @@ class Model(pl.LightningModule):
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         np_y = y.cpu().numpy()[None,:]
         self.val_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.val_rpa.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.val_rca.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        self.val_rpa.update(np_y_hat_freq, np_y)
+        self.val_rca.update(np_y_hat_freq, np_y)
         return {"loss": loss, "accuracy": acc}
-
-    def test_step(self, batch, index):
-        """Performs one step of testing"""
-        # OPTIONAL - only implement if you have meaningful objective metrics
-        raise NotImplementedError
 
     def training_epoch_end(self, outputs):
         # compute mean loss and accuracy
@@ -252,32 +247,17 @@ class Model(pl.LightningModule):
             checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
             self.trainer.save_checkpoint(checkpoint_path)
 
-        # 
-        if self.current_epoch < 20 or self.current_epoch % 10 == 0:
+        # plot logits and posterior distribution
+        if self.current_epoch < 20 or self.current_epoch % 25 == 0:
+            # load a batch for logging if not yet loaded
             if self.ex_batch is None:
-                # ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
-                # ex_audio = penne.resample(ex_audio, ex_sr)
-                # self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
+                self.ex_batch = self.ex_batch_for_logging('PTDB')
 
-                ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
-                ex_audio = penne.resample(ex_audio, ex_sr)
-                self.ex_batch = next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
-
+            # plot logits
             logits = penne.infer(self.ex_batch, model=self).cpu()
+            self.write_logits(logits, [10, 80, 400, 650])
 
-            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 10))
-            ax1.plot(logits[10].detach().numpy())
-            ax1.set_title('Frame 10')
-            ax2.plot(logits[80].detach().numpy())
-            ax2.set_title('Frame 80')
-            ax3.plot(logits[400].detach().numpy())
-            ax3.set_title('Frame 400')
-            ax4.plot(logits[650].detach().numpy())
-            ax4.set_title('Frame 650')
-
-            checkpoint_label = str(self.current_epoch)+'.ckpt'
-            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.current_epoch)
-
+            # plot posterior distribution
             probabilities = torch.nn.Softmax(dim=1)(logits)
             self.write_posterior_distribution(probabilities)  
 
@@ -285,18 +265,38 @@ class Model(pl.LightningModule):
         self.val_rpa.reset()
         self.val_rca.reset()
 
+    def ex_batch_for_logging(self, dataset):
+        if dataset == 'PTDB':
+            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
+            ex_audio = penne.resample(ex_audio, ex_sr)
+            return next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
+        elif dataset == 'MDB':
+            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
+            ex_audio = penne.resample(ex_audio, ex_sr)
+            return next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
+
     def write_posterior_distribution(self, probabilities):
+        # plot the posterior distribution for ex_batch
         checkpoint_label = str(self.current_epoch)+'.ckpt'
         fig = plt.figure(figsize=(12, 3))
         plt.imshow(probabilities.detach().numpy().T, origin='lower')
         plt.title(checkpoint_label)
         self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.current_epoch)
 
-    def write_bin_distribution(self, examples, title):
-        fig = plt.figure(figsize=(12, 3))
-        plt.hist(examples, bins=range(penne.PITCH_BINS))
-        plt.title(title)
-        self.logger.experiment.add_figure(title, fig, global_step=self.current_epoch)
+    def write_logits(self, logits, frames):
+        # plot the logits for the 4 indexed frames in frames
+        if len(frames) == 4:
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 10))
+            ax1.plot(logits[frames[0]].detach().numpy())
+            ax1.set_title('Frame ' + str(frames[0]))
+            ax2.plot(logits[frames[1]].detach().numpy())
+            ax2.set_title('Frame ' + str(frames[1]))
+            ax3.plot(logits[frames[2]].detach().numpy())
+            ax3.set_title('Frame ' + str(frames[2]))
+            ax4.plot(logits[frames[3]].detach().numpy())
+            ax4.set_title('Frame ' + str(frames[3]))
+            checkpoint_label = str(self.current_epoch)+'.ckpt'
+            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.current_epoch)
 
 
     ###########################################################################
@@ -321,7 +321,6 @@ class Model(pl.LightningModule):
         x = self.layer(x, self.conv3, self.conv3_BN)
         x = self.layer(x, self.conv4, self.conv4_BN)
         x = self.layer(x, self.conv5, self.conv5_BN)
-
         return x
 
     def layer(self, x, conv, batch_norm, padding=(0, 0, 31, 32)):
