@@ -112,9 +112,9 @@ def PTDB_process(output_dir, voiceonly):
                     audio[:, None, None, :],
                     kernel_size=(1, penne.WINDOW_SIZE),
                     stride=(1, penne.HOP_SIZE))
+            if annotation.shape[1] > frames.shape[2]:
+                frames = frames[:,:,:annotation.shape[1]]
             if voiceonly:
-                if len(voiced) > frames.shape[2]:
-                    frames = frames[:,:,:len(voiced)] 
                 frames = frames[:,:,voiced]
             frame_filename = output_dir / "frames" / f'{audio_file.stem}.npy'
             np.save(frame_filename, frames)
