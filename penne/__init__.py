@@ -7,5 +7,4 @@ from . import load
 from . import threshold
 from . import metrics
 from . import data
-from . import partition
 from . import evaluate
