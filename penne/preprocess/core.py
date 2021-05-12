@@ -93,6 +93,7 @@ def PTDB_process(output_dir, voiceonly):
             # Preprocess annotation
             annotation_file = penne.data.stem_to_annotation('PTDB', stem)
             annotation = penne.load.PTDB_pitch(annotation_file)
+            n_annotation_frames = annotation.shape[1]
             if voiceonly:
                 voiced = (annotation != 0).squeeze()
                 annotation = annotation[:,voiced]
@@ -112,8 +113,9 @@ def PTDB_process(output_dir, voiceonly):
                     audio[:, None, None, :],
                     kernel_size=(1, penne.WINDOW_SIZE),
                     stride=(1, penne.HOP_SIZE))
-            if annotation.shape[1] > frames.shape[2]:
-                frames = frames[:,:,:annotation.shape[1]]
+            # handle off by one error
+            if n_annotation_frames < frames.shape[2]:
+                frames = frames[:,:,:n_annotation_frames]
             if voiceonly:
                 frames = frames[:,:,voiced]
             frame_filename = output_dir / "frames" / f'{audio_file.stem}.npy'
