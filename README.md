@@ -1,6 +1,6 @@
 # Pitch Estimating Neural NEtworks (PENNE)
 
-## Quick Guide
+## Training Quick Guide
 
 1. Clone this repo
 2. Run `cd penne`
