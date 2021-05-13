@@ -73,32 +73,41 @@ def from_stems(name, model, stems, device):
             the value is the value received for that metric. Must be JSON
             serializable.
     """
-    # TODO - evaluate
+    # setup metrics
     thresh = penne.threshold.Hysteresis()
     f1 = penne.metrics.F1(thresh)
     wrmse = penne.metrics.WRMSE()
     rpa = penne.metrics.RPA()
     rca = penne.metrics.RCA()
 
+    # loop over stems
     for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc="Evaluating"):
+        # get file paths
         audio_file = penne.data.stem_to_file(name, stem)
         annotation_file = penne.data.stem_to_annotation(name, stem)
+        
+        # get model-predicted pitch
         pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device)
+
+        # get annotated pitch
         annotation = penne.load.pitch_annotation(name, annotation_file)
 
         np_pitch = pitch.numpy()
         np_periodicity = periodicity.numpy()
         np_annotation = annotation.numpy()
 
+        # offset to empirical best alignment since PTDB annotations are not the expected length for 10ms hopsize
         if name == 'PTDB':
             np_pitch = np_pitch[:,1:1+np_annotation.shape[1]]
             np_periodicity = np_periodicity[:,1:1+np_annotation.shape[1]]
 
+        # update metrics
         f1.update(np_pitch, np_annotation, np_periodicity)
         wrmse.update(np_pitch, np_annotation, np_periodicity)
         rpa.update(np_pitch, np_annotation)
         rca.update(np_pitch, np_annotation)
 
+    # compute final metrics
     precision, recall, f1_val = f1()
     wrmse_val = wrmse()
     rpa_val = rpa()

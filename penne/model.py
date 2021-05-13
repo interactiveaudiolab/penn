@@ -142,8 +142,8 @@ class Model(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        if penne.LOSS_FUNCTION == 'BCE':
-            if penne.SMOOTH_TARGETS:
+        if penne.LOSS_FUNCTION == 'BCE' or penne.ORIGINAL_CREPE:
+            if penne.SMOOTH_TARGETS or penne.ORIGINAL_CREPE:
                 # apply Gaussian blur around target bin
                 mean = penne.convert.bins_to_cents(y)
                 normal = torch.distributions.Normal(mean, 25)

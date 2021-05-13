@@ -28,10 +28,11 @@ def main():
                                   args.num_workers)
 
     # Setup early stopping for 32 epochs of no val accuracy improvement
+    patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
     early_stop_callback = EarlyStopping(
         monitor='val_accuracy',
         min_delta=0.00,
-        patience=32,
+        patience=patience,
         verbose=False,
         mode='max'
     )

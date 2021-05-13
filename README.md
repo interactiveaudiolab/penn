@@ -1,5 +1,47 @@
 # Pitch Estimating Neural NEtworks (PENNE)
 
+## Quick Guide
+
+1. Clone this repo
+2. Run `cd penne`
+3. Run `pip install -e .`
+4. Put datasets into the data folder. MDB and PTDB are supported. Folder hierarchy should be:
+```
+penne
+|-- data
+|   |-- MDB
+|   |   |-- annotation_stems
+|   |   |   |-- ...
+|   |   |-- audio_stems
+|   |   |   |-- ...
+|   |-- PTDB
+|   |   |-- FEMALE
+|   |   |   |-- LAR
+|   |   |   |   |-- F01
+|   |   |   |   |-- F02
+|   |   |   |   |-- ...
+|   |   |   |-- MIC
+|   |   |   |   |-- ...
+|   |   |   |-- REF
+|   |   |   |   |-- ...
+|   |   |-- MALE
+|   |   |   |-- LAR
+|   |   |   |   |-- M01
+|   |   |   |   |-- M02
+|   |   |   |   |-- ...
+|   |   |   |-- MIC
+|   |   |   |   |-- ...
+|   |   |   |-- REF
+|   |   |   |   |-- ...
+```
+5. To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where DATASET is either MDB or PTDB
+6. To preprocess data for training, run `python -m penne.preprocess DATASET` where DATASET is either MDB or PTDB. You can add flag `--voiceonly=True` to allow for training on only voiced frames
+7. Optionally, you can change certain constant in `core.py` to change training settings. `ORIGINAL_CREPE = True` overrides other variables and uses settings from the original CREPE paper.
+8. To train the model, run `python -m penne.train --dataset=DATASET <args>`. We recommend the following flags:
+    * `--name=NAME`, which uses NAME for logging organization purposes
+    * `--batch_size=32`, which is the batch size used in the original CREPE paper
+    * `--limit_train_batches=500` and `--limit_val_batches=500`, which runs 500 random batches per epoch as in the original CREPE paper
+
 ## Installation
 
 Clone this repo and run `cd penne && pip install -e .`.

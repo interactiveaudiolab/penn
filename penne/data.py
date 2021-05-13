@@ -55,7 +55,7 @@ class Dataset(torch.utils.data.Dataset):
         frame = torch.from_numpy(frame.copy())
 
         # optionally normalize
-        if penne.WHITEN:
+        if penne.WHITEN or penne.ORIGINAL_CREPE:
             frame -= frame.mean(dim=1, keepdim=True)
             frame /= torch.max(torch.tensor(1e-10, device=frame.device),
                 frame.std(dim=1, keepdim=True))

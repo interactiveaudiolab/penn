@@ -22,6 +22,7 @@ def dataset(dataset, voiceonly=False):
     """
     subfolder = 'voiceonly' if voiceonly else 'all'
     output_directory = penne.CACHE_DIR / subfolder / dataset
+    # make directories if they do not exist
     for subdir in ['annotation', 'audio', 'frames']:
         sub_directory = output_directory / subdir
         sub_directory.mkdir(exist_ok=True, parents=True)
@@ -48,30 +49,43 @@ def MDB_process(output_dir, voiceonly):
 
         for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc=part):
             # Preprocess annotation
+
+            # load annotation
             annotation_file = penne.data.stem_to_annotation('MDB', stem)
             annotation = penne.load.MDB_pitch(annotation_file)
+
+            # optionally mask out unvoiced frames
             if voiceonly:
                 voiced = (annotation != 0).squeeze()
                 annotation = annotation[:,voiced]
+            # save offset to start of stem
             offsets[part][penne.data.file_to_stem('MDB', annotation_file)] = [total_frames, annotation.shape[1]]
+            # update total frames
             total_frames += annotation.shape[1]
+            # save annotation to numpy
             filename = output_dir / "annotation" / f'{annotation_file.stem}.npy'
             np.save(filename, annotation)
 
             # Preprocess audio
             audio_file = penne.data.stem_to_file('MDB', stem)
             audio, sr = penne.load.audio(audio_file)
+            # resample
             audio = penne.resample(audio, sr)
+            # save to cache
             filename = output_dir / "audio" / audio_file.name
             torchaudio.save(filename, audio, penne.SAMPLE_RATE)
 
+            # pad half windows on ends for MDB
             pad_audio = torch.nn.functional.pad(audio, (penne.WINDOW_SIZE//2, penne.WINDOW_SIZE//2))
+            # get 1024-sample frames
             frames = torch.nn.functional.unfold(
                     pad_audio[:, None, None, :],
                     kernel_size=(1, penne.WINDOW_SIZE),
                     stride=(1, penne.HOP_SIZE))
+            # optionally mask out unvoiced frames
             if voiceonly:
                 frames = frames[:,:,voiced]
+            # save to numpy
             frame_filename = output_dir / "frames" / f'{audio_file.stem}.npy'
             np.save(frame_filename, frames)
 
@@ -85,30 +99,43 @@ def PTDB_process(output_dir, voiceonly):
     offsets = {"totals": {}, "train": {}, "valid": {}, "test": {}}
     stem_dict = penne.data.partitions('PTDB')
 
+    # loop over train/valid/test partitions
     for part in stem_dict.keys():
         total_frames = 0
         stems = stem_dict[part]
 
+        # loop over stems in current partition
         for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc=part):
-            # Preprocess annotation
+            # Preprocess annnotation
+
+            # load annotation
             annotation_file = penne.data.stem_to_annotation('PTDB', stem)
             annotation = penne.load.PTDB_pitch(annotation_file)
             n_annotation_frames = annotation.shape[1]
+
+            # optionally mask out unvoiced frames
             if voiceonly:
                 voiced = (annotation != 0).squeeze()
                 annotation = annotation[:,voiced]
+
+            # save offset to start of stem
             offsets[part][penne.data.file_to_stem('PTDB', annotation_file)] = [total_frames, annotation.shape[1]]
+            # update total frames
             total_frames += annotation.shape[1]
+            # save annotation to numpy
             filename = output_dir / "annotation" / f'{annotation_file.stem}.npy'
             np.save(filename, annotation)
 
             # Preprocess audio
             audio_file = penne.data.stem_to_file('PTDB', stem)
             audio, sr = penne.load.audio(audio_file)
+            # resample
             audio = penne.resample(audio, sr)
+            # save to cache
             filename = output_dir / "audio" / audio_file.name
             torchaudio.save(filename, audio, penne.SAMPLE_RATE)
 
+            # get 1024-sample frames
             frames = torch.nn.functional.unfold(
                     audio[:, None, None, :],
                     kernel_size=(1, penne.WINDOW_SIZE),
@@ -116,8 +143,11 @@ def PTDB_process(output_dir, voiceonly):
             # handle off by one error
             if n_annotation_frames < frames.shape[2]:
                 frames = frames[:,:,:n_annotation_frames]
+
+            # optionally mask out unvoiced frames
             if voiceonly:
                 frames = frames[:,:,voiced]
+            # save to numpy
             frame_filename = output_dir / "frames" / f'{audio_file.stem}.npy'
             np.save(frame_filename, frames)
 
