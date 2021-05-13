@@ -7,18 +7,17 @@
 3. Run `pip install -e .`
 4. Put datasets into the data folder. MDB and PTDB are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
 ```
-penne
-|-- data
-|   |-- MDB
-|   |   |-- annotation_stems
-|   |   |   |-- ...
-|   |   |-- audio_stems
-|   |   |   |-- ...
-|   |-- PTDB
-|   |   |-- FEMALE
-|   |   |   |-- ...
-|   |   |-- MALE
-|   |   |   |-- ...
+data
+|-- MDB
+|   |-- annotation_stems
+|   |   |-- ...
+|   |-- audio_stems
+|   |   |-- ...
+|-- PTDB
+|   |-- FEMALE
+|   |   |-- ...
+|   |-- MALE
+|   |   |-- ...
 ```
 5. To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where DATASET is either MDB or PTDB
 6. To preprocess data for training, run `python -m penne.preprocess DATASET` where DATASET is either MDB or PTDB. You can add flag `--voiceonly=True` to allow for training on only voiced frames
