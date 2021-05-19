@@ -1,42 +1,27 @@
 # Pitch Estimating Neural NEtworks (PENNE)
 
-## Quick Guide
+## Training Quick Guide
 
 1. Clone this repo
 2. Run `cd penne`
 3. Run `pip install -e .`
-4. Put datasets into the data folder. MDB and PTDB are supported. Folder hierarchy should be:
+4. Put datasets into the data folder. MDB and PTDB are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
 ```
-penne
-|-- data
-|   |-- MDB
-|   |   |-- annotation_stems
-|   |   |   |-- ...
-|   |   |-- audio_stems
-|   |   |   |-- ...
-|   |-- PTDB
-|   |   |-- FEMALE
-|   |   |   |-- LAR
-|   |   |   |   |-- F01
-|   |   |   |   |-- F02
-|   |   |   |   |-- ...
-|   |   |   |-- MIC
-|   |   |   |   |-- ...
-|   |   |   |-- REF
-|   |   |   |   |-- ...
-|   |   |-- MALE
-|   |   |   |-- LAR
-|   |   |   |   |-- M01
-|   |   |   |   |-- M02
-|   |   |   |   |-- ...
-|   |   |   |-- MIC
-|   |   |   |   |-- ...
-|   |   |   |-- REF
-|   |   |   |   |-- ...
+data
+|-- MDB
+|   |-- annotation_stems
+|   |   |-- ...
+|   |-- audio_stems
+|   |   |-- ...
+|-- PTDB
+|   |-- FEMALE
+|   |   |-- ...
+|   |-- MALE
+|   |   |-- ...
 ```
 5. To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where DATASET is either MDB or PTDB
 6. To preprocess data for training, run `python -m penne.preprocess DATASET` where DATASET is either MDB or PTDB. You can add flag `--voiceonly=True` to allow for training on only voiced frames
-7. Optionally, you can change certain constant in `core.py` to change training settings. `ORIGINAL_CREPE = True` overrides other variables and uses settings from the original CREPE paper.
+7. Optionally, you can change certain constant in `core.py` to change training settings. `ORIGINAL_CREPE = True` overrides other variables and uses settings from the original CREPE paper. Note that `VOICE_ONLY` relies on having preprocessed the data accordingly in step 6.
 8. To train the model, run `python -m penne.train --dataset=DATASET <args>`. We recommend the following flags:
     * `--name=NAME`, which uses NAME for logging organization purposes
     * `--batch_size=32`, which is the batch size used in the original CREPE paper
