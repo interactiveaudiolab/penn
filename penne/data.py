@@ -26,11 +26,11 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, name, partition):
+    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY):
         self.name = name
         
         # read information from cache directory
-        subfolder = 'voiceonly' if penne.VOICE_ONLY else 'all'
+        subfolder = 'voiceonly' if voiceonly else 'all'
         with open(penne.CACHE_DIR / subfolder / name / "offsets.json", 'r') as f:
             offset_json = json.load(f)
             self.stems = list(offset_json[partition].keys())
@@ -100,24 +100,24 @@ class DataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         """Retrieve the PyTorch DataLoader for training"""
-        return loader(self.name, 'train', self.batch_size, self.num_workers)
+        return loader(self.name, 'train', self.batch_size, self.num_workers, penne.VOICE_ONLY)
 
     def val_dataloader(self):
         """Retrieve the PyTorch DataLoader for validation"""
-        return loader(self.name, 'valid', self.batch_size, self.num_workers)
+        return loader(self.name, 'valid', self.batch_size, self.num_workers, True)
 
     def test_dataloader(self):
         """Retrieve the PyTorch DataLoader for testing"""
-        return loader(self.name, 'test', self.batch_size, self.num_workers)
+        return loader(self.name, 'test', self.batch_size, self.num_workers, True)
 
 ###############################################################################
 # Data loader
 ###############################################################################
 
-def loader(dataset, partition, batch_size=64, num_workers=None):
+def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.VOICE_ONLY):
     """Retrieve a data loader"""
     return torch.utils.data.DataLoader(
-        dataset=Dataset(dataset, partition),
+        dataset=Dataset(dataset, partition, voiceonly),
         batch_size=batch_size,
         shuffle='test' not in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,

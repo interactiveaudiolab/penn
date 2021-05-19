@@ -223,43 +223,44 @@ class Model(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # compute mean loss and accuracy
-        loss_sum = 0
-        acc_sum = 0
-        for x in outputs:
-            loss_sum += x['loss']
-            acc_sum += x['accuracy']
-        loss_mean = loss_sum / len(outputs)
-        acc_mean = acc_sum / len(outputs)
+        if not self.trainer.running_sanity_check:
+            loss_sum = 0
+            acc_sum = 0
+            for x in outputs:
+                loss_sum += x['loss']
+                acc_sum += x['accuracy']
+            loss_mean = loss_sum / len(outputs)
+            acc_mean = acc_sum / len(outputs)
 
-        # log metrics to tensorboard
-        self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
-        self.logger.experiment.add_scalar("Accuracy/Val", acc_mean, self.current_epoch)
-        self.logger.experiment.add_scalar("RMSE/Val", self.val_rmse(), self.current_epoch)
-        self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
-        self.logger.experiment.add_scalar("RCA/Val", self.val_rca(), self.current_epoch)
+            # log metrics to tensorboard
+            self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
+            self.logger.experiment.add_scalar("Accuracy/Val", acc_mean, self.current_epoch)
+            self.logger.experiment.add_scalar("RMSE/Val", self.val_rmse(), self.current_epoch)
+            self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
+            self.logger.experiment.add_scalar("RCA/Val", self.val_rca(), self.current_epoch)
 
-        # log mean validation accuracy for early stopping
-        self.log('val_accuracy', acc_mean)
+            # log mean validation accuracy for early stopping
+            self.log('val_accuracy', acc_mean)
 
-        # save the best checkpoint so far
-        if loss_mean < self.best_loss and self.current_epoch > 5:
-            self.best_loss = loss_mean
-            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
-            self.trainer.save_checkpoint(checkpoint_path)
+            # save the best checkpoint so far
+            if loss_mean < self.best_loss and self.current_epoch > 5:
+                self.best_loss = loss_mean
+                checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
+                self.trainer.save_checkpoint(checkpoint_path)
 
-        # plot logits and posterior distribution
-        if self.current_epoch < 20 or self.current_epoch % 25 == 0:
-            # load a batch for logging if not yet loaded
-            if self.ex_batch is None:
-                self.ex_batch = self.ex_batch_for_logging('PTDB')
+            # plot logits and posterior distribution
+            if self.current_epoch < 20 or self.current_epoch % 25 == 0:
+                # load a batch for logging if not yet loaded
+                if self.ex_batch is None:
+                    self.ex_batch = self.ex_batch_for_logging('PTDB')
 
-            # plot logits
-            logits = penne.infer(self.ex_batch, model=self).cpu()
-            self.write_logits(logits, [10, 80, 400, 650])
+                # plot logits
+                logits = penne.infer(self.ex_batch, model=self).cpu()
+                self.write_logits(logits, [10, 80, 400, 650])
 
-            # plot posterior distribution
-            probabilities = torch.nn.Softmax(dim=1)(logits)
-            self.write_posterior_distribution(probabilities)  
+                # plot posterior distribution
+                probabilities = torch.nn.Softmax(dim=1)(logits)
+                self.write_posterior_distribution(probabilities)  
 
         self.val_rmse.reset()
         self.val_rpa.reset()

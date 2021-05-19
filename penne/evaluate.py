@@ -85,9 +85,11 @@ def from_stems(name, model, stems, device):
         # get file paths
         audio_file = penne.data.stem_to_file(name, stem)
         annotation_file = penne.data.stem_to_annotation(name, stem)
+
+        fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
         
         # get model-predicted pitch
-        pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device)
+        pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device)#, decoder=penne.decode.argmax, fmax=fmax)
 
         # get annotated pitch
         annotation = penne.load.pitch_annotation(name, annotation_file)
