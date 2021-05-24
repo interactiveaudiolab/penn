@@ -28,6 +28,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY):
         self.name = name
+        self.voiceonly = voiceonly
         
         # read information from cache directory
         subfolder = 'voiceonly' if voiceonly else 'all'
@@ -47,7 +48,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # get samples in indexth frame
         frame_idx = index - self.offsets[stem_idx]
-        frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, penne.VOICE_ONLY), mmap_mode='r')
+        frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, self.voiceonly), mmap_mode='r')
         frame = frames[:,:,frame_idx]
         # Convert to float32
         if frame.dtype == np.int16:
@@ -61,7 +62,7 @@ class Dataset(torch.utils.data.Dataset):
                 frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
-        annotation_path = stem_to_cache_annotation(self.name, stem, penne.VOICE_ONLY)
+        annotation_path = stem_to_cache_annotation(self.name, stem, self.voiceonly)
         annotations = penne.load.annotation_from_cache(annotation_path)
         annotation = annotations[:,frame_idx]
 

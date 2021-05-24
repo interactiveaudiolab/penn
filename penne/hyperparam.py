@@ -1,4 +1,4 @@
-"""evaluate.py - model evaluation"""
+"""hyperparam.py - model evaluation"""
 
 
 import argparse
@@ -16,7 +16,7 @@ import penne
 ###############################################################################
 
 
-def dataset(name, partition, model, device):
+def dataset(name, partition, model, device, thresholds):
     """Evaluate a dataset
 
     Arguments
@@ -34,14 +34,11 @@ def dataset(name, partition, model, device):
     # Get stems for this partition
     stems = penne.data.partitions(name)[partition]
 
-    # Resolve stems to filenames
-    # files = [penne.data.stem_to_file(name, stem) for stem in stems]
-
     # Partition files
-    return from_stems(name, model, stems, device)
+    return from_stems(name, model, stems, device, thresholds)
 
 
-def dataset_to_file(name, partition, model, file, device):
+def dataset_to_file(name, partition, model, file, device, thresholds):
     """Evaluate dataset and write results to json file
 
     Arguments
@@ -55,10 +52,10 @@ def dataset_to_file(name, partition, model, file, device):
             The json file to save results to
     """
     with open(file, 'w') as file:
-        json.dump(dataset(name, partition, model, device), file)
+        json.dump(dataset(name, partition, model, device, thresholds), file)
 
 
-def from_stems(name, model, stems, device):
+def from_stems(name, model, stems, device, thresholds):
     """Evaluate files
 
     Arguments
@@ -73,48 +70,42 @@ def from_stems(name, model, stems, device):
             the value is the value received for that metric. Must be JSON
             serializable.
     """
-    # setup metrics
-    thresh = penne.threshold.At(0.21)
-    f1 = penne.metrics.F1(thresh)
-    wrmse = penne.metrics.WRMSE()
-    rpa = penne.metrics.RPA()
-    rca = penne.metrics.RCA()
+    results = {}
+    for threshold in thresholds:
+        # setup metrics
+        thresh = penne.threshold.At(threshold)
+        f1 = penne.metrics.F1(thresh)
 
-    # loop over stems
-    for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc="Evaluating"):
-        # get file paths
-        audio_file = penne.data.stem_to_file(name, stem)
-        annotation_file = penne.data.stem_to_annotation(name, stem)
+        # loop over stems
+        for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc="Evaluating"):
+            # get file paths
+            audio_file = penne.data.stem_to_file(name, stem)
+            annotation_file = penne.data.stem_to_annotation(name, stem)
 
-        fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
+            fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
+            
+            # get model-predicted pitch
+            pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
+
+            # get annotated pitch
+            annotation = penne.load.pitch_annotation(name, annotation_file)
+
+            np_pitch = pitch.numpy()
+            np_periodicity = periodicity.numpy()
+            np_annotation = annotation.numpy()
+
+            # offset to empirical best alignment since PTDB annotations are not the expected length for 10ms hopsize
+            if name == 'PTDB' and np_pitch.shape[1] > np_annotation.shape[1]:
+                np_pitch = np_pitch[:,:np_annotation.shape[1]]
+                np_periodicity = np_periodicity[:,:np_annotation.shape[1]]
+
+            # update metrics
+            f1.update(np_pitch, np_annotation, np_periodicity)
+
+        # compute final metrics
+        precision, recall, f1_val = f1()
         
-        # get model-predicted pitch
-        pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
-
-        # get annotated pitch
-        annotation = penne.load.pitch_annotation(name, annotation_file)
-
-        np_pitch = pitch.numpy()
-        np_periodicity = periodicity.numpy()
-        np_annotation = annotation.numpy()
-
-        # offset to empirical best alignment since PTDB annotations are not the expected length for 10ms hopsize
-        if name == 'PTDB' and np_pitch.shape[1] > np_annotation.shape[1]:
-            np_pitch = np_pitch[:,:np_annotation.shape[1]]
-            np_periodicity = np_periodicity[:,:np_annotation.shape[1]]
-        # update metrics
-        f1.update(np_pitch, np_annotation, np_periodicity)
-        wrmse.update(np_pitch, np_annotation, np_periodicity)
-        rpa.update(np_pitch, np_annotation)
-        rca.update(np_pitch, np_annotation)
-
-    # compute final metrics
-    precision, recall, f1_val = f1()
-    wrmse_val = wrmse()
-    rpa_val = rpa()
-    rca_val = rca()
-    
-    results = {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val}
+        results[threshold] = {'precision': precision, 'recall': recall, 'f1': f1_val}
     return results
 
 
@@ -145,6 +136,21 @@ def parse_args():
         'device',
         help='The device to use for evaluation'
     )
+    parser.add_argument(
+        'start',
+        type=float,
+        help='Lowest threshold to test'
+    )
+    parser.add_argument(
+        'stop',
+        type=float,
+        help='Highest threshold to test'
+    )
+    parser.add_argument(
+        'step',
+        type=float,
+        help='Intervals at which to test'
+    )
 
     return parser.parse_args()
 
@@ -156,9 +162,11 @@ def main():
 
     # Setup model
     model = penne.load.model(device=args.device, checkpoint=args.checkpoint)
+    thresholds = np.arange(args.start, args.stop, args.step)
+    print(thresholds)
 
-    # Evaluate
-    dataset_to_file(args.dataset, args.partition, model, args.file, args.device)
+    # Run search
+    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.file, args.device, thresholds)
 
 
 if __name__ == '__main__':

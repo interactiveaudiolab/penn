@@ -61,7 +61,6 @@ class F1:
         # true positive = voiced in source and target
         self.true_positives += overlap.sum()
 
-        # TODO: DOUBLE CHECK THIS
         self.false_positives += (~source_voiced & target_voiced).sum()
         self.false_negatives += (source_voiced & ~target_voiced).sum()
 

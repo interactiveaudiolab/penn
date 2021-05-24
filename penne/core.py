@@ -86,7 +86,8 @@ def predict(audio,
             decoder=penne.decode.viterbi,
             return_periodicity=False,
             batch_size=None,
-            device='cpu'):
+            device='cpu', 
+            pad=True):
     """Performs pitch estimation
 
     Arguments
@@ -126,7 +127,8 @@ def predict(audio,
                                sample_rate,
                                hop_length,
                                batch_size,
-                               device)
+                               device,
+                               pad)
         for frames in generator:
 
             # Infer independent probabilities for each pitch bin
@@ -170,7 +172,8 @@ def predict_from_file(audio_file,
                       decoder=penne.decode.viterbi,
                       return_periodicity=False,
                       batch_size=None,
-                      device='cpu'):
+                      device='cpu',
+                      pad=True):
     """Performs pitch estimation from file on disk
 
     Arguments
@@ -212,7 +215,8 @@ def predict_from_file(audio_file,
                    decoder,
                    return_periodicity,
                    batch_size,
-                   device)
+                   device,
+                   pad)
 
 
 def predict_from_file_to_file(audio_file,
@@ -566,7 +570,8 @@ def preprocess(audio,
                sample_rate,
                hop_length=None,
                batch_size=None,
-               device='cpu'):
+               device='cpu',
+               pad=True):
     """Convert audio to model input
 
     Arguments
@@ -593,11 +598,15 @@ def preprocess(audio,
         hop_length = int(hop_length * SAMPLE_RATE / sample_rate)
 
     # Get total number of frames
-    total_frames = 1 + int(audio.size(1) // hop_length)
+    
 
     # Pad
-    audio = torch.nn.functional.pad(audio,
-                                    (WINDOW_SIZE // 2, WINDOW_SIZE // 2))
+    if pad:
+        total_frames = 1 + int(audio.size(1) // hop_length)
+        audio = torch.nn.functional.pad(audio,
+                                        (WINDOW_SIZE // 2, WINDOW_SIZE // 2))
+    else:
+        total_frames = 1 + int((audio.size(1)-WINDOW_SIZE) // hop_length)
 
     # Default to running all frames in a single batch
     batch_size = total_frames if batch_size is None else batch_size
