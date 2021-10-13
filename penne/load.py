@@ -53,7 +53,7 @@ def pitch_annotation(name, path):
     else:
         ValueError(f'Dataset {name} is not implemented')
 
-def MDB_pitch(path):
+def MDB_pitch(path, bins=True):
     annotation = np.loadtxt(open(path), delimiter=',')
     xp, fp = annotation[:,0], annotation[:,1]
     # original annotations are spaced every 128 / 44100 seconds; we downsample to 0.01 seconds
@@ -62,20 +62,39 @@ def MDB_pitch(path):
     # get duration of original file
     duration = librosa.get_duration(filename=penne.data.stem_to_file('MDB', penne.data.file_to_stem('MDB', path)))
     
+    sequence, voiced = linear_interp(fp)
     # linearly interpolate at 0.01 second intervals
     interpx = 0.01 * np.arange(0, penne.convert.seconds_to_frames(duration))
-    new_annotation = np.interp(interpx, xp, fp)
+    new_annotation = 2 ** np.interp(interpx, xp, np.log2(sequence))
+    new_voiced = np.interp(interpx, xp, voiced)
+    new_voiced = new_voiced > 0.5
+
+    tensor_annotation = torch.tensor(np.copy(new_annotation))[None]
+    tensor_voiced = torch.tensor(np.copy(new_voiced))[None]
+
+    if not bins:
+        return tensor_annotation, tensor_voiced
     
     # convert frequency annotations to bins
-    bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(new_annotation))[None])
-    bin_annotation[bin_annotation < 0] = 0
+    bin_annotation = penne.convert.frequency_to_bins(tensor_annotation)
+    bin_annotation[~tensor_voiced] = 0
     return bin_annotation
-
-def PTDB_pitch(path):
+    
+def PTDB_pitch(path, bins=True):
     # PTDB annotations are extracted using RAPT with 32 ms window size, 10 ms hop size
     arr = np.loadtxt(open(path), delimiter=' ')[:,0]
+
+    if not bins:
+        return linear_interp(arr)
     
     # convert frequency annotations to bins
     bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(arr))[None])
     bin_annotation[bin_annotation < 0] = 0
     return bin_annotation
+
+def linear_interp(sequence):
+    unvoiced = sequence == 0
+    sequence = np.log2(sequence)
+    sequence[unvoiced] = np.interp(
+        np.where(unvoiced)[0], np.where(~unvoiced)[0], sequence[~unvoiced])
+    return 2**sequence, ~unvoiced

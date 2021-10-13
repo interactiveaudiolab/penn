@@ -98,7 +98,7 @@ def from_stems(name, model, stems, device):
         np_periodicity = periodicity.numpy()
         np_annotation = annotation.numpy()
 
-        # offset to empirical best alignment since PTDB annotations are not the expected length for 10ms hopsize
+        # handle off by one error
         if name == 'PTDB' and np_pitch.shape[1] > np_annotation.shape[1]:
             np_pitch = np_pitch[:,:np_annotation.shape[1]]
             np_periodicity = np_periodicity[:,:np_annotation.shape[1]]

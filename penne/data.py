@@ -29,26 +29,54 @@ class Dataset(torch.utils.data.Dataset):
     def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY):
         self.name = name
         self.voiceonly = voiceonly
+        self.stems = {}
+        self.offsets = {}
         
         # read information from cache directory
         subfolder = 'voiceonly' if voiceonly else 'all'
-        with open(penne.CACHE_DIR / subfolder / name / "offsets.json", 'r') as f:
-            offset_json = json.load(f)
-            self.stems = list(offset_json[partition].keys())
-            self.offsets = [offset_json[partition][stem][0] for stem in self.stems]
-            # sort by offset
-            self.offsets, self.stems = zip(*(sorted(zip(self.offsets, self.stems))))
-            self.total_nframes = offset_json['totals'][partition]
+        self.split = 0
+        self.total_nframes = 0
+        if self.name == 'BOTH':
+            for dataset_name in ['MDB', 'PTDB']:
+                with open(penne.CACHE_DIR / subfolder / dataset_name / "offsets.json", 'r') as f:
+                    offset_json = json.load(f)
+                    self.stems[dataset_name] = list(offset_json[partition].keys())
+                    self.offsets[dataset_name] = [offset_json[partition][stem][0] for stem in self.stems[dataset_name]]
+                    # sort by offset
+                    self.offsets[dataset_name], self.stems[dataset_name] = zip(*(sorted(zip(self.offsets[dataset_name], self.stems[dataset_name]))))
+                    self.total_nframes += offset_json['totals'][partition]
+                if self.split == 0:
+                    self.split = self.total_nframes
+        elif name in ['MDB', 'PTDB']:
+            with open(penne.CACHE_DIR / subfolder / self.name / "offsets.json", 'r') as f:
+                offset_json = json.load(f)
+                self.stems[self.name] = list(offset_json[partition].keys())
+                self.offsets[self.name] = [offset_json[partition][stem][0] for stem in self.stems[self.name]]
+                # sort by offset
+                self.offsets[self.name], self.stems[self.name] = zip(*(sorted(zip(self.offsets[self.name], self.stems[self.name]))))
+                self.total_nframes = offset_json['totals'][partition]
+        else:
+            raise ValueError("Dataset name must be MDB, PTDB, or BOTH")
 
     def __getitem__(self, index):
+        if self.name in ['MDB', 'PTDB']:
+            return self.getitem_from_dataset(self.name, index)
+        else:
+            if index < self.split:
+                return self.getitem_from_dataset('MDB', index)
+            else:
+                return self.getitem_from_dataset('PTDB', index - self.split)
+
+
+    def getitem_from_dataset(self, name, index):
         """Retrieve the indexth item"""
         # get the stem that indexth item is from
-        stem_idx = bisect.bisect_right(self.offsets, index) - 1
-        stem = self.stems[stem_idx]
+        stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
+        stem = self.stems[name][stem_idx]
 
         # get samples in indexth frame
-        frame_idx = index - self.offsets[stem_idx]
-        frames = np.load(penne.data.stem_to_cache_frames(self.name, stem, self.voiceonly), mmap_mode='r')
+        frame_idx = index - self.offsets[name][stem_idx]
+        frames = np.load(penne.data.stem_to_cache_frames(name, stem, self.voiceonly), mmap_mode='r')
         frame = frames[:,:,frame_idx]
         # Convert to float32
         if frame.dtype == np.int16:
@@ -62,7 +90,7 @@ class Dataset(torch.utils.data.Dataset):
                 frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
-        annotation_path = stem_to_cache_annotation(self.name, stem, self.voiceonly)
+        annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
         annotations = penne.load.annotation_from_cache(annotation_path)
         annotation = annotations[:,frame_idx]
 
@@ -117,8 +145,15 @@ class DataModule(pl.LightningDataModule):
 
 def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.VOICE_ONLY):
     """Retrieve a data loader"""
+    if dataset == 'BOTH':
+        dataset_obj = torch.utils.data.ConcatDataset([
+            Dataset('MDB', partition, voiceonly),
+            Dataset('PTDB', partition, voiceonly)
+        ])
+    else:
+        dataset_obj = Dataset(dataset, partition, voiceonly)
     return torch.utils.data.DataLoader(
-        dataset=Dataset(dataset, partition, voiceonly),
+        dataset=dataset_obj,
         batch_size=batch_size,
         shuffle='test' not in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,

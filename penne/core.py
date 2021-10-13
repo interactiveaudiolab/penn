@@ -14,6 +14,7 @@ __all__ = ['ASSETS_DIR',
            'CHECKPOINT_DIR',
            'CACHE_DIR',
            'DATA_DIR',
+           'EARLY_STOP_PATIENCE',
            'FULL_CHECKPOINT',
            'HOP_SIZE',
            'LOSS_FUNCTION',
@@ -631,14 +632,15 @@ def preprocess(audio,
         # Place on device
         frames = frames.to(device)
 
-        # Mean-center
-        frames -= frames.mean(dim=1, keepdim=True)
+        if penne.WHITEN:
+            # Mean-center
+            frames -= frames.mean(dim=1, keepdim=True)
 
-        # Scale
-        # Note: during silent frames, this produces very large values. But
-        # this seems to be what the network expects.
-        frames /= torch.max(torch.tensor(1e-10, device=frames.device),
-                            frames.std(dim=1, keepdim=True))
+            # Scale
+            # Note: during silent frames, this produces very large values. But
+            # this seems to be what the network expects.
+            frames /= torch.max(torch.tensor(1e-10, device=frames.device),
+                                frames.std(dim=1, keepdim=True))
 
         yield frames
 
