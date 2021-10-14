@@ -37,7 +37,7 @@ __all__ = ['ASSETS_DIR',
            'predict_from_file',
            'predict_from_file_to_file',
            'predict_from_files_to_files',
-           'preprocess',
+           'preprocess_from_audio',
            'postprocess',
            'resample']
 
@@ -124,7 +124,7 @@ def predict(audio,
     with torch.no_grad():
 
         # Preprocess audio
-        generator = preprocess(audio,
+        generator = preprocess_from_audio(audio,
                                sample_rate,
                                hop_length,
                                batch_size,
@@ -364,7 +364,7 @@ def embed(audio,
     results = []
 
     # Preprocess audio
-    generator = preprocess(audio, sample_rate, hop_length, batch_size, device)
+    generator = preprocess_from_audio(audio, sample_rate, hop_length, batch_size, device)
     for frames in generator:
 
         # Infer pitch embeddings
@@ -567,7 +567,7 @@ def postprocess(probabilities,
     return pitch, periodicity(probabilities, bins)
 
 
-def preprocess(audio,
+def preprocess_from_audio(audio,
                sample_rate,
                hop_length=None,
                batch_size=None,

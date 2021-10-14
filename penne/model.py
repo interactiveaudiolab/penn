@@ -269,12 +269,12 @@ class Model(pl.LightningModule):
         if dataset == 'PTDB':
             ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
             ex_audio = penne.resample(ex_audio, ex_sr)
-            return next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
+            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
         elif dataset == 'MDB':
             ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
             ex_audio = penne.resample(ex_audio, ex_sr)
             # limit length to avoid memory error
-            return next(penne.preprocess(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
+            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
 
     def write_posterior_distribution(self, probabilities):
         # plot the posterior distribution for ex_batch
@@ -455,6 +455,7 @@ class NVDModel(pl.LightningModule):
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         # convert between log2 or 2**y
+        
         # y_hat = output.argmax(dim=1)
         # np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         # np_y = y.cpu().numpy()[None,:]

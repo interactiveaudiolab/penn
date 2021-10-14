@@ -1,6 +1,9 @@
 import argparse
 import penne
 import itertools
+from penne.load import pitch_annotation
+import torch
+from pathlib import Path
 
 def parse_args():
     """Parse command-line arguments"""
@@ -18,8 +21,6 @@ def parse_args():
     )
     return parser.parse_args()
 
-
-
 def from_dataset(dataset, checkpoint, gpu):
     stem_dict = penne.data.partitions(dataset)
     stems = list(itertools.chain(*list(stem_dict.values())))
@@ -35,7 +36,7 @@ def from_dataset(dataset, checkpoint, gpu):
         with torch.no_grad():
 
             # Preprocess audio
-            generator = penne.preprocess(audio,
+            generator = penne.preprocess_from_audio(audio,
                                 penne.SAMPLE_RATE,
                                 penne.HOP_SIZE,
                                 1024,
@@ -44,7 +45,7 @@ def from_dataset(dataset, checkpoint, gpu):
             for frames in generator:
 
                 # Infer independent probabilities for each pitch bin
-                logits = infer(frames, checkpoint, model)
+                logits = penne.infer(frames, Path(checkpoint))
 
                 # Place on same device as audio to allow very long inputs
                 logits = logits.to(audio.device)
@@ -53,9 +54,11 @@ def from_dataset(dataset, checkpoint, gpu):
 
         # Concatenate
         # double check dimensions (360, x)
-        torch.save(torch.cat(results, 0).T, penne.CACHE_DIR / 'nvd' / dataset / 'logits' / f'{stem}.npy'
+        torch.save(torch.cat(results, 0).T, penne.CACHE_DIR / 'nvd' / dataset / 'logits' / f'{stem}.pt')
 
-    # concatenate log2(annotations) and voicings and save (2,length)
+        # concatenate log2(annotations) and voicings and save (2,length)
+        annotation, voicing = pitch_annotation(dataset, penne.data.stem_to_annotation(dataset, stem), False)
+        torch.save(torch.cat((torch.log2(annotation), voicing)), penne.CACHE_DIR / 'nvd' / dataset / 'targets' / f'{stem}.pt')
 
 
 if __name__ == '__main__':

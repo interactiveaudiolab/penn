@@ -45,11 +45,11 @@ def model(device, checkpoint=penne.FULL_CHECKPOINT):
 def annotation_from_cache(path):
     return torch.from_numpy(np.load(path))
 
-def pitch_annotation(name, path):
+def pitch_annotation(name, path, bins=True):
     if name == 'MDB':
-        return MDB_pitch(path)
+        return MDB_pitch(path, bins)
     elif name == 'PTDB':
-        return PTDB_pitch(path)
+        return PTDB_pitch(path, bins)
     else:
         ValueError(f'Dataset {name} is not implemented')
 
@@ -79,7 +79,7 @@ def MDB_pitch(path, bins=True):
     bin_annotation = penne.convert.frequency_to_bins(tensor_annotation)
     bin_annotation[~tensor_voiced] = 0
     return bin_annotation
-    
+
 def PTDB_pitch(path, bins=True):
     # PTDB annotations are extracted using RAPT with 32 ms window size, 10 ms hop size
     arr = np.loadtxt(open(path), delimiter=' ')[:,0]

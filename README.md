@@ -170,7 +170,7 @@ has more parameters and may require more manual tuning to your data.
 ### Computing the model output activations
 
 ```python
-batch = next(penne.preprocess(audio, sr, hop_length))
+batch = next(penne.preprocess_from_audio(audio, sr, hop_length))
 probabilities = penne.infer(batch)
 ```
 
