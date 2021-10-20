@@ -155,10 +155,10 @@ def main():
     args = parse_args()
 
     # Setup model
-    model = penne.load.model(device=args.device, checkpoint=args.checkpoint)
+    penne.load.model(device=args.device, checkpoint=args.checkpoint)
 
     # Evaluate
-    dataset_to_file(args.dataset, args.partition, model, args.file, args.device)
+    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.file, args.device)
 
 
 if __name__ == '__main__':
