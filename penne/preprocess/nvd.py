@@ -4,6 +4,8 @@ import itertools
 from penne.load import pitch_annotation
 import torch
 from pathlib import Path
+import tqdm
+import os
 
 def parse_args():
     """Parse command-line arguments"""
@@ -25,8 +27,15 @@ def from_dataset(dataset, checkpoint, gpu):
     stem_dict = penne.data.partitions(dataset)
     stems = list(itertools.chain(*list(stem_dict.values())))
 
-    for stem in stems:
-        audio_file = penne.data.stem_to_file('MDB', stem)
+    logits_dir = penne.CACHE_DIR / 'nvd' / dataset / 'logits'
+    targets_dir = penne.CACHE_DIR / 'nvd' / dataset / 'targets'
+    if not os.path.exists(logits_dir):
+        os.makedirs(logits_dir)
+    if not os.path.exists(targets_dir):
+        os.makedirs(targets_dir)
+
+    for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc=dataset):
+        audio_file = penne.data.stem_to_file(dataset, stem)
         audio, sr = penne.load.audio(audio_file)
         # resample
         audio = penne.resample(audio, sr)
@@ -54,11 +63,11 @@ def from_dataset(dataset, checkpoint, gpu):
 
         # Concatenate
         # double check dimensions (360, x)
-        torch.save(torch.cat(results, 0).T, penne.CACHE_DIR / 'nvd' / dataset / 'logits' / f'{stem}.pt')
+        torch.save(torch.cat(results, 0).T, logits_dir / f'{stem}.pt')
 
         # concatenate log2(annotations) and voicings and save (2,length)
         annotation, voicing = pitch_annotation(dataset, penne.data.stem_to_annotation(dataset, stem), False)
-        torch.save(torch.cat((torch.log2(annotation), voicing)), penne.CACHE_DIR / 'nvd' / dataset / 'targets' / f'{stem}.pt')
+        torch.save(torch.cat((torch.log2(annotation), voicing)), targets_dir / f'{stem}.pt')
 
 
 if __name__ == '__main__':

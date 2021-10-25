@@ -85,7 +85,10 @@ def PTDB_pitch(path, bins=True):
     arr = np.loadtxt(open(path), delimiter=' ')[:,0]
 
     if not bins:
-        return linear_interp(arr)
+        sequence, voiced = linear_interp(arr)
+        tensor_annotation = torch.tensor(np.copy(sequence))[None]
+        tensor_voiced = torch.tensor(np.copy(voiced))[None]
+        return tensor_annotation, tensor_voiced
     
     # convert frequency annotations to bins
     bin_annotation = penne.convert.frequency_to_bins(torch.tensor(np.copy(arr))[None])
