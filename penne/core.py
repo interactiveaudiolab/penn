@@ -22,6 +22,7 @@ __all__ = ['ASSETS_DIR',
            'ORIGINAL_CREPE',
            'PITCH_BINS',
            'RUNS_DIR',
+           'EVAL_DIR',
            'SAMPLE_RATE',
            'SMOOTH_TARGETS',
            'UNVOICED',
@@ -53,6 +54,7 @@ CACHE_DIR = Path(__file__).parent.parent / 'cache'
 CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
 FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
 RUNS_DIR = Path(__file__).parent.parent / 'runs'
+EVAL_DIR = RUNS_DIR / 'eval'
 
 # Numerical Constants
 CENTS_PER_BIN = 20  # cents
