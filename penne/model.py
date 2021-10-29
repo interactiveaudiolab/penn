@@ -363,7 +363,7 @@ class NVDModel(pl.LightningModule):
         out_channels = [256, 256, 256, 256, 2]
 
         # Shared layer parameters
-        kernel_sizes = [5] * 4 + [1]
+        kernel_sizes = [11] * 4 + [1]
 
         # Overload with eps and momentum conversion given by MMdnn
         batch_norm_fn = functools.partial(torch.nn.BatchNorm1d,
@@ -441,8 +441,8 @@ class NVDModel(pl.LightningModule):
     def my_loss(self, y_hat, y):
         # y_hat, y [batch, 2, time]
         # 0 -> pitch
-        mse_loss = F.mse_loss(y_hat[:,0], y[:,0])
-        bce_loss = F.binary_cross_entropy_with_logits(y_hat[:,1], y[:,1])
+        mse_loss = F.mse_loss(y_hat[:,0], y[:,0]) #log2 hz
+        bce_loss = F.binary_cross_entropy_with_logits(y_hat[:,1], y[:,1]) #periodicity stuff (optional)
 
         # maybe weight these
         return mse_loss + bce_loss

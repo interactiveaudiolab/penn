@@ -168,6 +168,117 @@ def collate_fn(batch):
     features, targets = zip(*batch)
     col_features = torch.cat(list(features))
     col_targets = torch.cat(list(targets))
+    # (batch, window_size), (batch)
+    return (col_features, col_targets)
+
+###############################################################################
+# NVD Dataset
+###############################################################################
+
+class NVDDataset(torch.utils.data.Dataset):
+    """PyTorch dataset
+
+    Arguments
+        name - string
+            The name of the dataset
+        partition - string
+            The name of the data partition
+    """
+
+    def __init__(self, name, partition):
+        self.name = name
+        self.stems = partitions(name)[partition]
+
+    def __getitem__(self, index):
+        stem = self.stems[index]
+        logits = torch.load(stem_to_nvd_logits(self.name, stem))
+        targets = torch.load(stem_to_nvd_targets(self.name, stem))
+        # maybe handle unvoiced?
+
+        # (360, frames), (2, frames)
+        return (logits, targets)
+
+
+    def __len__(self):
+        """Length of the dataset"""
+        return len(self.stems)
+
+###############################################################################
+# Data module
+###############################################################################
+
+class NVDDataModule(pl.LightningDataModule):
+    """PyTorch Lightning data module
+
+    Arguments
+        name - string
+            The name of the dataset
+        batch_size - int
+            The size of a batch
+        num_workers - int or None
+            Number data loading jobs to launch. If None, uses num cpu cores.
+    """
+
+    def __init__(self, name, batch_size=64, num_workers=None):
+        super().__init__()
+        self.name = name
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+
+    def train_dataloader(self):
+        """Retrieve the PyTorch DataLoader for training"""
+        return nvd_loader(self.name, 'train', self.batch_size, self.num_workers)
+
+    def val_dataloader(self):
+        """Retrieve the PyTorch DataLoader for validation"""
+        return nvd_loader(self.name, 'valid', self.batch_size, self.num_workers)
+
+    def test_dataloader(self):
+        """Retrieve the PyTorch DataLoader for testing"""
+        return nvd_loader(self.name, 'test', self.batch_size, self.num_workers)
+
+###############################################################################
+# Data loader
+###############################################################################
+
+def nvd_loader(dataset, partition, batch_size=64, num_workers=None):
+    """Retrieve a data loader"""
+    return torch.utils.data.DataLoader(
+        dataset=NVDDataset(dataset, partition),
+        batch_size=batch_size,
+        shuffle='test' not in partition,
+        num_workers=os.cpu_count() if num_workers is None else num_workers,
+        pin_memory=True,
+        collate_fn=nvd_collate_fn)
+
+###############################################################################
+# Collate function
+###############################################################################
+
+def nvd_collate_fn(batch):
+    # random.seed(0)
+    num_frames = penne.convert.seconds_to_frames(1)
+    features, targets = zip(*batch)
+
+    col_features = []
+    col_targets = []
+    for i in range(len(targets)):
+        logits = features[i]
+        target = targets[i]
+        curr_frames = features[i].shape[1]
+        if curr_frames > num_frames:
+            start = random.randint(0, curr_frames - num_frames)
+            logits = logits[:,start:start+num_frames]
+            target = target[:,start:start+num_frames]
+        else:
+            # no files are shorter than 1 second (100 frames), so we don't need to pad
+            pass
+        col_features.append(logits)
+        col_targets.append(target)
+    
+    col_features = torch.stack(col_features)
+    col_targets = torch.stack(col_targets)
+
     # insert comment about shapes of these
     return (col_features, col_targets)
 
@@ -385,3 +496,39 @@ def MDB_stem_to_cache_frames(directory, stem):
 
 def PTDB_stem_to_cache_frames(directory, stem):
     return directory / 'frames' / ("mic_" + stem + ".npy")
+
+def stem_to_nvd_logits(name, stem):
+    """Resolve stem to a numpy array of frames in the cache
+
+    Arguments
+        name - string
+            The name of the dataset
+        stem - string
+            The stem representing one item in the dataset
+
+    Returns
+        file - Path
+            The corresponding file
+    """
+    if name not in ['MDB', 'PTDB']:
+        raise ValueError(f'Dataset {name} is not implemented')
+
+    return penne.CACHE_DIR / 'nvd' / name / 'logits' / (stem + ".pt")
+
+def stem_to_nvd_targets(name, stem):
+    """Resolve stem to a numpy array of frames in the cache
+
+    Arguments
+        name - string
+            The name of the dataset
+        stem - string
+            The stem representing one item in the dataset
+
+    Returns
+        file - Path
+            The corresponding file
+    """
+    if name not in ['MDB', 'PTDB']:
+        raise ValueError(f'Dataset {name} is not implemented')
+
+    return penne.CACHE_DIR / 'nvd' / name / 'targets' / (stem + ".pt")

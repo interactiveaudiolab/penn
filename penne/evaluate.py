@@ -174,30 +174,33 @@ def parse_args():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'dataset',
+        '--dataset',
+        required=True,
         help='The name of the dataset to evaluate')
     parser.add_argument(
-        'partition',
+        '--partition',
         help='The partition to evaluate',
         default='test')
     parser.add_argument(
-        'checkpoint',
+        '--checkpoint',
         type=Path,
+        required=True,
         help='The checkpoint file to evaluate')
     parser.add_argument(
-        'model_name',
+        '--model_name',
         type=str,
+        required=True,
         help='Name of model for directory naming')
     parser.add_argument(
-        'skip_predictions',
-        type=bool,
-        help='If true, will try to use existing predictions')
-    parser.add_argument(
-        'device',
+        '--device',
+        default='cuda',
         help='The device to use for evaluation')
+    parser.add_argument(
+        '--skip_predictions',
+        action='store_true',
+        help='If true, will try to use existing predictions')
 
     return parser.parse_args()
-
 
 def main():
     """Evaluate a model"""
