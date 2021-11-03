@@ -61,8 +61,8 @@ class F1:
         # true positive = voiced in source and target
         self.true_positives += overlap.sum()
 
-        self.false_positives += (~source_voiced & target_voiced).sum()
-        self.false_negatives += (source_voiced & ~target_voiced).sum()
+        self.false_negatives += (~source_voiced & target_voiced).sum()
+        self.false_positives += (source_voiced & ~target_voiced).sum()
 
     def reset(self):
         """Reset the F1 score"""
@@ -81,11 +81,16 @@ class WRMSE:
         # take square root of mean square error
         return math.sqrt(self.sum / self.count)
 
-    def update(self, source, target, periodicity):
+    def update(self, source, target, periodicity, target_type='bins'):
         """Update the precision, recall, and f1"""
         # convert all to cents
         convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
-        convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
+        if target_type == 'bins':
+            convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
+        elif target_type == 'freq':
+            convert_target = penne.convert.frequency_to_cents(torch.from_numpy(target)).numpy()
+        else:
+            raise ValueError('target_type must be "bins" or "freq"')
         # compute sum of square error
         self.sum += (periodicity * (convert_source-convert_target)**2).sum()
         # source is shape (1, n)
@@ -105,12 +110,20 @@ class RPA:
     def __call__(self):
         return self.sum / self.count
 
-    def update(self, source, target):
+    def update(self, source, target, target_type='bins', voicing=None):
         # convert all to cents
         convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
-        convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
+        if target_type == 'bins':
+            convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
+        elif target_type == 'freq':
+            convert_target = penne.convert.frequency_to_cents(torch.from_numpy(target)).numpy()
+        else:
+            raise ValueError('target_type must be "bins" or "freq"')
         # mask out unvoiced regions according to annotation
-        voiced = target != 0
+        if voicing is not None:
+            voiced = voicing == 1
+        else:
+            voiced = target != 0
         diff = convert_source[voiced] - convert_target[voiced]
         # count predictions that are within 50 cents of target
         self.sum += (np.abs(diff) < 50).sum()
@@ -130,12 +143,20 @@ class RCA:
     def __call__(self):
         return self.sum / self.count
 
-    def update(self, source, target):
+    def update(self, source, target, target_type='bins', voicing=None):
         # convert all to cents
         convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
-        convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
+        if target_type == 'bins':
+            convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
+        elif target_type == 'freq':
+            convert_target = penne.convert.frequency_to_cents(torch.from_numpy(target)).numpy()
+        else:
+            raise ValueError('target_type must be "bins" or "freq"')
         # mask out unvoiced regions according to annotation
-        voiced = target != 0
+        if voicing is not None:
+            voiced = voicing == 1
+        else:
+            voiced = target != 0
         diff = convert_source[voiced] - convert_target[voiced]
         # forgive octave errors
         diff[diff > 600] -= 1200

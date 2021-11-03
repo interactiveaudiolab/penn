@@ -442,10 +442,11 @@ class NVDModel(pl.LightningModule):
         # y_hat, y [batch, 2, time]
         # 0 -> pitch
         mse_loss = F.mse_loss(y_hat[:,0], y[:,0]) #log2 hz
-        bce_loss = F.binary_cross_entropy_with_logits(y_hat[:,1], y[:,1]) #periodicity stuff (optional)
+        # mse_loss = F.mse_loss(y_hat[:,0][y[:,1]==1], y[:,0][y[:,1]==1])
+        # bce_loss = F.binary_cross_entropy_with_logits(y_hat[:,1], y[:,1]) #periodicity stuff (optional)
 
         # maybe weight these
-        return mse_loss + bce_loss
+        return mse_loss #+ bce_loss
 
     def training_step(self, batch, index):
         """Performs one step of training"""
@@ -454,13 +455,11 @@ class NVDModel(pl.LightningModule):
         loss = self.my_loss(output, y)
 
         # update epoch's cumulative rmse, rpa, rca with current batch
-        # convert between log2 or 2**y
-        
-        # y_hat = output.argmax(dim=1)
-        # np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        # np_y = y.cpu().numpy()[None,:]
-        # self.train_rpa.update(np_y_hat_freq, np_y)
-        # self.train_rca.update(np_y_hat_freq, np_y)
+        np_y_hat = (output[:,0]**2).cpu().detach().numpy()
+        np_y = y[:,0].cpu().numpy()
+        np_voicing = y[:,1].cpu().numpy()
+        self.train_rpa.update(np_y_hat, np_y, target_type='freq', voicing=np_voicing)
+        self.train_rca.update(np_y_hat, np_y, target_type='freq', voicing=np_voicing)
         return {"loss": loss}
 
     def validation_step(self, batch, index):
@@ -470,11 +469,10 @@ class NVDModel(pl.LightningModule):
         loss = self.my_loss(output, y)
 
         # update epoch's cumulative rmse, rpa, rca with current batch
-        # y_hat = output.argmax(dim=1)
-        # np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        # np_y = y.cpu().numpy()[None,:]
-        # self.val_rpa.update(np_y_hat_freq, np_y)
-        # self.val_rca.update(np_y_hat_freq, np_y)
+        np_y_hat = (output[:,0]**2).cpu().detach().numpy()
+        np_y = y[:,0].cpu().numpy()
+        self.val_rpa.update(np_y_hat, np_y, target_type='freq')
+        self.val_rca.update(np_y_hat, np_y, target_type='freq')
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
@@ -506,22 +504,14 @@ class NVDModel(pl.LightningModule):
             self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
             self.logger.experiment.add_scalar("RCA/Val", self.val_rca(), self.current_epoch)
 
-            # log mean validation accuracy for early stopping
+            # log mean validation loss for early stopping
             self.log('val_loss', loss_mean)
 
             # save the best checkpoint so far
             if loss_mean < self.best_loss and self.current_epoch > 5:
                 self.best_loss = loss_mean
-                checkpoint_path = penne.CHECKPOINT_DIR.joinpath(self.name, str(self.current_epoch)+'.ckpt')
+                checkpoint_path = penne.CHECKPOINT_DIR.joinpath('nvd', self.name, str(self.current_epoch)+'.ckpt')
                 self.trainer.save_checkpoint(checkpoint_path)
-
-            # plot logits and posterior distribution
-            if self.current_epoch < 20 or self.current_epoch % 25 == 0:
-                # load a batch for logging if not yet loaded
-                if self.ex_batch is None:
-                    self.ex_batch = self.ex_batch_for_logging('PTDB')
-
-                # plot target + predicted pitch, voice decision
 
         self.val_rpa.reset()
         self.val_rca.reset()

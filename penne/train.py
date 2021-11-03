@@ -22,26 +22,38 @@ def main():
     # Setup tensorboard
     logger = pl.loggers.TensorBoardLogger(penne.RUNS_DIR / 'logs', name=args.name)
 
-    # Setup data
-    datamodule = penne.data.DataModule(args.dataset,
-                                  args.batch_size,
-                                  args.num_workers)
-
     # Setup early stopping for 32 epochs of no val accuracy improvement
     patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
-    early_stop_callback = EarlyStopping(
-        monitor='val_accuracy',
-        min_delta=0.00,
-        patience=patience,
-        verbose=False,
-        mode='max'
-    )
+
+    # Setup data
+    if args.nvd:
+        datamodule = penne.data.NVDDataModule(args.dataset,
+                                args.batch_size,
+                                args.num_workers)
+        early_stop_callback = EarlyStopping(
+                                monitor='val_loss',
+                                min_delta=0.00,
+                                patience=patience,
+                                verbose=False,
+                                mode='min')
+    else:
+        datamodule = penne.data.DataModule(args.dataset,
+                                args.batch_size,
+                                args.num_workers)
+        early_stop_callback = EarlyStopping(
+                                monitor='val_accuracy',
+                                min_delta=0.00,
+                                patience=patience,
+                                verbose=False,
+                                mode='max')
 
     # Setup trainer
     trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[early_stop_callback])
 
+    model = penne.Model(name=args.name) if not args.nvd else penne.NVDModel(name=args.name)
+
     # Train
-    trainer.fit(penne.Model(name=args.name), datamodule=datamodule)
+    trainer.fit(model, datamodule=datamodule)
 
 
 def parse_args():
@@ -68,6 +80,10 @@ def parse_args():
         type=str,
         default='training',
         help='The name of the run for logging purposes.')
+    parser.add_argument(
+        '--nvd',
+        action='store_true',
+        help='If present, run NVD training')
 
     # Add model arguments
     parser = penne.Model.add_model_specific_args(parser)

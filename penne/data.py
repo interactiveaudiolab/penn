@@ -196,7 +196,7 @@ class NVDDataset(torch.utils.data.Dataset):
         # maybe handle unvoiced?
 
         # (360, frames), (2, frames)
-        return (logits, targets)
+        return (logits.float(), targets.float())
 
 
     def __len__(self):
@@ -246,7 +246,7 @@ def nvd_loader(dataset, partition, batch_size=64, num_workers=None):
     return torch.utils.data.DataLoader(
         dataset=NVDDataset(dataset, partition),
         batch_size=batch_size,
-        shuffle='test' not in partition,
+        shuffle=partition=='train',
         num_workers=os.cpu_count() if num_workers is None else num_workers,
         pin_memory=True,
         collate_fn=nvd_collate_fn)
@@ -267,7 +267,7 @@ def nvd_collate_fn(batch):
         target = targets[i]
         curr_frames = features[i].shape[1]
         if curr_frames > num_frames:
-            start = random.randint(0, curr_frames - num_frames)
+            start = random.randint(0, curr_frames - num_frames - 1)
             logits = logits[:,start:start+num_frames]
             target = target[:,start:start+num_frames]
         else:

@@ -32,14 +32,17 @@ def dataset(name, partition, model, model_name, skip_predictions, device):
             the value is the value received for that metric. Must be JSON
             serializable.
     """
+    # use 1/5 train set for hparam search
+    hparam_stems = penne.data.partitions(name)['train']
+    hparam_stems = hparam_stems[:len(hparam_stems)//5]
     # Get stems for this partition
-    stems = penne.data.partitions(name)[partition]
+    test_stems = penne.data.partitions(name)[partition]
 
     # Resolve stems to filenames
     # files = [penne.data.stem_to_file(name, stem) for stem in stems]
 
     # Partition files
-    return from_stems(name, model, model_name, skip_predictions, stems, device)
+    return from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, device)
 
 
 def dataset_to_file(name, partition, model, model_name, skip_predictions, device):
@@ -63,7 +66,7 @@ def dataset_to_file(name, partition, model, model_name, skip_predictions, device
         json.dump(dataset(name, partition, model, model_name, skip_predictions, device), file)
 
 
-def from_stems(name, model, model_name, skip_predictions, stems, device):
+def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, device):
     """Evaluate files
 
     Arguments
@@ -87,7 +90,7 @@ def from_stems(name, model, model_name, skip_predictions, stems, device):
         os.makedirs(periodicity_dir)
 
     if not skip_predictions:
-        for stem in tqdm.tqdm(stems, dynamic_ncols=True, desc="Predicting"):
+        for stem in tqdm.tqdm(hparam_stems + test_stems, dynamic_ncols=True, desc="Predicting"):
             # get audio file path
             audio_file = penne.data.stem_to_file(name, stem)
 
@@ -105,8 +108,7 @@ def from_stems(name, model, model_name, skip_predictions, stems, device):
 
 
     # setup metrics
-    results = {}
-    def evaluate_at_threshold(thresh_val):
+    def evaluate_at_threshold(thresh_val, stems):
         print(f'evaluating at {thresh_val}')
         thresh = penne.threshold.At(thresh_val)
         f1 = penne.metrics.F1(thresh)
@@ -142,27 +144,37 @@ def from_stems(name, model, model_name, skip_predictions, stems, device):
         wrmse_val = wrmse()
         rpa_val = rpa()
         rca_val = rca()
-        
-        results[thresh_val] = {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val}
-        return f1_val
+
+        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val}
     
     left = 0
     right = 1
+    hparam_results = {}
     while right-left > 0.005:
-        if left in results:
-            left_f1 = results[left].get('f1', 0)
+        if left in hparam_results:
+            left_f1 = hparam_results[left].get('f1', 0)
         else:
-            left_f1 = evaluate_at_threshold(left)
-        if right in results:
-            right_f1 = results[right].get('f1', 0)
+            scores = evaluate_at_threshold(left, hparam_stems)
+            hparam_results[left] = scores
+            left_f1 = scores['f1']
+        if right in hparam_results:
+            right_f1 = hparam_results[right].get('f1', 0)
         else:
-            right_f1 = evaluate_at_threshold(right)
+            scores = evaluate_at_threshold(right, hparam_stems)
+            hparam_results[right] = scores
+            right_f1 = scores['f1']
         center = (left + right) / 2
         if right_f1 > left_f1:
             left = center
         else:
             right = center
-    return results
+
+    file = model_eval_dir / f'hparam_{model_name}_on_{name}.json'
+    with open(file, 'w') as file:
+        json.dump(hparam_results, file)
+
+    best_thresh = max(hparam_results, key=lambda x: hparam_results[x]['f1'])
+    return evaluate_at_threshold(best_thresh, test_stems)
 
 
 ###############################################################################

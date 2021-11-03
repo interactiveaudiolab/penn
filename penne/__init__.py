@@ -1,6 +1,6 @@
 from . import decode
 from .core import *
-from .model import Model
+from .model import Model, NVDModel
 from . import convert
 from . import filter
 from . import load
