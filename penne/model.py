@@ -348,7 +348,9 @@ class NVDModel(pl.LightningModule):
         self.momentum = 0.01
 
         self.name = name
-        self.ex_batch = None
+        self.ex_logits = None
+        self.ex_targets = None
+        self.ex_unvoiced = None
         self.best_loss = float('inf')
 
         # metrics
@@ -363,6 +365,7 @@ class NVDModel(pl.LightningModule):
         out_channels = [256, 256, 256, 256, 2]
 
         # Shared layer parameters
+        # kernel_sizes = [1] * 4 + [1]
         kernel_sizes = [11] * 4 + [1]
 
         # Overload with eps and momentum conversion given by MMdnn
@@ -512,6 +515,36 @@ class NVDModel(pl.LightningModule):
                 self.best_loss = loss_mean
                 checkpoint_path = penne.CHECKPOINT_DIR.joinpath('nvd', self.name, str(self.current_epoch)+'.ckpt')
                 self.trainer.save_checkpoint(checkpoint_path)
+
+            if self.current_epoch < 20 or self.current_epoch % 25 == 0:
+            # load a batch for logging if not yet loaded
+                if self.ex_logits is None:
+                    self.ex_logits = torch.load(penne.data.stem_to_nvd_logits('PTDB', 'F01_sa1'), 'cuda')[None, :]
+                    self.ex_targets = torch.load(penne.data.stem_to_nvd_targets('PTDB', 'F01_sa1'))
+
+                    # for argmax
+                    self.ex_targets[0] = self.ex_logits.argmax(axis=1)
+
+                    self.ex_unvoiced = self.ex_targets[1].cpu().numpy().squeeze()==0
+                    self.ex_targets = self.ex_targets[0].cpu().numpy().squeeze()
+                    self.ex_targets[self.ex_unvoiced] = np.nan
+
+                preds = self(self.ex_logits)
+                preds = preds.cpu().detach().numpy()[:,0].squeeze()
+                preds[self.ex_unvoiced] = np.nan
+
+                checkpoint_label = str(self.current_epoch)+'.ckpt'
+                fig = plt.figure(figsize=(6, 3))
+                plt.plot(preds, label='predictions')
+                plt.plot(self.ex_targets, label='targets')
+                plt.legend()
+                plt.title(checkpoint_label)
+                self.logger.experiment.add_figure(self.name, fig, global_step=self.current_epoch)
+
+                # logits_fig = plt.figure(figsize=(6, 3))
+                # plt.imshow(self.ex_logits.cpu().squeeze())
+                # self.logger.experiment.add_figure(checkpoint_label + " logits", logits_fig, global_step=self.current_epoch)
+
 
         self.val_rpa.reset()
         self.val_rca.reset()

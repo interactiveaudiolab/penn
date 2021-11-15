@@ -193,6 +193,9 @@ class NVDDataset(torch.utils.data.Dataset):
         stem = self.stems[index]
         logits = torch.load(stem_to_nvd_logits(self.name, stem))
         targets = torch.load(stem_to_nvd_targets(self.name, stem))
+        if logits.shape[1] > targets.shape[1]:
+            logits = logits[:,:targets.shape[1]]
+        # targets[0] = logits.argmax(axis=0)
         # maybe handle unvoiced?
 
         # (360, frames), (2, frames)
