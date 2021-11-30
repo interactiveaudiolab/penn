@@ -29,6 +29,7 @@ __all__ = ['ASSETS_DIR',
            'VOICE_ONLY',
            'WHITEN',
            'WINDOW_SIZE',
+           'ar_loop',
            'embed',
            'embed_from_file',
            'embed_from_file_to_file',
@@ -682,3 +683,55 @@ def resample(audio, sample_rate):
 
     # Convert to pytorch
     return torch.tensor(audio, device=device).unsqueeze(0)
+
+def ar_loop(model, features):
+    """Perform autoregressive inference"""
+    # features: (1, 360, n_frames)
+
+    # Save output size
+    output_length = features.shape[2]
+
+
+    # Start with all zeros as conditioning
+    prev_pitches = torch.zeros(
+        (1, 1, 100),
+        dtype=features.dtype,
+        device=features.device)
+
+    pitches_length = features.shape[2]
+
+    # Autoregressive loop
+    pitches = torch.zeros(
+        pitches_length,
+        dtype=features.dtype,
+        device=features.device)
+    pitch_dists = torch.zeros(
+        (360, pitches_length),
+        dtype=features.dtype,
+        device=features.device)
+    with torch.no_grad():
+        for i in range(0, features.shape[2]):
+            logits = features[:, :, i:i+1]
+            # normalize logits
+            logits -= logits.min()
+            logits /= logits.max()
+
+            pitch_dist = model(logits, prev_pitches)
+            # Place pitch dist
+            pitch_dists[:,i] = pitch_dist.squeeze()
+
+            # Randomly sample categorical distribution to get a single pitch
+            pitch_dist = torch.nn.Softmax(dim=0)(pitch_dist.squeeze())
+            pitch_dist /= pitch_dist.sum()+0.00001
+            pitch = np.random.multinomial(1, pvals=pitch_dist.cpu()).argmax()
+
+            pitch_freq = np.log2(penne.convert.bins_to_frequency(torch.tensor(pitch)))
+            # Place newly generated pitch
+            pitches[i] = pitch
+
+            # Update AR context
+            prev_pitches[:, :, :-1] = prev_pitches[:, :, 1:].clone()
+            prev_pitches[:, :, -1] = pitch_freq
+
+        # Concatenate and remove padding
+        return (pitches[None, None, :output_length], pitch_dists)

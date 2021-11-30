@@ -33,7 +33,7 @@ def main():
         early_stop_callback = EarlyStopping(
                                 monitor='val_loss',
                                 min_delta=0.00,
-                                patience=patience,
+                                patience=1000,
                                 verbose=False,
                                 mode='min')
     else:

@@ -195,6 +195,8 @@ class NVDDataset(torch.utils.data.Dataset):
         targets = torch.load(stem_to_nvd_targets(self.name, stem))
         if logits.shape[1] > targets.shape[1]:
             logits = logits[:,:targets.shape[1]]
+
+        # targets[0] = penne.convert.frequency_to_bins(2**targets[0])
         # targets[0] = logits.argmax(axis=0)
         # maybe handle unvoiced?
 
@@ -260,30 +262,40 @@ def nvd_loader(dataset, partition, batch_size=64, num_workers=None):
 
 def nvd_collate_fn(batch):
     # random.seed(0)
-    num_frames = penne.convert.seconds_to_frames(1)
+    # num_frames = penne.convert.seconds_to_frames(1)
     features, targets = zip(*batch)
 
     col_features = []
     col_targets = []
+    col_ar = []
     for i in range(len(targets)):
         logits = features[i]
         target = targets[i]
         curr_frames = features[i].shape[1]
-        if curr_frames > num_frames:
-            start = random.randint(0, curr_frames - num_frames - 1)
-            logits = logits[:,start:start+num_frames]
-            target = target[:,start:start+num_frames]
-        else:
-            # no files are shorter than 1 second (100 frames), so we don't need to pad
-            pass
+        frame = random.randint(1, curr_frames-2)
+        logits = logits[:,frame:frame+1]
+        ar = target[:, max(0, frame-100):frame]
+        target = target[:,frame:frame+1]
+
+        # normalize logits to [0,1]
+        logits -= logits.min()
+        logits /= logits.max()
+        
+        if ar.shape[1] < 100:
+            ar = torch.nn.functional.pad(ar, (100-ar.shape[1], 0))
+
         col_features.append(logits)
         col_targets.append(target)
+        col_ar.append(ar)
     
     col_features = torch.stack(col_features)
     col_targets = torch.stack(col_targets)
+    col_targets[:,0] = penne.convert.frequency_to_bins(2**col_targets[:,0])
+    col_ar = torch.stack(col_ar)
+
 
     # insert comment about shapes of these
-    return (col_features, col_targets)
+    return (col_features, col_targets.long(), col_ar)
 
 ###############################################################################
 # Utilities

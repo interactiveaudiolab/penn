@@ -65,15 +65,17 @@ def test_nvd_MDB_loader():
     loader = data.nvd_loader('MDB', 'test', batch_size = batch_size, num_workers = 0)
     for i in tqdm.tqdm(range(10)):
         it = iter(loader)
-        features, targets = next(it)
-        assert features.shape == (batch_size, penne.PITCH_BINS, convert.seconds_to_frames(1))
-        assert targets.shape == (batch_size, 2, convert.seconds_to_frames(1))
+        features, targets, ar = next(it)
+        assert features.shape == (batch_size, penne.PITCH_BINS, 1)
+        assert targets.shape == (batch_size, 2, 1)
+        assert ar.shape == (batch_size, 2, 100)
 
 def test_nvd_PTDB_loader():
     batch_size = 3
     loader = data.nvd_loader('PTDB', 'test', batch_size = batch_size, num_workers = 0)
     for i in tqdm.tqdm(range(10)):
         it = iter(loader)
-        features, targets = next(it)
-        assert features.shape == (batch_size, penne.PITCH_BINS, convert.seconds_to_frames(1))
-        assert targets.shape == (batch_size, 2, convert.seconds_to_frames(1))
+        features, targets, ar = next(it)
+        assert features.shape == (batch_size, penne.PITCH_BINS, 1)
+        assert targets.shape == (batch_size, 2, 1)
+        assert ar.shape == (batch_size, 2, 100)

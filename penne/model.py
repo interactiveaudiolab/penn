@@ -361,8 +361,8 @@ class NVDModel(pl.LightningModule):
         self.val_rpa = penne.metrics.RPA()
         self.val_rca = penne.metrics.RCA()
 
-        in_channels = [360, 256, 256, 256, 256]
-        out_channels = [256, 256, 256, 256, 2]
+        in_channels = [460, 256, 256, 256, 256]
+        out_channels = [256, 256, 256, 256, 360]
 
         # Shared layer parameters
         # kernel_sizes = [1] * 4 + [1]
@@ -417,9 +417,14 @@ class NVDModel(pl.LightningModule):
     # Forward pass
     ###########################################################################
 
-    def forward(self, x):
+    def forward(self, x, ar=None):
         """Perform model inference"""
         # Forward pass through first five layers
+        # (batch, 100, 1)
+        ar = ar.permute(0, 2, 1)
+        # (batch, 460, 1)
+        x = torch.cat((x, ar), axis=1)
+        
         x = self.layer(x, self.conv1, self.conv1_BN)
         x = self.layer(x, self.conv2, self.conv2_BN)
         x = self.layer(x, self.conv3, self.conv3_BN)
@@ -444,38 +449,40 @@ class NVDModel(pl.LightningModule):
     def my_loss(self, y_hat, y):
         # y_hat, y [batch, 2, time]
         # 0 -> pitch
-        mse_loss = F.mse_loss(y_hat[:,0], y[:,0]) #log2 hz
-        # mse_loss = F.mse_loss(y_hat[:,0][y[:,1]==1], y[:,0][y[:,1]==1])
-        # bce_loss = F.binary_cross_entropy_with_logits(y_hat[:,1], y[:,1]) #periodicity stuff (optional)
+        # mse_loss = F.mse_loss(y_hat[:,0], y[:,0]) #log2 hz
+        # # mse_loss = F.mse_loss(y_hat[:,0][y[:,1]==1], y[:,0][y[:,1]==1])
+        # # bce_loss = F.binary_cross_entropy_with_logits(y_hat[:,1], y[:,1]) #periodicity stuff (optional)
 
-        # maybe weight these
-        return mse_loss #+ bce_loss
+        # # maybe weight these
+        # return mse_loss #+ bce_loss
+        return F.cross_entropy(y_hat, y)
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        x, y = batch
-        output = self(x)
-        loss = self.my_loss(output, y)
+        x, y, ar = batch
+        output = self(x, ar[:,0:1])
+        loss = self.my_loss(output, y[:,0])
 
         # update epoch's cumulative rmse, rpa, rca with current batch
-        np_y_hat = (output[:,0]**2).cpu().detach().numpy()
+        np_y_hat = output.argmax(axis=1).cpu().detach().numpy()
         np_y = y[:,0].cpu().numpy()
         np_voicing = y[:,1].cpu().numpy()
-        self.train_rpa.update(np_y_hat, np_y, target_type='freq', voicing=np_voicing)
-        self.train_rca.update(np_y_hat, np_y, target_type='freq', voicing=np_voicing)
+        self.train_rpa.update(np_y_hat, np_y, voicing=np_voicing)
+        self.train_rca.update(np_y_hat, np_y, voicing=np_voicing)
         return {"loss": loss}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        x, y = batch
-        output = self(x)
-        loss = self.my_loss(output, y)
+        x, y, ar = batch
+        output = self(x, ar[:,0:1])
+        loss = self.my_loss(output, y[:,0])
 
         # update epoch's cumulative rmse, rpa, rca with current batch
-        np_y_hat = (output[:,0]**2).cpu().detach().numpy()
+        np_y_hat = output.argmax(axis=1).cpu().detach().numpy()
         np_y = y[:,0].cpu().numpy()
-        self.val_rpa.update(np_y_hat, np_y, target_type='freq')
-        self.val_rca.update(np_y_hat, np_y, target_type='freq')
+        np_voicing = y[:,1].cpu().numpy()
+        self.val_rpa.update(np_y_hat, np_y, voicing=np_voicing)
+        self.val_rca.update(np_y_hat, np_y, voicing=np_voicing)
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
@@ -511,7 +518,7 @@ class NVDModel(pl.LightningModule):
             self.log('val_loss', loss_mean)
 
             # save the best checkpoint so far
-            if loss_mean < self.best_loss and self.current_epoch > 5:
+            if (loss_mean < self.best_loss or self.current_epoch % 100 == 0) and self.current_epoch > 5:
                 self.best_loss = loss_mean
                 checkpoint_path = penne.CHECKPOINT_DIR.joinpath('nvd', self.name, str(self.current_epoch)+'.ckpt')
                 self.trainer.save_checkpoint(checkpoint_path)
@@ -523,14 +530,17 @@ class NVDModel(pl.LightningModule):
                     self.ex_targets = torch.load(penne.data.stem_to_nvd_targets('PTDB', 'F01_sa1'))
 
                     # for argmax
-                    self.ex_targets[0] = self.ex_logits.argmax(axis=1)
+                    # self.ex_targets[0] = self.ex_logits.argmax(axis=1)
 
                     self.ex_unvoiced = self.ex_targets[1].cpu().numpy().squeeze()==0
+                    self.ex_targets = penne.convert.frequency_to_bins(2**self.ex_targets).float()
                     self.ex_targets = self.ex_targets[0].cpu().numpy().squeeze()
                     self.ex_targets[self.ex_unvoiced] = np.nan
 
-                preds = self(self.ex_logits)
-                preds = preds.cpu().detach().numpy()[:,0].squeeze()
+                pitches, pitch_dist = penne.ar_loop(self, self.ex_logits)
+
+                # preds = self(self.ex_logits)
+                preds = pitches.cpu().detach().numpy().squeeze()
                 preds[self.ex_unvoiced] = np.nan
 
                 checkpoint_label = str(self.current_epoch)+'.ckpt'
@@ -539,11 +549,11 @@ class NVDModel(pl.LightningModule):
                 plt.plot(self.ex_targets, label='targets')
                 plt.legend()
                 plt.title(checkpoint_label)
-                self.logger.experiment.add_figure(self.name, fig, global_step=self.current_epoch)
+                self.logger.experiment.add_figure('predictions', fig, global_step=self.current_epoch)
 
-                # logits_fig = plt.figure(figsize=(6, 3))
-                # plt.imshow(self.ex_logits.cpu().squeeze())
-                # self.logger.experiment.add_figure(checkpoint_label + " logits", logits_fig, global_step=self.current_epoch)
+                dist_fig = plt.figure(figsize=(6, 3))
+                plt.imshow(pitch_dist.cpu().squeeze())
+                self.logger.experiment.add_figure("output distribution", dist_fig, global_step=self.current_epoch)
 
 
         self.val_rpa.reset()
