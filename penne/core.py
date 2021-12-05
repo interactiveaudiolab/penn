@@ -697,6 +697,10 @@ def ar_loop(model, features):
         (1, 1, 100),
         dtype=features.dtype,
         device=features.device)
+    # prev_voicing = torch.zeros(
+    #     (1, 1, 100),
+    #     dtype=features.dtype,
+    #     device=features.device)
 
     pitches_length = features.shape[2]
 
@@ -732,6 +736,9 @@ def ar_loop(model, features):
             # Update AR context
             prev_pitches[:, :, :-1] = prev_pitches[:, :, 1:].clone()
             prev_pitches[:, :, -1] = pitch_freq
+
+            # prev_voicing[:, :, :-1] = prev_voicing[:, :, 1:].clone()
+            # prev_voicing[:, :, -1] = voicing[i]
 
         # Concatenate and remove padding
         return (pitches[None, None, :output_length], pitch_dists)

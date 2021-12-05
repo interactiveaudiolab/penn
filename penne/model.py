@@ -38,6 +38,13 @@ class Model(pl.LightningModule):
         self.val_rmse = penne.metrics.WRMSE()
         self.val_rpa = penne.metrics.RPA()
         self.val_rca = penne.metrics.RCA()
+        
+        # subnet
+        # ar (batch, 1, 100) -> (batch, k)
+
+        # first in channel k+1
+
+        # input (batch, k+1, 1024)
 
         in_channels = [1, 1024, 128, 128, 128, 256]
         out_channels = [1024, 128, 128, 128, 256, 512]
@@ -422,6 +429,7 @@ class NVDModel(pl.LightningModule):
         # Forward pass through first five layers
         # (batch, 100, 1)
         ar = ar.permute(0, 2, 1)
+        # ar_voice = ar_voice.permute(0, 2, 1)
         # (batch, 460, 1)
         x = torch.cat((x, ar), axis=1)
         
@@ -534,6 +542,7 @@ class NVDModel(pl.LightningModule):
 
                     self.ex_unvoiced = self.ex_targets[1].cpu().numpy().squeeze()==0
                     self.ex_targets = penne.convert.frequency_to_bins(2**self.ex_targets).float()
+                    # self.ex_voicing = self.ex_targets[1].cpu().numpy().squeeze()
                     self.ex_targets = self.ex_targets[0].cpu().numpy().squeeze()
                     self.ex_targets[self.ex_unvoiced] = np.nan
 

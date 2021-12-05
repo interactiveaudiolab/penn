@@ -272,6 +272,7 @@ def nvd_collate_fn(batch):
         logits = features[i]
         target = targets[i]
         curr_frames = features[i].shape[1]
+        # frame = random.choice(np.where(target[1][:-2]==1)[0]) # random voiced frame
         frame = random.randint(1, curr_frames-2)
         logits = logits[:,frame:frame+1]
         ar = target[:, max(0, frame-100):frame]
@@ -292,7 +293,6 @@ def nvd_collate_fn(batch):
     col_targets = torch.stack(col_targets)
     col_targets[:,0] = penne.convert.frequency_to_bins(2**col_targets[:,0])
     col_ar = torch.stack(col_ar)
-
 
     # insert comment about shapes of these
     return (col_features, col_targets.long(), col_ar)
