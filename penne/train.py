@@ -19,8 +19,7 @@ def main():
     # Parse command-line arguments
     args = parse_args()
 
-    # Setup tensorboard
-    logger = pl.loggers.TensorBoardLogger(penne.RUNS_DIR / 'logs', name=args.name)
+    
 
     # Setup early stopping for 32 epochs of no val accuracy improvement
     patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
@@ -36,6 +35,20 @@ def main():
                                 patience=1000,
                                 verbose=False,
                                 mode='min')
+        logdir = 'nvd'
+        model = penne.NVDModel(name=args.name)
+    elif args.ar:
+        datamodule = penne.data.ARDataModule(args.dataset,
+                                args.batch_size,
+                                args.num_workers)
+        early_stop_callback = EarlyStopping(
+                                monitor='val_accuracy',
+                                min_delta=0.00,
+                                patience=patience,
+                                verbose=False,
+                                mode='max')
+        logdir = 'ar'
+        model = penne.ARModel(name=args.name)
     else:
         datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
@@ -46,11 +59,14 @@ def main():
                                 patience=patience,
                                 verbose=False,
                                 mode='max')
+        logdir = 'crepe'
+        model = penne.Model(name=args.name)
+
+    # Setup tensorboard
+    logger = pl.loggers.TensorBoardLogger(penne.RUNS_DIR / 'logs' / logdir, name=args.name)
 
     # Setup trainer
     trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[early_stop_callback])
-
-    model = penne.Model(name=args.name) if not args.nvd else penne.NVDModel(name=args.name)
 
     # Train
     trainer.fit(model, datamodule=datamodule)
@@ -84,6 +100,10 @@ def parse_args():
         '--nvd',
         action='store_true',
         help='If present, run NVD training')
+    parser.add_argument(
+        '--ar',
+        action='store_true',
+        help='If present, run AR training')
 
     # Add model arguments
     parser = penne.Model.add_model_specific_args(parser)

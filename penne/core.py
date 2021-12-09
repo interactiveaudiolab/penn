@@ -9,7 +9,10 @@ import tqdm
 import penne
 
 
-__all__ = ['ASSETS_DIR',
+__all__ = ['AR_SIZE',
+           'AR_HIDDEN_SIZE',
+           'AR_OUTPUT_SIZE',
+           'ASSETS_DIR',
            'CENTS_PER_BIN',
            'CHECKPOINT_DIR',
            'CACHE_DIR',
@@ -66,6 +69,9 @@ SAMPLE_RATE = 16000  # hz
 UNVOICED = np.nan
 WINDOW_SIZE = 1024  # samples
 EARLY_STOP_PATIENCE = 32
+AR_SIZE = 100 # frames
+AR_HIDDEN_SIZE = 128
+AR_OUTPUT_SIZE = 64
 
 # Options
 ORIGINAL_CREPE = True
@@ -684,7 +690,7 @@ def resample(audio, sample_rate):
     # Convert to pytorch
     return torch.tensor(audio, device=device).unsqueeze(0)
 
-def ar_loop(model, features):
+def ar_loop(model, features, ar_bins=True):
     """Perform autoregressive inference"""
     # features: (1, 360, n_frames)
 
@@ -694,7 +700,7 @@ def ar_loop(model, features):
 
     # Start with all zeros as conditioning
     prev_pitches = torch.zeros(
-        (1, 1, 100),
+        (1, 1, penne.AR_SIZE),
         dtype=features.dtype,
         device=features.device)
     # prev_voicing = torch.zeros(
@@ -720,7 +726,7 @@ def ar_loop(model, features):
             logits -= logits.min()
             logits /= logits.max()
 
-            pitch_dist = model(logits, prev_pitches)
+            pitch_dist = model(logits.squeeze(-1), prev_pitches.squeeze(0))
             # Place pitch dist
             pitch_dists[:,i] = pitch_dist.squeeze()
 
@@ -735,7 +741,7 @@ def ar_loop(model, features):
 
             # Update AR context
             prev_pitches[:, :, :-1] = prev_pitches[:, :, 1:].clone()
-            prev_pitches[:, :, -1] = pitch_freq
+            prev_pitches[:, :, -1] = pitch if ar_bins else pitch_freq
 
             # prev_voicing[:, :, :-1] = prev_voicing[:, :, 1:].clone()
             # prev_voicing[:, :, -1] = voicing[i]

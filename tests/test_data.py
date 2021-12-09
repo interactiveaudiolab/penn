@@ -79,3 +79,51 @@ def test_nvd_PTDB_loader():
         assert features.shape == (batch_size, penne.PITCH_BINS, 1)
         assert targets.shape == (batch_size, 2, 1)
         assert ar.shape == (batch_size, 2, 100)
+
+###############################################################################
+# AR Tests
+###############################################################################
+
+def test_ar_MDB_getitem():
+    for partition in ['test', 'train', 'valid']:
+        dataset = data.ARDataset('MDB', partition)
+        assert len(dataset[0]) == 3
+        assert dataset[0][0].shape == (1, penne.WINDOW_SIZE)
+        assert dataset[0][1].shape == (1,)
+        assert dataset[0][2].shape == (1, penne.AR_SIZE)
+
+def test_ar_PTDB_getitem():
+    for partition in ['test', 'train', 'valid']:
+        dataset = data.ARDataset('PTDB', partition)
+        assert len(dataset[0]) == 3
+        assert dataset[0][0].shape == (1, penne.WINDOW_SIZE)
+        assert dataset[0][1].shape == (1,)
+        assert dataset[0][2].shape == (1, penne.AR_SIZE)
+
+def test_ar_PTDB_voiced_getitem():
+    for partition in ['test', 'train', 'valid']:
+        dataset = data.ARDataset('PTDB', partition, True)
+        assert len(dataset[0]) == 3
+        assert dataset[0][0].shape == (1, penne.WINDOW_SIZE)
+        assert dataset[0][1].shape == (1,)
+        assert dataset[0][2].shape == (1, penne.AR_SIZE)
+
+def test_ar_MDB_loader():
+    batch_size = 3
+    loader = data.ar_loader('MDB', 'test', batch_size = batch_size, num_workers = 0)
+    for i in tqdm.tqdm(range(10)):
+        it = iter(loader)
+        features, targets, ar = next(it)
+        assert features.shape == (batch_size, 1024)
+        assert targets.shape == (batch_size,)
+        assert ar.shape == (batch_size, penne.AR_SIZE)
+
+def test_ar_PTDB_loader():
+    batch_size = 3
+    loader = data.ar_loader('PTDB', 'test', batch_size = batch_size, num_workers = 0)
+    for i in tqdm.tqdm(range(10)):
+        it = iter(loader)
+        features, targets, ar = next(it)
+        assert features.shape == (batch_size, 1024)
+        assert targets.shape == (batch_size,)
+        assert ar.shape == (batch_size, penne.AR_SIZE)
