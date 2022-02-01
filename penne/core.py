@@ -37,6 +37,7 @@ __all__ = ['AR_SIZE',
            'embed_from_file',
            'embed_from_file_to_file',
            'embed_from_files_to_files',
+           'entropy',
            'infer',
            'predict',
            'predict_from_file',
@@ -690,6 +691,9 @@ def resample(audio, sample_rate):
     # Convert to pytorch
     return torch.tensor(audio, device=device).unsqueeze(0)
 
+def entropy(distribution):
+    return 1 + (1 / np.log2(penne.PITCH_BINS)) * ((distribution * torch.log2(distribution)).sum())
+
 def ar_loop(model, features, ar_bins=True):
     """Perform autoregressive inference"""
     # features: (1, 360, n_frames)
@@ -698,10 +702,11 @@ def ar_loop(model, features, ar_bins=True):
     output_length = features.shape[2]
 
 
-    # Start with all zeros as conditioning
-    prev_pitches = torch.zeros(
+    # Start with all unvoiced as conditioning
+    prev_pitches = torch.full(
         (1, 1, penne.AR_SIZE),
-        dtype=features.dtype,
+        361,
+        dtype=int,
         device=features.device)
     # prev_voicing = torch.zeros(
     #     (1, 1, 100),
@@ -716,15 +721,19 @@ def ar_loop(model, features, ar_bins=True):
         dtype=features.dtype,
         device=features.device)
     pitch_dists = torch.zeros(
-        (360, pitches_length),
+        (penne.PITCH_BINS, pitches_length),
         dtype=features.dtype,
+        device=features.device)
+    entropies = torch.zeros(
+        pitches_length,
+        dtype=float,
         device=features.device)
     with torch.no_grad():
         for i in range(0, features.shape[2]):
             logits = features[:, :, i:i+1]
             # normalize logits
-            logits -= logits.min()
-            logits /= logits.max()
+            # logits -= logits.min()
+            # logits /= logits.max()
 
             pitch_dist = model(logits.squeeze(-1), prev_pitches.squeeze(0))
             # Place pitch dist
@@ -732,16 +741,22 @@ def ar_loop(model, features, ar_bins=True):
 
             # Randomly sample categorical distribution to get a single pitch
             pitch_dist = torch.nn.Softmax(dim=0)(pitch_dist.squeeze())
-            pitch_dist /= pitch_dist.sum()+0.00001
-            pitch = np.random.multinomial(1, pvals=pitch_dist.cpu()).argmax()
+            # pitch = pitch_dist.argmax()
+            frame_entropy = entropy(pitch_dist)
+            entropies[i] = frame_entropy
+            if frame_entropy < 0.3:
+                pitch = torch.tensor(360)
+            else:
+                pitch = pitch_dist.argmax()
+                # pitch_dist /= pitch_dist.sum()+0.00001
+                # pitch = np.random.multinomial(1, pvals=pitch_dist.cpu()).argmax()
 
-            pitch_freq = np.log2(penne.convert.bins_to_frequency(torch.tensor(pitch)))
             # Place newly generated pitch
             pitches[i] = pitch
 
             # Update AR context
             prev_pitches[:, :, :-1] = prev_pitches[:, :, 1:].clone()
-            prev_pitches[:, :, -1] = pitch if ar_bins else pitch_freq
+            prev_pitches[:, :, -1] = pitch if ar_bins else np.log2(penne.convert.bins_to_frequency(pitch.cpu()))
 
             # prev_voicing[:, :, :-1] = prev_voicing[:, :, 1:].clone()
             # prev_voicing[:, :, -1] = voicing[i]

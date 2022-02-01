@@ -374,23 +374,28 @@ class ARDataset(torch.utils.data.Dataset):
             frame /= torch.max(torch.tensor(1e-10, device=frame.device),
                 frame.std(dim=1, keepdim=True))
 
-        # get the annotation bin
+        # load annotations
         annotations = torch.load(stem_to_nvd_targets(self.name, stem))
         if self.voiceonly:
             # get frame_idxth voiced frame
             frame_idx = np.where(annotations[1,:]==1)[0][frame_idx]
-        # annotations = penne.load.annotation_from_cache(annotation_path)
-        annotation = penne.convert.frequency_to_bins(2**annotations[0:1,frame_idx])
+        # convert to bins
+        annotations[0] = penne.convert.frequency_to_bins(2**annotations[0])
+        # set unvoiced annotations to 360 (unvoiced token)
+        annotations[0][annotations[1]==0] = 360
+        # frame_idx'th frame is target
+        annotation = annotations[0:1,frame_idx]
         ar_start = max(frame_idx-penne.AR_SIZE, 0)
         ar = annotations[0:1, ar_start:frame_idx]
+        # pad with undefined token 361
         if ar.shape[1] < penne.AR_SIZE:
-            ar = torch.nn.functional.pad(ar, (penne.AR_SIZE-ar.shape[1], 0))
+            ar = torch.nn.functional.pad(ar, (penne.AR_SIZE-ar.shape[1], 0), value=361)
 
         # choose a random bin if unvoiced
-        # if annotation == 0:
-        #     annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
+        if annotation == 360:
+            annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
         # insert shape comment
-        return (frame, annotation, ar)
+        return (frame, annotation, ar.long())
         
 
     def __len__(self):

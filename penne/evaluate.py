@@ -17,7 +17,7 @@ import penne
 ###############################################################################
 
 
-def dataset(name, partition, model, model_name, skip_predictions, device):
+def dataset(name, partition, model, model_name, skip_predictions, ar, device):
     """Evaluate a dataset
 
     Arguments
@@ -42,10 +42,10 @@ def dataset(name, partition, model, model_name, skip_predictions, device):
     # files = [penne.data.stem_to_file(name, stem) for stem in stems]
 
     # Partition files
-    return from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, device)
+    return from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, ar, device)
 
 
-def dataset_to_file(name, partition, model, model_name, skip_predictions, device):
+def dataset_to_file(name, partition, model, model_name, skip_predictions, ar, device):
     """Evaluate dataset and write results to json file
 
     Arguments
@@ -63,10 +63,10 @@ def dataset_to_file(name, partition, model, model_name, skip_predictions, device
         os.makedirs(model_eval_dir)
     file = model_eval_dir / f'{model_name}_on_{name}.json'
     with open(file, 'w') as file:
-        json.dump(dataset(name, partition, model, model_name, skip_predictions, device), file)
+        json.dump(dataset(name, partition, model, model_name, skip_predictions, ar, device), file)
 
 
-def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, device):
+def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, ar, device):
     """Evaluate files
 
     Arguments
@@ -91,16 +91,27 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
 
     if not skip_predictions:
         for stem in tqdm.tqdm(hparam_stems + test_stems, dynamic_ncols=True, desc="Predicting"):
-            # get audio file path
-            audio_file = penne.data.stem_to_file(name, stem)
+            if ar:
+                frames = torch.from_numpy(np.load(penne.data.stem_to_cache_frames(name, stem, False))).to(device)
+                frames -= frames.mean(dim=1, keepdim=True)
+                frames /= torch.max(torch.tensor(1e-10, device=frames.device),
+                    frames.std(dim=1, keepdim=True))
+                pitch, _ = penne.ar_loop(model, frames, ar_bins=True)
+                periodicity = pitch == penne.PITCH_BINS
+            else:
+                # get audio file path
+                audio_file = penne.data.stem_to_file(name, stem)
 
-            # conditionally set fmax
-            fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
-            
-            # get model-predicted pitch
-            pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
+                # conditionally set fmax
+                fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
+                
+                # get model-predicted pitch
+                pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
+
             np_pitch = pitch.numpy()
             np_periodicity = periodicity.numpy()
+
+            import pdb; pdb.set_trace()
 
             # save prediction as npy
             np.save(pitch_dir / f'{stem}.npy', np_pitch)
@@ -211,6 +222,10 @@ def parse_args():
         '--skip_predictions',
         action='store_true',
         help='If true, will try to use existing predictions')
+    parser.add_argument(
+        '--ar',
+        action='store_true',
+        help='If present, will use ar-based inference')
 
     return parser.parse_args()
 
@@ -220,10 +235,13 @@ def main():
     args = parse_args()
 
     # Setup model
-    penne.load.model(device=args.device, checkpoint=args.checkpoint)
+    if args.ar:
+        penne.infer.model = penne.ARModel.load_from_checkpoint(args.checkpoint)
+    else:
+        penne.load.model(device=args.device, checkpoint=args.checkpoint)
 
     # Evaluate
-    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.model_name, args.skip_predictions, args.device)
+    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.model_name, args.skip_predictions, args.ar, args.device)
 
 
 if __name__ == '__main__':

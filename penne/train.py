@@ -59,7 +59,7 @@ def main():
                                 patience=patience,
                                 verbose=False,
                                 mode='max')
-        logdir = 'crepe'
+        logdir = 'ar'
         model = penne.Model(name=args.name)
 
     # Setup tensorboard

@@ -258,8 +258,8 @@ class Model(pl.LightningModule):
                 self.write_logits(logits, [10, 80, 400, 650])
 
                 # plot posterior distribution
-                probabilities = torch.nn.Softmax(dim=1)(logits)
-                self.write_posterior_distribution(probabilities)  
+                # probabilities = torch.nn.Softmax(dim=1)(logits)
+                self.write_posterior_distribution(logits)  
 
         self.val_rmse.reset()
         self.val_rpa.reset()
@@ -267,7 +267,7 @@ class Model(pl.LightningModule):
 
     def ex_batch_for_logging(self, dataset):
         if dataset == 'PTDB':
-            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/MALE/MIC/M03/mic_M03_sa1.wav")
+            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/FEMALE/MIC/F01/mic_F01_sa1.wav")
             ex_audio = penne.resample(ex_audio, ex_sr)
             return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
         elif dataset == 'MDB':
@@ -282,7 +282,7 @@ class Model(pl.LightningModule):
         fig = plt.figure(figsize=(12, 3))
         plt.imshow(probabilities.detach().numpy().T, origin='lower')
         plt.title(checkpoint_label)
-        self.logger.experiment.add_figure(checkpoint_label, fig, global_step=self.current_epoch)
+        self.logger.experiment.add_figure('output distribution', fig, global_step=self.current_epoch)
 
     def write_logits(self, logits, frames):
         # plot the logits for the 4 indexed frames in frames
@@ -297,7 +297,7 @@ class Model(pl.LightningModule):
             ax4.plot(logits[frames[3]].detach().numpy())
             ax4.set_title('Frame ' + str(frames[3]))
             checkpoint_label = str(self.current_epoch)+'.ckpt'
-            self.logger.experiment.add_figure(checkpoint_label+' logits', fig, global_step=self.current_epoch)
+            self.logger.experiment.add_figure('logits', fig, global_step=self.current_epoch)
 
 
     ###########################################################################
@@ -614,6 +614,7 @@ class ARModel(pl.LightningModule):
 
         # input (batch, k+1, 1024)
 
+        # in_channels = [1, 1024, 128, 128, 128, 256] 
         in_channels = [1+penne.AR_OUTPUT_SIZE, 1024, 128, 128, 128, 256]
         out_channels = [1024, 128, 128, 128, 256, 512]
         self.in_features = 2048
@@ -691,7 +692,6 @@ class ARModel(pl.LightningModule):
         # x: (batch, window_size) -> (batch, 1, window_size)
         x = x[:, None, :]
 
-        # embedding layer
         # ar -> (batch, ar_size), ar_feats -> (batch, ar_output_size)
         ar_feats = self.ar_model(ar)
         # ar_feats -> (batch, ar_output_size, window_size)
@@ -730,20 +730,15 @@ class ARModel(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        return F.cross_entropy(y_hat, y.long())
-        # if penne.LOSS_FUNCTION == 'BCE' or penne.ORIGINAL_CREPE:
-        #     if penne.SMOOTH_TARGETS or penne.ORIGINAL_CREPE:
-        #         # apply Gaussian blur around target bin
-        #         mean = penne.convert.bins_to_cents(y)
-        #         normal = torch.distributions.Normal(mean, 25)
-        #         bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
-        #         bins = bins[:, None]
-        #         y = torch.exp(normal.log_prob(bins)).permute(1,0)
-        #         y /= y.max(dim=1, keepdims=True).values
-        #     else:
-        #         y = F.one_hot(y, penne.PITCH_BINS)
-        #     assert y_hat.shape == y.shape
-        #     return F.binary_cross_entropy_with_logits(y_hat, y.float())
+        # apply Gaussian blur around target bin
+        mean = penne.convert.bins_to_cents(y)
+        normal = torch.distributions.Normal(mean, 25)
+        bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
+        bins = bins[:, None]
+        y = torch.exp(normal.log_prob(bins)).permute(1,0)
+        y /= y.max(dim=1, keepdims=True).values
+        assert y_hat.shape == y.shape
+        return F.binary_cross_entropy_with_logits(y_hat, y.float())
         # return F.cross_entropy(y_hat, y.long())
 
     def my_acc(self, y_hat, y):
@@ -826,35 +821,39 @@ class ARModel(pl.LightningModule):
                 checkpoint_path = penne.CHECKPOINT_DIR.joinpath('ar', self.name, str(self.current_epoch)+'.ckpt')
                 self.trainer.save_checkpoint(checkpoint_path)
 
-            if self.current_epoch % 10 == 0:
-            # load a batch for logging if not yet loaded
-                if self.ex_frames is None:
-                    self.ex_frames = torch.from_numpy(np.load(penne.data.stem_to_cache_frames('PTDB', 'F01_sa1', False))).to(self.device)
-                    self.ex_targets = torch.load(penne.data.stem_to_nvd_targets('PTDB', 'F01_sa1'))
+        if self.current_epoch % 20 == 0:
+        # load a batch for logging if not yet loaded
+            if self.ex_frames is None:
+                dataset, stem = 'PTDB', 'F01_sa1'
+                # dataset, stem = 'MDB', 'MusicDelta_InTheHalloftheMountainKing_STEM_03'
+                self.ex_frames = torch.from_numpy(np.load(penne.data.stem_to_cache_frames(dataset, stem, False))).to(self.device)
+                self.ex_frames -= self.ex_frames.mean(dim=1, keepdim=True)
+                self.ex_frames /= torch.max(torch.tensor(1e-10, device=self.ex_frames.device),
+                    self.ex_frames.std(dim=1, keepdim=True))
+                self.ex_targets = torch.load(penne.data.stem_to_nvd_targets(dataset, stem))
 
-                    self.ex_unvoiced = self.ex_targets[1].cpu().numpy().squeeze()==0
-                    self.ex_targets = penne.convert.frequency_to_bins(2**self.ex_targets).float()
-                    # self.ex_voicing = self.ex_targets[1].cpu().numpy().squeeze()
-                    self.ex_targets = self.ex_targets[0].cpu().numpy().squeeze()
-                    self.ex_targets[self.ex_unvoiced] = np.nan
+                self.ex_unvoiced = self.ex_targets[1].cpu().numpy().squeeze()==0
+                self.ex_targets = penne.convert.frequency_to_bins(2**self.ex_targets).float()
+                self.ex_targets = self.ex_targets[0].cpu().numpy().squeeze()
+                self.ex_targets[self.ex_unvoiced] = np.nan
 
-                pitches, pitch_dist = penne.ar_loop(self, self.ex_frames, ar_bins=False)
+            pitches, pitch_dist = penne.ar_loop(self, self.ex_frames)
 
-                # preds = self(self.ex_logits)
-                preds = pitches.cpu().detach().numpy().squeeze()
-                preds[self.ex_unvoiced] = np.nan
+            preds = pitches.cpu().detach().numpy().squeeze()
+            preds[self.ex_unvoiced] = np.nan
 
-                checkpoint_label = str(self.current_epoch)+'.ckpt'
-                fig = plt.figure(figsize=(6, 3))
-                plt.plot(preds, label='predictions')
-                plt.plot(self.ex_targets, label='targets')
-                plt.legend()
-                plt.title(checkpoint_label)
-                self.logger.experiment.add_figure('predictions', fig, global_step=self.current_epoch)
+            checkpoint_label = str(self.current_epoch)+'.ckpt'
+            fig = plt.figure(figsize=(6, 3))
+            plt.plot(preds, label='predictions')
+            plt.plot(self.ex_targets, label='targets')
+            plt.legend()
+            plt.title(checkpoint_label)
+            self.logger.experiment.add_figure('predictions', fig, global_step=self.current_epoch)
 
-                dist_fig = plt.figure(figsize=(6, 3))
-                plt.imshow(pitch_dist.cpu().squeeze())
-                self.logger.experiment.add_figure("output distribution", dist_fig, global_step=self.current_epoch)
+            dist_fig = plt.figure(figsize=(6, 3))
+            plt.imshow(pitch_dist.cpu().squeeze())
+            plt.gca().invert_yaxis()
+            self.logger.experiment.add_figure("output distribution", dist_fig, global_step=self.current_epoch)
 
         self.val_rpa.reset()
         self.val_rca.reset()
@@ -896,19 +895,39 @@ class Autoregressive(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        model = [
-            # torch.nn.Embedding(penne.PITCH_BINS+1, penne.AR_HIDDEN_SIZE),
-            torch.nn.Linear(penne.AR_SIZE, penne.AR_HIDDEN_SIZE),
+        conv_sizes = [128, 64, 16, 4]
+        kernel_size = 5
+        self.linear_input_size = 400
+
+        self.embedding = torch.nn.Embedding(penne.PITCH_BINS+2, conv_sizes[0])
+
+        conv_layers = [
+            torch.nn.Conv1d(conv_sizes[0], conv_sizes[1], kernel_size, padding=kernel_size // 2),
+            torch.nn.Conv1d(conv_sizes[1], conv_sizes[2], kernel_size, padding=kernel_size // 2),
+            torch.nn.Conv1d(conv_sizes[2], conv_sizes[3], kernel_size, padding=kernel_size // 2),
+            # torch.nn.Linear(penne.AR_SIZE, penne.AR_HIDDEN_SIZE),
             torch.nn.LeakyReLU(.1)]
-        for _ in range(3):
-            model.extend([
+        self.conv_layers = torch.nn.Sequential(*conv_layers)
+            
+        
+        linear_layers = [
+            torch.nn.Linear(self.linear_input_size, penne.AR_HIDDEN_SIZE),
+            torch.nn.LeakyReLU(.1)]
+        for _ in range(2):
+            linear_layers.extend([
                 torch.nn.Linear(
                     penne.AR_HIDDEN_SIZE,
                     penne.AR_HIDDEN_SIZE),
                 torch.nn.LeakyReLU(.1)])
-        model.append(
+        linear_layers.append(
             torch.nn.Linear(penne.AR_HIDDEN_SIZE, penne.AR_OUTPUT_SIZE))
-        self.model = torch.nn.Sequential(*model)
+        self.linear_layers = torch.nn.Sequential(*linear_layers)
     
     def forward(self, x):
-        return self.model(x)
+        # x = torch.full(x.shape, 0, dtype=x.dtype, device=x.device)
+        # x.shape = (batch, 100)
+        x = self.embedding(x) # (batch, 100, 128)
+        x = x.permute(0, 2, 1) # (batch, 128, 100)
+        x = self.conv_layers(x) # (batch, 4, 100)
+        x = x.reshape(-1, self.linear_input_size) # (batch, 400)
+        return self.linear_layers(x) # (batch, 64)
