@@ -49,6 +49,18 @@ def main():
                                 mode='max')
         logdir = 'ar'
         model = penne.ARModel(name=args.name)
+    elif args.pdc:
+        datamodule = penne.data.DataModule(args.dataset,
+                                args.batch_size,
+                                args.num_workers)
+        early_stop_callback = EarlyStopping(
+                                monitor='val_accuracy',
+                                min_delta=0.00,
+                                patience=patience,
+                                verbose=False,
+                                mode='max')
+        logdir = 'pdc'
+        model = penne.Model(name=args.name)
     else:
         datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
@@ -104,6 +116,10 @@ def parse_args():
         '--ar',
         action='store_true',
         help='If present, run AR training')
+    parser.add_argument(
+        '--pdc',
+        action='store_true',
+        help='If present, run PDC training')
 
     # Add model arguments
     parser = penne.Model.add_model_specific_args(parser)

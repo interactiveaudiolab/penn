@@ -159,8 +159,8 @@ class RCA:
             voiced = target != 0
         diff = convert_source[voiced] - convert_target[voiced]
         # forgive octave errors
-        diff[diff > 600] -= 1200
-        diff[diff < -600] += 1200
+        diff[diff > 1150] -= 1200
+        diff[diff < -1150] += 1200
         # count predictions that are within 50 cents of target
         self.sum += (np.abs(diff) < 50).sum()
         self.count += voiced.sum()

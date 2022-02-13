@@ -2,6 +2,7 @@
 
 
 import argparse
+from cgitb import reset
 import json
 from pathlib import Path
 import numpy as np
@@ -90,14 +91,15 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
         os.makedirs(periodicity_dir)
 
     if not skip_predictions:
-        for stem in tqdm.tqdm(hparam_stems + test_stems, dynamic_ncols=True, desc="Predicting"):
+        for stem in tqdm.tqdm((hparam_stems + test_stems), dynamic_ncols=True, desc="Predicting"):
             if ar:
                 frames = torch.from_numpy(np.load(penne.data.stem_to_cache_frames(name, stem, False))).to(device)
                 frames -= frames.mean(dim=1, keepdim=True)
                 frames /= torch.max(torch.tensor(1e-10, device=frames.device),
                     frames.std(dim=1, keepdim=True))
-                pitch, _ = penne.ar_loop(model, frames, ar_bins=True)
-                periodicity = pitch == penne.PITCH_BINS
+                pitch, pitch_dist, entropies = penne.ar_loop(model, frames, ar_bins=True)
+                pitch = penne.convert.bins_to_frequency(pitch.squeeze(0)).cpu()
+                periodicity = entropies.cpu()
             else:
                 # get audio file path
                 audio_file = penne.data.stem_to_file(name, stem)
@@ -110,8 +112,6 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
 
             np_pitch = pitch.numpy()
             np_periodicity = periodicity.numpy()
-
-            import pdb; pdb.set_trace()
 
             # save prediction as npy
             np.save(pitch_dir / f'{stem}.npy', np_pitch)
@@ -185,6 +185,56 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
         json.dump(hparam_results, file)
 
     best_thresh = max(hparam_results, key=lambda x: hparam_results[x]['f1'])
+
+    def evaluate_per_stem(thresh_val, stems):
+        thresh = penne.threshold.At(thresh_val)
+        f1 = penne.metrics.F1(thresh)
+        wrmse = penne.metrics.WRMSE()
+        rpa = penne.metrics.RPA()
+        rca = penne.metrics.RCA()
+
+        res = {}
+
+        # loop over stems
+        for stem in stems:
+            # get annotation file path
+            annotation_file = penne.data.stem_to_annotation(name, stem)
+
+            # get annotated pitch
+            annotation = penne.load.pitch_annotation(name, annotation_file)
+            np_annotation = annotation.numpy()
+
+            # load npy predictions
+            np_pitch = np.load(pitch_dir /  f'{stem}.npy')
+            np_periodicity = np.load(periodicity_dir / f'{stem}.npy')
+
+            # handle off by one error
+            if name == 'PTDB' and np_pitch.shape[1] > np_annotation.shape[1]:
+                np_pitch = np_pitch[:,:np_annotation.shape[1]]
+                np_periodicity = np_periodicity[:,:np_annotation.shape[1]]
+            # update metrics
+            f1.update(np_pitch, np_annotation, np_periodicity)
+            wrmse.update(np_pitch, np_annotation, np_periodicity)
+            rpa.update(np_pitch, np_annotation)
+            rca.update(np_pitch, np_annotation)
+
+            # compute final metrics
+            precision, recall, f1_val = f1()
+            wrmse_val = wrmse()
+            rpa_val = rpa()
+            rca_val = rca()
+
+            res[stem] = {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val}
+
+            f1.reset()
+            wrmse.reset()
+            rpa.reset()
+            rca.reset()
+        return res
+
+    file = model_eval_dir / f'per_stem_{model_name}_on_{name}.json'
+    with open(file, 'w') as file:
+        json.dump(evaluate_per_stem(best_thresh, test_stems), file)
     return evaluate_at_threshold(best_thresh, test_stems)
 
 
@@ -236,7 +286,8 @@ def main():
 
     # Setup model
     if args.ar:
-        penne.infer.model = penne.ARModel.load_from_checkpoint(args.checkpoint)
+        penne.infer.model = penne.ARModel.load_from_checkpoint(args.checkpoint).to(args.device)
+        penne.infer.model.eval()
     else:
         penne.load.model(device=args.device, checkpoint=args.checkpoint)
 

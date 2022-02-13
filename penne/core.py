@@ -81,6 +81,49 @@ SMOOTH_TARGETS = True
 VOICE_ONLY = False
 WHITEN = True
 
+OMMISSIONS = [  'M02_si755', # voiced in silent regions at beginning and end
+                'F01_si518', # middle section frequency too low
+                'F08_si1862', # unvoiced during most of the speaking
+                'F06_si1549', # 2nd half frequency too low
+                'F03_sx107', # doesn't look too bad? too low on a few words
+                'F04_si1044', # annotation unvoiced for many words
+                'F08_si1856', # not bad, misses on like 3 words
+                'F08_si1822', # also not bad, too low or unvoiced on 3 words
+                'M02_si772', # good during speech but erroneously voiced in unvoiced regions
+                'F08_si1834', # erroneously flat 100 hz for half a second during speech
+                'F10_si2255', # too low for middle section
+                'F10_si2159', # too low for many words
+                'F04_si1031', # unvoiced during half the speech
+                'F04_si1118', # mistakes at beginning of speech
+                'M02_sx88', # unvoiced for a bunch of words
+                'F08_si1795', # unvoiced for first half of words
+                'F04_si1095', # unvoiced for a bunch of words
+                'F04_si1142', # miss some words, some voiced during silence
+                'M02_si669', # not bad, voiced for 1/3 second of silence
+                'M02_si770', # missed a couple words in the middle
+                'F10_si2164', # too low, definitely creaky voice
+                'F08_sa1', # good, but too low for one word?
+                'F08_si1788', # misses "pretty", spoken kinda unpitched
+                'F08_si1880', # misses a couple words
+                'F06_si1581', # second half mistakes
+                'F06_sx237', # too low for last word ### END RPA, START F1
+                'M07_si1618', # voicing errors
+                'F02_si772', # unvoiced in voiced regions
+                'F10_si2192', # only voiced for small section
+                'M07_si1704', # voiced for first second of silence
+                'M07_sx276', # voiced at flat 100 hz for silent region
+                'F10_si2196', # unvoiced for a bunch of the speaking
+                'F02_si726', # unvoiced for a bunch of speaking
+                'F05_sx186', # missed a few words
+                'F01_si611', # unvoiced for some voiced sections
+                'F08_si1864', # unvoiced for first half
+                'F01_si497', # unvoiced for a bunch of speaking
+                'F01_si497', # unvoicd for half the words
+                'F10_sx442', # unvoiced in random middle sections
+                'F10_si2267', # unvoiced for a bunch of speaking
+                'F02_si729', # unvoiced for a bunch of speaking
+                ]
+
 
 ###############################################################################
 # Crepe pitch prediction
@@ -694,7 +737,7 @@ def resample(audio, sample_rate):
 def entropy(distribution):
     return 1 + (1 / np.log2(penne.PITCH_BINS)) * ((distribution * torch.log2(distribution)).sum())
 
-def ar_loop(model, features, ar_bins=True):
+def ar_loop(model, features, ar_bins=True, threshold=0.5):
     """Perform autoregressive inference"""
     # features: (1, 360, n_frames)
 
@@ -739,20 +782,21 @@ def ar_loop(model, features, ar_bins=True):
             # Place pitch dist
             pitch_dists[:,i] = pitch_dist.squeeze()
 
-            # Randomly sample categorical distribution to get a single pitch
+            # Compute entropy of pitch distribution
             pitch_dist = torch.nn.Softmax(dim=0)(pitch_dist.squeeze())
-            # pitch = pitch_dist.argmax()
             frame_entropy = entropy(pitch_dist)
             entropies[i] = frame_entropy
-            if frame_entropy < 0.3:
+
+            # Place newly generated pitch
+            pitches[i] = pitch_dist.argmax()
+
+            # Choose ar conditioning pitch based on entropy
+            if frame_entropy < threshold:
                 pitch = torch.tensor(360)
             else:
                 pitch = pitch_dist.argmax()
                 # pitch_dist /= pitch_dist.sum()+0.00001
                 # pitch = np.random.multinomial(1, pvals=pitch_dist.cpu()).argmax()
-
-            # Place newly generated pitch
-            pitches[i] = pitch
 
             # Update AR context
             prev_pitches[:, :, :-1] = prev_pitches[:, :, 1:].clone()
@@ -762,4 +806,4 @@ def ar_loop(model, features, ar_bins=True):
             # prev_voicing[:, :, -1] = voicing[i]
 
         # Concatenate and remove padding
-        return (pitches[None, None, :output_length], pitch_dists)
+        return (pitches[None, None, :output_length], pitch_dists, entropies[None, :])
