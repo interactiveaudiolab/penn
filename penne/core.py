@@ -5,6 +5,7 @@ import numpy as np
 import resampy
 import torch
 import tqdm
+import time
 
 import penne
 
@@ -139,6 +140,7 @@ def predict(audio,
             model=None,
             decoder=penne.decode.viterbi,
             return_periodicity=False,
+            return_time=False,
             batch_size=None,
             device='cpu', 
             pad=True):
@@ -173,6 +175,8 @@ def predict(audio,
     """
     results = []
 
+    seconds = 0
+    infers = 0
     # Postprocessing breaks gradients, so just don't compute them
     with torch.no_grad():
 
@@ -186,7 +190,12 @@ def predict(audio,
         for frames in generator:
 
             # Infer independent probabilities for each pitch bin
+            torch.cuda.synchronize()
+            start = time.time()
             probabilities = infer(frames, checkpoint, model)
+            torch.cuda.synchronize()
+            seconds += time.time() - start
+            infers += 1
 
             # shape=(batch, 360, time / hop_length)
             probabilities = probabilities.reshape(
@@ -211,8 +220,11 @@ def predict(audio,
     # Split pitch and periodicity
     if return_periodicity:
         pitch, periodicity = zip(*results)
+        if return_time:
+            return torch.cat(pitch, 1), torch.cat(periodicity, 1), seconds, infers
         return torch.cat(pitch, 1), torch.cat(periodicity, 1)
-
+    if return_time:
+        return torch.cat(results, 1), seconds, infers
     # Concatenate
     return torch.cat(results, 1)
 
@@ -225,6 +237,7 @@ def predict_from_file(audio_file,
                       model=None,
                       decoder=penne.decode.viterbi,
                       return_periodicity=False,
+                      return_time=False,
                       batch_size=None,
                       device='cpu',
                       pad=True):
@@ -268,6 +281,7 @@ def predict_from_file(audio_file,
                    model,
                    decoder,
                    return_periodicity,
+                   return_time,
                    batch_size,
                    device,
                    pad)

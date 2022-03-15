@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import tqdm
 import os
+import time
 
 import penne
 
@@ -90,6 +91,9 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
     if not os.path.exists(periodicity_dir):
         os.makedirs(periodicity_dir)
 
+    total_seconds = 0
+    total_frames = 0
+    total_infers = 0
     if not skip_predictions:
         for stem in tqdm.tqdm((hparam_stems + test_stems), dynamic_ncols=True, desc="Predicting"):
             if ar:
@@ -108,7 +112,10 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
                 fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
                 
                 # get model-predicted pitch
-                pitch, periodicity = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
+                pitch, periodicity, seconds, infers = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, return_time=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
+                total_seconds += seconds
+                total_frames += pitch.shape[1]
+                total_infers += infers
 
             np_pitch = pitch.numpy()
             np_periodicity = periodicity.numpy()
@@ -156,7 +163,7 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
         rpa_val = rpa()
         rca_val = rca()
 
-        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val}
+        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val, 'seconds': total_seconds, 'frames': total_frames, 'infers': total_infers}
     
     left = 0
     right = 1
@@ -276,6 +283,10 @@ def parse_args():
         '--ar',
         action='store_true',
         help='If present, will use ar-based inference')
+    parser.add_argument(
+        '--pdc',
+        action='store_true',
+        help='If present, will use pdc-based inference')
 
     return parser.parse_args()
 
@@ -287,6 +298,9 @@ def main():
     # Setup model
     if args.ar:
         penne.infer.model = penne.ARModel.load_from_checkpoint(args.checkpoint).to(args.device)
+        penne.infer.model.eval()
+    elif args.pdc:
+        penne.infer.model = penne.PDCModel.load_from_checkpoint(args.checkpoint).to(args.device)
         penne.infer.model.eval()
     else:
         penne.load.model(device=args.device, checkpoint=args.checkpoint)

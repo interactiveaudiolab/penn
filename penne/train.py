@@ -19,10 +19,9 @@ def main():
     # Parse command-line arguments
     args = parse_args()
 
-    
-
     # Setup early stopping for 32 epochs of no val accuracy improvement
-    patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
+    # patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
+    patience = 1000
 
     # Setup data
     if args.nvd:
@@ -32,7 +31,7 @@ def main():
         early_stop_callback = EarlyStopping(
                                 monitor='val_loss',
                                 min_delta=0.00,
-                                patience=1000,
+                                patience=patience,
                                 verbose=False,
                                 mode='min')
         logdir = 'nvd'
@@ -56,11 +55,11 @@ def main():
         early_stop_callback = EarlyStopping(
                                 monitor='val_accuracy',
                                 min_delta=0.00,
-                                patience=patience,
+                                patience=1000,
                                 verbose=False,
                                 mode='max')
         logdir = 'pdc'
-        model = penne.Model(name=args.name)
+        model = penne.PDCModel(name=args.name)
     else:
         datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
@@ -71,7 +70,7 @@ def main():
                                 patience=patience,
                                 verbose=False,
                                 mode='max')
-        logdir = 'ar'
+        logdir = 'pdc'
         model = penne.Model(name=args.name)
 
     # Setup tensorboard
