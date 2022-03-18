@@ -19,7 +19,7 @@ import penne
 ###############################################################################
 
 
-def dataset(name, partition, model, model_name, skip_predictions, ar, device):
+def dataset(name, partition, model, model_name, skip_predictions, device):
     """Evaluate a dataset
 
     Arguments
@@ -40,14 +40,11 @@ def dataset(name, partition, model, model_name, skip_predictions, ar, device):
     # Get stems for this partition
     test_stems = penne.data.partitions(name)[partition]
 
-    # Resolve stems to filenames
-    # files = [penne.data.stem_to_file(name, stem) for stem in stems]
-
     # Partition files
-    return from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, ar, device)
+    return from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, device)
 
 
-def dataset_to_file(name, partition, model, model_name, skip_predictions, ar, device):
+def dataset_to_file(name, partition, model, model_name, skip_predictions, device):
     """Evaluate dataset and write results to json file
 
     Arguments
@@ -65,10 +62,10 @@ def dataset_to_file(name, partition, model, model_name, skip_predictions, ar, de
         os.makedirs(model_eval_dir)
     file = model_eval_dir / f'{model_name}_on_{name}.json'
     with open(file, 'w') as file:
-        json.dump(dataset(name, partition, model, model_name, skip_predictions, ar, device), file)
+        json.dump(dataset(name, partition, model, model_name, skip_predictions, device), file)
 
 
-def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, ar, device):
+def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_stems, device):
     """Evaluate files
 
     Arguments
@@ -83,6 +80,8 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
             the value is the value received for that metric. Must be JSON
             serializable.
     """
+
+    # create directories as needed
     model_eval_dir = penne.EVAL_DIR / name / model_name
     pitch_dir = model_eval_dir / 'pitch'
     periodicity_dir = model_eval_dir / 'periodicity'
@@ -91,31 +90,25 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
     if not os.path.exists(periodicity_dir):
         os.makedirs(periodicity_dir)
 
+    # initialize counts
     total_seconds = 0
     total_frames = 0
-    total_infers = 0
+
+    # skip predict step with skip_predictions flag
     if not skip_predictions:
         for stem in tqdm.tqdm((hparam_stems + test_stems), dynamic_ncols=True, desc="Predicting"):
-            if ar:
-                frames = torch.from_numpy(np.load(penne.data.stem_to_cache_frames(name, stem, False))).to(device)
-                frames -= frames.mean(dim=1, keepdim=True)
-                frames /= torch.max(torch.tensor(1e-10, device=frames.device),
-                    frames.std(dim=1, keepdim=True))
-                pitch, pitch_dist, entropies = penne.ar_loop(model, frames, ar_bins=True)
-                pitch = penne.convert.bins_to_frequency(pitch.squeeze(0)).cpu()
-                periodicity = entropies.cpu()
-            else:
-                # get audio file path
-                audio_file = penne.data.stem_to_file(name, stem)
+            # get audio file path
+            audio_file = penne.data.stem_to_file(name, stem)
 
-                # conditionally set fmax
-                fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
-                
-                # get model-predicted pitch
-                pitch, periodicity, seconds, infers = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, return_time=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
-                total_seconds += seconds
-                total_frames += pitch.shape[1]
-                total_infers += infers
+            # conditionally set fmax
+            fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
+            
+            # get model-predicted pitch
+            pitch, periodicity, seconds = penne.predict_from_file(audio_file, model=model, batch_size=1024, return_periodicity=True, return_time=True, device=device, decoder=penne.decode.argmax, fmax=fmax, pad=name!='PTDB')
+            
+            # update time and frames counts
+            total_seconds += seconds
+            total_frames += pitch.shape[1]
 
             np_pitch = pitch.numpy()
             np_periodicity = periodicity.numpy()
@@ -125,7 +118,7 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
             np.save(periodicity_dir / f'{stem}.npy', np_periodicity)
 
 
-    # setup metrics
+    # run evaluation and save overall metrics
     def evaluate_at_threshold(thresh_val, stems):
         print(f'evaluating at {thresh_val}')
         thresh = penne.threshold.At(thresh_val)
@@ -163,8 +156,9 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
         rpa_val = rpa()
         rca_val = rca()
 
-        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val, 'seconds': total_seconds, 'frames': total_frames, 'infers': total_infers}
+        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val, 'seconds': total_seconds, 'frames': total_frames}
     
+    # binary hparam search for voicing threshold
     left = 0
     right = 1
     hparam_results = {}
@@ -193,6 +187,7 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
 
     best_thresh = max(hparam_results, key=lambda x: hparam_results[x]['f1'])
 
+    # run evaluation and save metrics for each individual stem
     def evaluate_per_stem(thresh_val, stems):
         thresh = penne.threshold.At(thresh_val)
         f1 = penne.metrics.F1(thresh)
@@ -280,10 +275,6 @@ def parse_args():
         action='store_true',
         help='If true, will try to use existing predictions')
     parser.add_argument(
-        '--ar',
-        action='store_true',
-        help='If present, will use ar-based inference')
-    parser.add_argument(
         '--pdc',
         action='store_true',
         help='If present, will use pdc-based inference')
@@ -295,18 +286,11 @@ def main():
     # Parse command-line arguments
     args = parse_args()
 
-    # Setup model
-    if args.ar:
-        penne.infer.model = penne.ARModel.load_from_checkpoint(args.checkpoint).to(args.device)
-        penne.infer.model.eval()
-    elif args.pdc:
-        penne.infer.model = penne.PDCModel.load_from_checkpoint(args.checkpoint).to(args.device)
-        penne.infer.model.eval()
-    else:
-        penne.load.model(device=args.device, checkpoint=args.checkpoint)
+    # Load model to penne.infer.model
+    penne.load.model(device=args.device, checkpoint=args.checkpoint, pdc=args.pdc)
 
     # Evaluate
-    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.model_name, args.skip_predictions, args.ar, args.device)
+    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.model_name, args.skip_predictions, args.device)
 
 
 if __name__ == '__main__':

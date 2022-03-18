@@ -19,20 +19,23 @@ def audio(filename):
     return torch.tensor(np.copy(audio))[None], sample_rate
 
 
-def model(device, checkpoint=penne.FULL_CHECKPOINT):
+def model(device, checkpoint=penne.FULL_CHECKPOINT, pdc=False):
     """Preloads model from disk"""
     # Bind model and capacity
     penne.infer.checkpoint = checkpoint
 
     if checkpoint.suffix == '.pth':
-        penne.infer.model = penne.Model()
+        penne.infer.model = penne.PDCModel() if pdc else penne.Model()
 
         # Load weights
         penne.infer.model.load_state_dict(
             torch.load(checkpoint, map_location=device))
 
     elif checkpoint.suffix =='.ckpt':
-        penne.infer.model = penne.Model.load_from_checkpoint(checkpoint)
+        if pdc:
+            penne.infer.model = penne.PDCModel.load_from_checkpoint(checkpoint)
+        else:
+            penne.infer.model = penne.Model.load_from_checkpoint(checkpoint)
     else:
         raise ValueError(f'Invalid checkpoint extension for {checkpoint}')
     

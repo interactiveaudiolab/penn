@@ -20,57 +20,25 @@ def main():
     args = parse_args()
 
     # Setup early stopping for 32 epochs of no val accuracy improvement
-    # patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
-    patience = 1000
+    patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
 
     # Setup data
-    if args.nvd:
-        datamodule = penne.data.NVDDataModule(args.dataset,
+    datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
                                 args.num_workers)
-        early_stop_callback = EarlyStopping(
-                                monitor='val_loss',
-                                min_delta=0.00,
-                                patience=patience,
-                                verbose=False,
-                                mode='min')
-        logdir = 'nvd'
-        model = penne.NVDModel(name=args.name)
-    elif args.ar:
-        datamodule = penne.data.ARDataModule(args.dataset,
-                                args.batch_size,
-                                args.num_workers)
-        early_stop_callback = EarlyStopping(
+    early_stop_callback = EarlyStopping(
                                 monitor='val_accuracy',
                                 min_delta=0.00,
                                 patience=patience,
                                 verbose=False,
                                 mode='max')
-        logdir = 'ar'
-        model = penne.ARModel(name=args.name)
-    elif args.pdc:
-        datamodule = penne.data.DataModule(args.dataset,
-                                args.batch_size,
-                                args.num_workers)
-        early_stop_callback = EarlyStopping(
-                                monitor='val_accuracy',
-                                min_delta=0.00,
-                                patience=1000,
-                                verbose=False,
-                                mode='max')
+
+    # Setup log directory and model according to --pdc flag
+    if args.pdc:
         logdir = 'pdc'
         model = penne.PDCModel(name=args.name)
     else:
-        datamodule = penne.data.DataModule(args.dataset,
-                                args.batch_size,
-                                args.num_workers)
-        early_stop_callback = EarlyStopping(
-                                monitor='val_accuracy',
-                                min_delta=0.00,
-                                patience=patience,
-                                verbose=False,
-                                mode='max')
-        logdir = 'pdc'
+        logdir = 'crepe'
         model = penne.Model(name=args.name)
 
     # Setup tensorboard
@@ -107,14 +75,6 @@ def parse_args():
         type=str,
         default='training',
         help='The name of the run for logging purposes.')
-    parser.add_argument(
-        '--nvd',
-        action='store_true',
-        help='If present, run NVD training')
-    parser.add_argument(
-        '--ar',
-        action='store_true',
-        help='If present, run AR training')
     parser.add_argument(
         '--pdc',
         action='store_true',
