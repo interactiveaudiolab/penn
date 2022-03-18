@@ -222,7 +222,7 @@ class Model(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # compute mean loss and accuracy
-        if not self.trainer.running_sanity_check:
+        if not self.trainer.sanity_checking:
             loss_sum = 0
             acc_sum = 0
             for x in outputs:
@@ -529,7 +529,7 @@ class PDCModel(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # compute mean loss and accuracy
-        if not self.trainer.running_sanity_check:
+        if not self.trainer.sanity_checking:
             loss_sum = 0
             acc_sum = 0
             for x in outputs:
