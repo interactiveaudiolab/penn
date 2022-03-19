@@ -222,7 +222,7 @@ class Model(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # compute mean loss and accuracy
-        if not self.trainer.sanity_checking:
+        if not self.trainer.running_sanity_check:
             loss_sum = 0
             acc_sum = 0
             for x in outputs:
@@ -348,11 +348,12 @@ class PDCModel(pl.LightningModule):
 
         # Shared layer parameters
         # kernel_sizes = [(512, 1)] + 5 * [(64, 1)]
-        kernel_sizes = [(15, 1)] + 5 * [(15, 1)]
-        strides = [(4, 1)] + 5 * [(1, 1)]
+        kernel_sizes = [15] + 5 * [15]
+        # strides = [(4, 1)] + 5 * [(1, 1)]
+        strides = [4] + 5 * [1]
         
         # Overload with eps and momentum conversion given by MMdnn
-        batch_norm_fn = functools.partial(torch.nn.BatchNorm2d,
+        batch_norm_fn = functools.partial(torch.nn.BatchNorm1d,
                                           eps=self.epsilon,
                                           momentum=self.momentum)
 
@@ -427,7 +428,8 @@ class PDCModel(pl.LightningModule):
         x = self.layer(x, self.conv6, self.conv6_BN)
 
         # shape=(batch, self.in_features)
-        x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
+        # x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
+        x = x.reshape(-1, self.in_features)
 
         # Compute logits
         return self.classifier(x)
@@ -529,7 +531,8 @@ class PDCModel(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # compute mean loss and accuracy
-        if not self.trainer.sanity_checking:
+        import pdb; pdb.set_trace()
+        if not self.trainer.running_sanity_check:
             loss_sum = 0
             acc_sum = 0
             for x in outputs:
@@ -555,7 +558,7 @@ class PDCModel(pl.LightningModule):
                 self.trainer.save_checkpoint(checkpoint_path)
 
             # plot logits and posterior distribution
-            if self.current_epoch < 20 or self.current_epoch % 25 == 0:
+            if self.current_epoch < 5 or self.current_epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
                 # load a batch for logging if not yet loaded
                 if self.ex_batch is None:
                     self.ex_batch = self.ex_batch_for_logging(penne.LOG_EXAMPLE)
@@ -605,8 +608,8 @@ class PDCModel(pl.LightningModule):
 
     def embed(self, x):
         """Map input audio to pitch embedding"""
-        # shape=(batch, 1, 1024, 1)
-        x = x[:, None, :, None]
+        # shape=(batch, 1, 1024)
+        x = x[:, None, :]
         # Forward pass through first five layers
         x = self.layer(x, self.conv1, self.conv1_BN)
         x = self.layer(x, self.conv2, self.conv2_BN)
@@ -615,7 +618,7 @@ class PDCModel(pl.LightningModule):
         x = self.layer(x, self.conv5, self.conv5_BN)
         return x
 
-    def layer(self, x, conv, batch_norm, padding=(0, 0, 0, 0), pooling=(2, 1), linear=False):
+    def layer(self, x, conv, batch_norm, padding=(0, 0, 0, 0), pooling=2, linear=False):
         """Forward pass through one layer"""
         x = F.pad(x, padding)
         x = conv(x)
@@ -623,7 +626,7 @@ class PDCModel(pl.LightningModule):
             x = x.permute(0, 2, 3, 1)
         x = F.relu(x)
         x = batch_norm(x)
-        x = F.max_pool2d(x, pooling, pooling)
+        x = F.max_pool1d(x, pooling)
         return F.dropout(x, p=0.25, training=self.training)
 
 
@@ -644,7 +647,7 @@ class PrimeDilatedConvolutionBlock(torch.nn.Module):
         in_channels,
         out_channels,
         kernel_size,
-        stride=(1, 1),
+        stride=1,
         primes=4):
         super().__init__()
 
@@ -654,7 +657,7 @@ class PrimeDilatedConvolutionBlock(torch.nn.Module):
                 'output_channels must be evenly divisble by number of primes')
 
         # Initialize layers
-        if stride == (1, 1):
+        if stride == 1:
             conv_fn = functools.partial(
             torch.nn.Conv1d,
             kernel_size=kernel_size,
@@ -673,15 +676,15 @@ class PrimeDilatedConvolutionBlock(torch.nn.Module):
     def forward(self, x):
         """Forward pass"""
         # Forward pass through each
-        if self.stride == (1, 1):
+        if self.stride == 1:
             return torch.cat(tuple(layer(x) for layer in self.layers), dim=1)
         else:
             layer_outs = []
             for i, layer in enumerate(self.layers):
                 dilation = PRIMES[i]
                 L_in = x.shape[2]
-                L_out = L_in // self.stride[0]
-                padding = math.ceil((self.stride[0] * (L_out - 1) - L_in + dilation * (layer.kernel_size[0] - 1) + 1) / 2)
-                layer_out = layer(F.pad(x, (0, 0, padding, padding)))
+                L_out = L_in // self.stride
+                padding = math.ceil((self.stride * (L_out - 1) - L_in + dilation * (layer.kernel_size[0] - 1) + 1) / 2)
+                layer_out = layer(F.pad(x, (padding, padding)))
                 layer_outs.append(layer_out)
             return torch.cat(layer_outs, dim=1)
