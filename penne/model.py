@@ -168,7 +168,7 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        x, y = batch
+        x, y, voicing = batch
         output = self(x)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
@@ -177,14 +177,16 @@ class Model(pl.LightningModule):
         y_hat = output.argmax(dim=1)
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         np_y = y.cpu().numpy()[None,:]
-        self.train_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.train_rpa.update(np_y_hat_freq, np_y)
-        self.train_rca.update(np_y_hat_freq, np_y)
+        np_voicing = voicing.cpu().numpy()[None,:]
+        # np_voicing masks out unvoiced frames
+        self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
+        self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
+        self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
         return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        x, y = batch
+        x, y, voicing = batch
         output = self(x)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
@@ -193,7 +195,9 @@ class Model(pl.LightningModule):
         y_hat = output.argmax(dim=1)
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         np_y = y.cpu().numpy()[None,:]
-        self.val_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
+        np_voicing = voicing.cpu().numpy()[None,:]
+        # np_voicing masks out unvoiced frames
+        self.val_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.val_rpa.update(np_y_hat_freq, np_y)
         self.val_rca.update(np_y_hat_freq, np_y)
         return {"loss": loss, "accuracy": acc}
@@ -347,9 +351,7 @@ class PDCModel(pl.LightningModule):
         self.in_features = 2048
 
         # Shared layer parameters
-        # kernel_sizes = [(512, 1)] + 5 * [(64, 1)]
         kernel_sizes = [15] + 5 * [15]
-        # strides = [(4, 1)] + 5 * [(1, 1)]
         strides = [4] + 5 * [1]
         
         # Overload with eps and momentum conversion given by MMdnn
@@ -363,9 +365,6 @@ class PDCModel(pl.LightningModule):
             out_channels=out_channels[0],
             kernel_size=kernel_sizes[0],
             stride=strides[0])
-        # self.conv1 = torch.nn.Linear(
-        #     in_features=in_channels[0],
-        #     out_features=out_channels[0])
         self.conv1_BN = batch_norm_fn(
             num_features=out_channels[0])
 
@@ -428,7 +427,6 @@ class PDCModel(pl.LightningModule):
         x = self.layer(x, self.conv6, self.conv6_BN)
 
         # shape=(batch, self.in_features)
-        # x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
         x = x.reshape(-1, self.in_features)
 
         # Compute logits
@@ -477,7 +475,7 @@ class PDCModel(pl.LightningModule):
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        x, y = batch
+        x, y, voicing = batch
         output = self(x)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
@@ -486,14 +484,16 @@ class PDCModel(pl.LightningModule):
         y_hat = output.argmax(dim=1)
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         np_y = y.cpu().numpy()[None,:]
-        self.train_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.train_rpa.update(np_y_hat_freq, np_y)
-        self.train_rca.update(np_y_hat_freq, np_y)
+        np_voicing = voicing.cpu().numpy()[None,:]
+        # np_voicing masks out unvoiced frames
+        self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
+        self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
+        self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
         return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        x, y = batch
+        x, y, voicing = batch
         output = self(x)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
@@ -502,9 +502,11 @@ class PDCModel(pl.LightningModule):
         y_hat = output.argmax(dim=1)
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
         np_y = y.cpu().numpy()[None,:]
+        np_voicing = voicing.cpu().numpy()[None,:]
+        # np_voicing masks out unvoiced frames
         self.val_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.val_rpa.update(np_y_hat_freq, np_y)
-        self.val_rca.update(np_y_hat_freq, np_y)
+        self.val_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
+        self.val_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
         return {"loss": loss, "accuracy": acc}
 
     def training_epoch_end(self, outputs):
@@ -617,12 +619,10 @@ class PDCModel(pl.LightningModule):
         x = self.layer(x, self.conv5, self.conv5_BN)
         return x
 
-    def layer(self, x, conv, batch_norm, padding=(0, 0, 0, 0), pooling=2, linear=False):
+    def layer(self, x, conv, batch_norm, padding=(0, 0, 0, 0), pooling=2):
         """Forward pass through one layer"""
         x = F.pad(x, padding)
         x = conv(x)
-        if linear:
-            x = x.permute(0, 2, 3, 1)
         x = F.relu(x)
         x = batch_norm(x)
         x = F.max_pool1d(x, pooling)
@@ -678,6 +678,7 @@ class PrimeDilatedConvolutionBlock(torch.nn.Module):
         if self.stride == 1:
             return torch.cat(tuple(layer(x) for layer in self.layers), dim=1)
         else:
+            # have to handle padding when stride != 1 because padding='same' only works for stride == 1
             layer_outs = []
             for i, layer in enumerate(self.layers):
                 dilation = PRIMES[i]

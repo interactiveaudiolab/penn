@@ -14,6 +14,7 @@ def test_MDB_getitem():
         assert len(dataset[0]) == 2
         assert dataset[0][0].shape == (1, penne.WINDOW_SIZE)
         assert dataset[0][1].shape == (1,)
+        assert dataset[0][2].shape == (1,) 
 
 def test_PTDB_getitem():
     for partition in ['test', 'train', 'valid']:
@@ -21,21 +22,24 @@ def test_PTDB_getitem():
         assert len(dataset[0]) == 2
         assert dataset[0][0].shape == (1, penne.WINDOW_SIZE)
         assert dataset[0][1].shape == (1,)
+        assert dataset[0][2].shape == (1,) 
 
 def test_MDB_loader():
     batch_size = 3
     loader = data.loader('MDB', 'test', batch_size = batch_size, num_workers = 0)
     for i in tqdm.tqdm(range(10)):
         it = iter(loader)
-        features, targets = next(it)
+        features, targets, voicings = next(it)
         assert features.shape == (batch_size, 1024)
         assert targets.shape == (batch_size,)
+        assert voicings.shape == (batch_size,)
 
 def test_PTDB_loader():
     batch_size = 3
     loader = data.loader('PTDB', 'test', batch_size = batch_size, num_workers = 0)
     for i in tqdm.tqdm(range(10)):
         it = iter(loader)
-        features, targets = next(it)
+        features, targets, voicings = next(it)
         assert features.shape == (batch_size, 1024)
         assert targets.shape == (batch_size,)
+        assert voicings.shape == (batch_size,)

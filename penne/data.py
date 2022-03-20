@@ -98,11 +98,12 @@ class Dataset(torch.utils.data.Dataset):
         annotations = penne.load.annotation_from_cache(annotation_path)
         annotation = annotations[:,frame_idx]
 
+        voicing = torch.zeros(annotation.shape) if annotation == 0 else torch.ones(annotation.shape)
         # choose a random bin if unvoiced
         if annotation == 0:
             annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
         # insert shape comment
-        return (frame, annotation)
+        return (frame, annotation, voicing)
         
 
     def __len__(self):
@@ -169,11 +170,12 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
 ###############################################################################
 
 def collate_fn(batch):
-    features, targets = zip(*batch)
+    features, targets, voicing = zip(*batch)
     col_features = torch.cat(list(features))
     col_targets = torch.cat(list(targets))
-    # (batch, window_size), (batch)
-    return (col_features, col_targets)
+    col_voicing = torch.cat(list(voicing))
+    # (batch, window_size), (batch), (batch)
+    return (col_features, col_targets, col_voicing)
 
 ###############################################################################
 # Utilities

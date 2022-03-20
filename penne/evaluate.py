@@ -123,7 +123,7 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
         print(f'evaluating at {thresh_val}')
         thresh = penne.threshold.At(thresh_val)
         f1 = penne.metrics.F1(thresh)
-        wrmse = penne.metrics.WRMSE()
+        rmse = penne.metrics.WRMSE()
         rpa = penne.metrics.RPA()
         rca = penne.metrics.RCA()
         # loop over stems
@@ -144,19 +144,23 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
             if name == 'PTDB' and np_pitch.shape[1] > np_annotation.shape[1]:
                 np_pitch = np_pitch[:,:np_annotation.shape[1]]
                 np_periodicity = np_periodicity[:,:np_annotation.shape[1]]
+                
+            np_voicing = thresh(torch.ones(np_periodicity.shape), torch.from_numpy(np_periodicity)).numpy()
+            np_voicing[np.isnan(np_voicing)] = 0
+            
             # update metrics
             f1.update(np_pitch, np_annotation, np_periodicity)
-            wrmse.update(np_pitch, np_annotation, np_periodicity)
+            rmse.update(np_pitch, np_annotation, np_voicing)
             rpa.update(np_pitch, np_annotation)
             rca.update(np_pitch, np_annotation)
 
         # compute final metrics
         precision, recall, f1_val = f1()
-        wrmse_val = wrmse()
+        rmse_val = rmse()
         rpa_val = rpa()
         rca_val = rca()
 
-        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val, 'seconds': total_seconds, 'frames': total_frames}
+        return {'precision': precision, 'recall': recall, 'f1': f1_val, 'rmse': rmse_val, 'rpa': rpa_val, 'rca': rca_val, 'seconds': total_seconds, 'frames': total_frames}
     
     # binary hparam search for voicing threshold
     left = 0
@@ -191,7 +195,7 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
     def evaluate_per_stem(thresh_val, stems):
         thresh = penne.threshold.At(thresh_val)
         f1 = penne.metrics.F1(thresh)
-        wrmse = penne.metrics.WRMSE()
+        rmse = penne.metrics.WRMSE()
         rpa = penne.metrics.RPA()
         rca = penne.metrics.RCA()
 
@@ -214,22 +218,26 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
             if name == 'PTDB' and np_pitch.shape[1] > np_annotation.shape[1]:
                 np_pitch = np_pitch[:,:np_annotation.shape[1]]
                 np_periodicity = np_periodicity[:,:np_annotation.shape[1]]
+
+            np_voicing = thresh(torch.ones(np_periodicity.shape), torch.from_numpy(np_periodicity)).numpy()
+            np_voicing[np.isnan(np_voicing)] = 0
+            
             # update metrics
             f1.update(np_pitch, np_annotation, np_periodicity)
-            wrmse.update(np_pitch, np_annotation, np_periodicity)
+            rmse.update(np_pitch, np_annotation, np_voicing)
             rpa.update(np_pitch, np_annotation)
             rca.update(np_pitch, np_annotation)
 
             # compute final metrics
             precision, recall, f1_val = f1()
-            wrmse_val = wrmse()
+            rmse_val = rmse()
             rpa_val = rpa()
             rca_val = rca()
 
-            res[stem] = {'precision': precision, 'recall': recall, 'f1': f1_val, 'wrmse': wrmse_val, 'rpa': rpa_val, 'rca': rca_val}
+            res[stem] = {'precision': precision, 'recall': recall, 'f1': f1_val, 'rmse': rmse_val, 'rpa': rpa_val, 'rca': rca_val}
 
             f1.reset()
-            wrmse.reset()
+            rmse.reset()
             rpa.reset()
             rca.reset()
         return res
