@@ -1,11 +1,14 @@
 # Pitch Estimating Neural NEtworks (PENNE)
 
-## Training Quick Guide
+## Installation
 
-1. Clone this repo
-2. Run `cd penne`
-3. Run `pip install -e .`
-4. Put datasets into the data folder. MDB and PTDB are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
+Clone this repo and run `cd penne && pip install -e .`.
+
+## Training
+
+### Download data
+
+Place datasets in `data/DATASET`, where `DATASET` is the name of the dataset. MDB and PTDB are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
 ```
 data
 |-- MDB
@@ -19,57 +22,50 @@ data
 |   |-- MALE
 |   |   |-- ...
 ```
-5. To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where DATASET is either MDB or PTDB
-6. To preprocess data for training, run `python -m penne.preprocess DATASET` where DATASET is either MDB or PTDB. You can add flag `--voiceonly=True` to allow for training on only voiced frames
-7. Optionally, you can change certain constant in `core.py` to change training settings. `ORIGINAL_CREPE = True` overrides other variables and uses settings from the original CREPE paper. Note that `VOICE_ONLY` relies on having preprocessed the data accordingly in step 6.
-8. To train the model, run `python -m penne.train --dataset=DATASET <args>`. We recommend the following flags:
-    * `--name=NAME`, which uses NAME for logging organization purposes
-    * `--batch_size=32`, which is the batch size used in the original CREPE paper
-    * `--limit_train_batches=500` and `--limit_val_batches=500`, which runs 500 random batches per epoch as in the original CREPE paper
-
-## Installation
-
-Clone this repo and run `cd penne && pip install -e .`.
-
-
-## Training
-
-### Download data
-
-Place datasets in `data/DATASET`, where `DATASET` is the name of the dataset.
 
 
 ### Partition data
 
-Complete all TODOs in `partition.py`, then run `python -m penne.partition
-DATASET`.
+To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where DATASET is either MDB or PTDB.
+
+
+### Preprocess data
+
+To preprocess data for training, run `python -m penne.preprocess DATASET` where DATASET is either MDB or PTDB. Add flag `--voiceonly=True` to allow for training on only voiced frames. Likely, both voiceonly and non-voiceonly preprocessing is necessary since by default, we train on all frames but validate on only voiced frames.
 
 
 ### Train
 
-Complete all TODOs in `data.py` and `model.py`. Then, create a directory in
-`runs` for your experiment. Logs, checkpoints, and results should be saved to
-this directory. In your new directory, run `python -m penne.train --dataset
-DATASET <args>`. See the [PyTorch Lightning trainer flags](https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#trainer-flags)
-for additional arguments. Model-specific arguments should be added in
-`penne.Model.add_model_specific_args`.
-
-
-### Evaluate
-
-Complete all TODOs in `evaluate.py`, then run `python -m penne.evaluate DATASET
-<partition> <checkpoint> <file>`, where `<partition>` is the name of the
-partition to evaluate, `<checkpoint>` is the checkpoint file to evaluate, and
-`<file>` is the json file to write results to.
+To train the model, run `python -m penne.train --dataset=DATASET <args>`. DATASET can be MDB, PTDB, or BOTH.
+See the [PyTorch Lightning trainer flags](https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#trainer-flags)
+for additional arguments. Recommended arguments:
+    * `--name=NAME`, which uses NAME for logging organization purposes
+    * `--batch_size=32`, which is the batch size used in the original CREPE paper
+    * `--limit_train_batches=500` and `--limit_val_batches=500`, which runs 500 random batches per epoch as in the original CREPE paper
+    * `--pdc` flag will train using the PDC model
+Furthermore, some parameters and constants can be changed in `core.py`.
 
 
 ### Monitor
 
-Run `tensorboard --logdir runs/<run>/logs`. If you are running training
+Run `tensorboard --logdir runs/logs`. If you are running training
 remotely, you must create a SSH connection with port forwarding to view
 Tensorboard. This can be done with `ssh -L 6006:localhost:6006
 <user>@<server-ip-address>`. Then, open `localhost:6006` in your browser.
-Some IDEs (e.g., VS Code) will do this automatically.
+Some IDEs (e.g., VS Code) will do this automatically. By default, CREPE and
+PDC trainings are placed in `runs/logs/crepe` and `run/logs/pdc` subfolders
+respectively, so you can replace the `--logdir` path to see only those runs
+in the tensorboard.
+
+
+### Evaluate
+
+To evaluate, run `python -m penne.evaluate --dataset=DATASET
+--checkpoint=<checkpoint> --model_name=<model_name>`, where
+DATASET either MDB or PTDB, `<checkpoint>` is the checkpoint
+file to evaluate, and `<model_name>` is a name given to label
+this particular evaluation run.`--pdc` flag is required for evaluating
+PDC models. Results show up in `runs/eval/DATASET/<model_name>`.
 
 
 ### Test
