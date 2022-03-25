@@ -37,8 +37,7 @@ To preprocess data for training, run `python -m penne.preprocess DATASET` where 
 ### Train
 
 To train the model, run `python -m penne.train --dataset=DATASET <args>`. `DATASET` can be `MDB`, `PTDB`, or `BOTH`.
-See the [PyTorch Lightning trainer flags](https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#trainer-flags)
-for additional arguments. Recommended arguments:
+Recommended arguments:
  - `--name=NAME`, which uses NAME for logging organization purposes
  - `--batch_size=32`, which is the batch size used in the original CREPE paper
  - `--limit_train_batches=500` and `--limit_val_batches=500`, which runs 500 random batches per epoch as in the original CREPE paper
