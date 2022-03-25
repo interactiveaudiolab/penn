@@ -26,17 +26,17 @@ data
 
 ### Partition data
 
-To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where DATASET is either MDB or PTDB.
+To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where `DATASET` is either `MDB` or `PTDB`.
 
 
 ### Preprocess data
 
-To preprocess data for training, run `python -m penne.preprocess DATASET` where DATASET is either MDB or PTDB. Add flag `--voiceonly=True` to allow for training on only voiced frames. Likely, both voiceonly and non-voiceonly preprocessing is necessary since by default, we train on all frames but validate on only voiced frames.
+To preprocess data for training, run `python -m penne.preprocess DATASET` where `DATASET` is either `MDB` or `PTDB`.
 
 
 ### Train
 
-To train the model, run `python -m penne.train --dataset=DATASET <args>`. DATASET can be MDB, PTDB, or BOTH.
+To train the model, run `python -m penne.train --dataset=DATASET <args>`. `DATASET` can be `MDB`, `PTDB`, or `BOTH`.
 See the [PyTorch Lightning trainer flags](https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#trainer-flags)
 for additional arguments. Recommended arguments:
     * `--name=NAME`, which uses NAME for logging organization purposes
@@ -62,7 +62,7 @@ in the tensorboard.
 
 To evaluate, run `python -m penne.evaluate --dataset=DATASET
 --checkpoint=<checkpoint> --model_name=<model_name>`, where
-DATASET either MDB or PTDB, `<checkpoint>` is the checkpoint
+`DATASET` either `MDB` or `PTDB`, `<checkpoint>` is the checkpoint
 file to evaluate, and `<model_name>` is a name given to label
 this particular evaluation run.`--pdc` flag is required for evaluating
 PDC models. Results show up in `runs/eval/DATASET/<model_name>`.
