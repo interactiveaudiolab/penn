@@ -50,9 +50,9 @@ Furthermore, some parameters and constants can be changed in `core.py`.
 
 Run `tensorboard --logdir runs/logs`. If you are running training
 remotely, you must create a SSH connection with port forwarding to view
-Tensorboard. This can be done with `ssh -L 6006:localhost:6006
-<user>@<server-ip-address>`. Then, open `localhost:6006` in your browser.
-Some IDEs (e.g., VS Code) will do this automatically. By default, CREPE and
+Tensorboard. Some IDEs (e.g., VS Code) will do this automatically. 
+This can be done with `ssh -L 6006:localhost:6006 <user>@<server-ip-address>`.
+Then, open `localhost:6006` in your browser. By default, CREPE and
 PDC trainings are placed in `runs/logs/crepe` and `run/logs/pdc` subfolders
 respectively, so you can replace the `--logdir` path to see only those runs
 in the tensorboard.
