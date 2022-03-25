@@ -2,13 +2,13 @@
 
 ## Installation
 
-Clone this repo and run `cd penne && pip install -e .`.
+Clone this repo, navigate to the root directory of the folder and run `pip install -e .`
 
 ## Training
 
 ### Download data
 
-Place datasets in `data/DATASET`, where `DATASET` is the name of the dataset. MDB and PTDB are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
+Place datasets in `data/DATASET`, where `DATASET` is the name of the dataset. `MDB` and `PTDB` are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
 ```
 data
 |-- MDB
