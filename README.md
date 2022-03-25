@@ -42,15 +42,14 @@ Recommended arguments:
  - `--batch_size=32`, which is the batch size used in the original CREPE paper
  - `--limit_train_batches=500` and `--limit_val_batches=500`, which runs 500 random batches per epoch as in the original CREPE paper
  - `--pdc` flag will train using the PDC model
-Furthermore, some parameters and constants can be changed in `core.py`.
 
 
 ### Monitor
 
 Run `tensorboard --logdir runs/logs`. If you are running training
 remotely, you must create a SSH connection with port forwarding to view
-Tensorboard. Some IDEs (e.g., VS Code) will do this automatically. 
-This can be done with `ssh -L 6006:localhost:6006 <user>@<server-ip-address>`.
+Tensorboard. Some IDEs (e.g., VS Code) will do this automatically, or
+you can do this manually with `ssh -L 6006:localhost:6006 <user>@<server-ip-address>`.
 Then, open `localhost:6006` in your browser. By default, CREPE and
 PDC trainings are placed in `runs/logs/crepe` and `run/logs/pdc` subfolders
 respectively, so you can replace the `--logdir` path to see only those runs
