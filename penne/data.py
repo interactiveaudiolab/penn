@@ -293,7 +293,7 @@ def MDB_file_to_stem(path):
 def PTDB_file_to_stem(path):
     return path.stem[path.stem.index('_')+1:]
 
-def stem_to_cache_file(name, stem, filetype='audio', voiceonly=False):
+def stem_to_cache_file(name, stem, filetype='audio'):
     """Resolve stem to a file in the cache
 
     Arguments
@@ -301,15 +301,12 @@ def stem_to_cache_file(name, stem, filetype='audio', voiceonly=False):
             The name of the dataset
         stem - string
             The stem representing one item in the dataset
-        voiceonly - bool
-            If True, get only voiced frames, else get all frames
 
     Returns
         file - Path
             The corresponding file
     """
-    subfolder = 'voiceonly' if voiceonly else 'all'
-    directory = penne.CACHE_DIR / subfolder / name
+    directory = penne.CACHE_DIR / 'audio' / name
 
     if name == 'MDB':
         return MDB_stem_to_cache_file(directory, stem)
@@ -319,13 +316,13 @@ def stem_to_cache_file(name, stem, filetype='audio', voiceonly=False):
     raise ValueError(f'Dataset {name} is not implemented')
 
 def MDB_stem_to_cache_file(directory, stem):
-    return directory / 'audio' / (stem + ".RESYN.wav")
+    return directory / (stem + ".RESYN.wav")
 
 def PTDB_stem_to_cache_file(directory, stem, filetype='audio'):
     if filetype == 'audio':
-        return directory / 'audio' / ("mic_" + stem + ".wav")
+        return directory / ("mic_" + stem + ".wav")
     if filetype == 'laryn':
-        return directory / 'audio' / ("lar_" + stem + ".wav")
+        return directory / ("lar_" + stem + ".wav")
     raise ValueError("Filetype doesn't exist")
 
 def stem_to_cache_annotation(name, stem, voiceonly=False):

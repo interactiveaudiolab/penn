@@ -9,44 +9,6 @@ import time
 
 import penne
 
-
-__all__ = ['ASSETS_DIR',
-           'CENTS_PER_BIN',
-           'CHECKPOINT_DIR',
-           'CACHE_DIR',
-           'DATA_DIR',
-           'EARLY_STOP_PATIENCE',
-           'FULL_CHECKPOINT',
-           'HOP_SIZE',
-           'LOG_EXAMPLE',
-           'LOG_EXAMPLE_FREQUENCY',
-           'LOG_WITH_SOFTMAX',
-           'LOSS_FUNCTION',
-           'MAX_FMAX',
-           'ORIGINAL_CREPE',
-           'PITCH_BINS',
-           'RUNS_DIR',
-           'EVAL_DIR',
-           'SAMPLE_RATE',
-           'SMOOTH_TARGETS',
-           'UNVOICED',
-           'VOICE_ONLY',
-           'WHITEN',
-           'WINDOW_SIZE',
-           'embed',
-           'embed_from_file',
-           'embed_from_file_to_file',
-           'embed_from_files_to_files',
-           'infer',
-           'predict',
-           'predict_from_file',
-           'predict_from_file_to_file',
-           'predict_from_files_to_files',
-           'preprocess_from_audio',
-           'postprocess',
-           'resample']
-
-
 ###############################################################################
 # Constants
 ###############################################################################

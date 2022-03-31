@@ -17,11 +17,6 @@ def parse_args():
     parser.add_argument(
         'dataset',
         help='The name of the dataset to preprocess')
-    parser.add_argument(
-        '--voiceonly',
-        type=bool,
-        default=False,
-        help='If true, only save voiced frames to cache')
     return parser.parse_args()
 
 
