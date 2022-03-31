@@ -98,7 +98,7 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
     if not skip_predictions:
         for stem in tqdm.tqdm((hparam_stems + test_stems), dynamic_ncols=True, desc="Predicting"):
             # get audio file path
-            audio_file = penne.data.stem_to_file(name, stem)
+            audio_file = penne.data.stem_to_cache_file(name, stem)
 
             # conditionally set fmax
             fmax = 550. if name == 'PTDB' else penne.MAX_FMAX
@@ -228,78 +228,4 @@ def from_stems(name, model, model_name, skip_predictions, hparam_stems, test_ste
             rpa.update(np_pitch, np_annotation)
             rca.update(np_pitch, np_annotation)
 
-            # compute final metrics
-            precision, recall, f1_val = f1()
-            rmse_val = rmse()
-            rpa_val = rpa()
-            rca_val = rca()
-
-            res[stem] = {'precision': precision, 'recall': recall, 'f1': f1_val, 'rmse': rmse_val, 'rpa': rpa_val, 'rca': rca_val}
-
-            f1.reset()
-            rmse.reset()
-            rpa.reset()
-            rca.reset()
-        return res
-
-    file = model_eval_dir / f'per_stem_{model_name}_on_{name}.json'
-    with open(file, 'w') as file:
-        json.dump(evaluate_per_stem(best_thresh, test_stems), file)
-    return evaluate_at_threshold(best_thresh, test_stems)
-
-
-###############################################################################
-# Entry point
-###############################################################################
-
-
-def parse_args():
-    """Parse command-line arguments"""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--dataset',
-        required=True,
-        help='The name of the dataset to evaluate')
-    parser.add_argument(
-        '--partition',
-        help='The partition to evaluate',
-        default='test')
-    parser.add_argument(
-        '--checkpoint',
-        type=Path,
-        required=True,
-        help='The checkpoint file to evaluate')
-    parser.add_argument(
-        '--model_name',
-        type=str,
-        required=True,
-        help='Name of model for directory naming')
-    parser.add_argument(
-        '--device',
-        default='cuda',
-        help='The device to use for evaluation')
-    parser.add_argument(
-        '--skip_predictions',
-        action='store_true',
-        help='If true, will try to use existing predictions')
-    parser.add_argument(
-        '--pdc',
-        action='store_true',
-        help='If present, will use pdc-based inference')
-
-    return parser.parse_args()
-
-def main():
-    """Evaluate a model"""
-    # Parse command-line arguments
-    args = parse_args()
-
-    # Load model to penne.infer.model
-    penne.load.model(device=args.device, checkpoint=args.checkpoint, pdc=args.pdc)
-
-    # Evaluate
-    dataset_to_file(args.dataset, args.partition, penne.infer.model, args.model_name, args.skip_predictions, args.device)
-
-
-if __name__ == '__main__':
-    main()
+            

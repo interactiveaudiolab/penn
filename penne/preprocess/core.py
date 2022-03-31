@@ -24,10 +24,11 @@ def dataset(dataset):
     all_dir = penne.CACHE_DIR / 'all' / dataset
     voiceonly_dir = penne.CACHE_DIR / 'voiceonly' / dataset
     audio_dir = penne.CACHE_DIR / 'audio' / dataset
-    for output_dir in [all_dir, voiceonly_dir, audio_dir]:
+    for output_dir in [all_dir, voiceonly_dir]:
         for subdir in ['annotation', 'frames']:
             sub_directory = output_dir / subdir
             sub_directory.mkdir(exist_ok=True, parents=True)
+    audio_dir.mkdir(exist_ok=True, parents=True)
 
     if dataset in ['MDB', 'PTDB']:
         preprocess_data(dataset, voiceonly_dir, all_dir, audio_dir)
