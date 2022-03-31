@@ -25,7 +25,7 @@ def dataset(dataset):
     voiceonly_dir = penne.CACHE_DIR / 'voiceonly' / dataset
     audio_dir = penne.CACHE_DIR / 'audio' / dataset
     for output_dir in [all_dir, voiceonly_dir, audio_dir]:
-        for subdir in ['annotation', 'audio', 'frames']:
+        for subdir in ['annotation', 'frames']:
             sub_directory = output_dir / subdir
             sub_directory.mkdir(exist_ok=True, parents=True)
 
