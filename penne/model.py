@@ -141,20 +141,15 @@ class Model(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        if penne.LOSS_FUNCTION == 'BCE' or penne.ORIGINAL_CREPE:
-            if penne.SMOOTH_TARGETS or penne.ORIGINAL_CREPE:
-                # apply Gaussian blur around target bin
-                mean = penne.convert.bins_to_cents(y)
-                normal = torch.distributions.Normal(mean, 25)
-                bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
-                bins = bins[:, None]
-                y = torch.exp(normal.log_prob(bins)).permute(1,0)
-                y /= y.max(dim=1, keepdims=True).values
-            else:
-                y = F.one_hot(y, penne.PITCH_BINS)
-            assert y_hat.shape == y.shape
-            return F.binary_cross_entropy_with_logits(y_hat, y.float())
-        return F.cross_entropy(y_hat, y.long())
+        # apply Gaussian blur around target bin
+        mean = penne.convert.bins_to_cents(y)
+        normal = torch.distributions.Normal(mean, 25)
+        bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
+        bins = bins[:, None]
+        y = torch.exp(normal.log_prob(bins)).permute(1,0)
+        y /= y.max(dim=1, keepdims=True).values
+        assert y_hat.shape == y.shape
+        return F.binary_cross_entropy_with_logits(y_hat, y.float())
 
     def my_acc(self, y_hat, y):
         argmax_y_hat = y_hat.argmax(dim=1)
@@ -448,20 +443,15 @@ class PDCModel(pl.LightningModule):
     ###########################################################################
 
     def my_loss(self, y_hat, y):
-        if penne.LOSS_FUNCTION == 'BCE' or penne.ORIGINAL_CREPE:
-            if penne.SMOOTH_TARGETS or penne.ORIGINAL_CREPE:
-                # apply Gaussian blur around target bin
-                mean = penne.convert.bins_to_cents(y)
-                normal = torch.distributions.Normal(mean, 25)
-                bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
-                bins = bins[:, None]
-                y = torch.exp(normal.log_prob(bins)).permute(1,0)
-                y /= y.max(dim=1, keepdims=True).values
-            else:
-                y = F.one_hot(y, penne.PITCH_BINS)
-            assert y_hat.shape == y.shape
-            return F.binary_cross_entropy_with_logits(y_hat, y.float())
-        return F.cross_entropy(y_hat, y.long())
+        # apply Gaussian blur around target bin
+        mean = penne.convert.bins_to_cents(y)
+        normal = torch.distributions.Normal(mean, 25)
+        bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
+        bins = bins[:, None]
+        y = torch.exp(normal.log_prob(bins)).permute(1,0)
+        y /= y.max(dim=1, keepdims=True).values
+        assert y_hat.shape == y.shape
+        return F.binary_cross_entropy_with_logits(y_hat, y.float())
 
     def my_acc(self, y_hat, y):
         argmax_y_hat = y_hat.argmax(dim=1)

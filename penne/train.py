@@ -19,8 +19,8 @@ def main():
     # Parse command-line arguments
     args = parse_args()
 
-    # Setup early stopping for 32 epochs of no val accuracy improvement
-    patience = penne.EARLY_STOP_PATIENCE if not penne.ORIGINAL_CREPE else 32
+    # Setup early stopping for 32 epochs (by default according to CREPE) of no val accuracy improvement
+    patience = penne.EARLY_STOP_PATIENCE
 
     # Setup data
     datamodule = penne.data.DataModule(args.dataset,

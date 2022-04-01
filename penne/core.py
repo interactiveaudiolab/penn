@@ -32,18 +32,10 @@ WINDOW_SIZE = 1024  # samples
 EARLY_STOP_PATIENCE = 32
 
 # Options
-ORIGINAL_CREPE = True
-LOSS_FUNCTION = 'BCE' # BCE or CCE
-SMOOTH_TARGETS = True
-VOICE_ONLY = False
-WHITEN = True
-
-# during training, we log the posterior distribution for an example
-# from LOG_EXAMPLE dataset every LOG_EXAMPLE_FREQUENCY epochs, softmaxed
-# if LOG_WITH_SOFTMAX is true
-LOG_EXAMPLE = 'MDB'
-LOG_EXAMPLE_FREQUENCY = 50
-LOG_WITH_SOFTMAX = False
+VOICE_ONLY = False # toggle training with voice only or not
+LOG_EXAMPLE = 'MDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
+LOG_EXAMPLE_FREQUENCY = 50 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
+LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits
 
 
 ###############################################################################

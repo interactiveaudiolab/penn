@@ -87,11 +87,10 @@ class Dataset(torch.utils.data.Dataset):
             frame = frame.astype(np.float32) / np.iinfo(np.int16).max
         frame = torch.from_numpy(frame.copy())
 
-        # optionally normalize
-        if penne.WHITEN or penne.ORIGINAL_CREPE:
-            frame -= frame.mean(dim=1, keepdim=True)
-            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
-                frame.std(dim=1, keepdim=True))
+        # normalize
+        frame -= frame.mean(dim=1, keepdim=True)
+        frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+            frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
