@@ -266,11 +266,13 @@ class Model(pl.LightningModule):
 
     def ex_batch_for_logging(self, dataset):
         if dataset == 'PTDB':
-            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/FEMALE/MIC/F01/mic_F01_sa1.wav")
+            audio_file = penne.data.stem_to_file(dataset, 'F01_sa1')
+            ex_audio, ex_sr = penne.load.audio(audio_file)
             ex_audio = penne.resample(ex_audio, ex_sr)
             return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
         elif dataset == 'MDB':
-            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
+            audio_file = penne.data.stem_to_file(dataset, 'MusicDelta_InTheHalloftheMountainKing_STEM_03')
+            ex_audio, ex_sr = penne.load.audio(audio_file)
             ex_audio = penne.resample(ex_audio, ex_sr)
             # limit length to avoid memory error
             return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
@@ -568,11 +570,13 @@ class PDCModel(pl.LightningModule):
 
     def ex_batch_for_logging(self, dataset):
         if dataset == 'PTDB':
-            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/PTDB/FEMALE/MIC/F01/mic_F01_sa1.wav")
+            audio_file = penne.data.stem_to_file(dataset, 'F01_sa1')
+            ex_audio, ex_sr = penne.load.audio(audio_file)
             ex_audio = penne.resample(ex_audio, ex_sr)
             return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
         elif dataset == 'MDB':
-            ex_audio, ex_sr = penne.load.audio("/home/caedon/penne/data/MDB/audio_stems/MusicDelta_InTheHalloftheMountainKing_STEM_03.RESYN.wav")
+            audio_file = penne.data.stem_to_file(dataset, 'MusicDelta_InTheHalloftheMountainKing_STEM_03')
+            ex_audio, ex_sr = penne.load.audio(audio_file)
             ex_audio = penne.resample(ex_audio, ex_sr)
             # limit length to avoid memory error
             return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
