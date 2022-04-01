@@ -18,7 +18,6 @@ ASSETS_DIR = Path(__file__).parent / 'assets'
 DATA_DIR = Path(__file__).parent.parent / 'data'
 CACHE_DIR = Path(__file__).parent.parent / 'cache'
 CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
-FULL_CHECKPOINT = Path(__file__).parent / 'assets' / 'full.pth'
 RUNS_DIR = Path(__file__).parent.parent / 'runs'
 EVAL_DIR = RUNS_DIR / 'eval'
 
@@ -38,6 +37,10 @@ LOSS_FUNCTION = 'BCE' # BCE or CCE
 SMOOTH_TARGETS = True
 VOICE_ONLY = False
 WHITEN = True
+
+# during training, we log the posterior distribution for an example
+# from LOG_EXAMPLE dataset every LOG_EXAMPLE_FREQUENCY epochs, softmaxed
+# if LOG_WITH_SOFTMAX is true
 LOG_EXAMPLE = 'MDB'
 LOG_EXAMPLE_FREQUENCY = 50
 LOG_WITH_SOFTMAX = False
@@ -53,7 +56,7 @@ def predict(audio,
             hop_length=None,
             fmin=50.,
             fmax=MAX_FMAX,
-            checkpoint=FULL_CHECKPOINT,
+            checkpoint=None,
             model=None,
             decoder=penne.decode.viterbi,
             return_periodicity=False,
@@ -148,7 +151,7 @@ def predict_from_file(audio_file,
                       hop_length=None,
                       fmin=50.,
                       fmax=MAX_FMAX,
-                      checkpoint=FULL_CHECKPOINT,
+                      checkpoint=None,
                       model=None,
                       decoder=penne.decode.viterbi,
                       return_periodicity=False,
@@ -208,7 +211,7 @@ def predict_from_file_to_file(audio_file,
                               hop_length=None,
                               fmin=50.,
                               fmax=MAX_FMAX,
-                              checkpoint=FULL_CHECKPOINT,
+                              checkpoint=None,
                               model=None,
                               decoder=penne.decode.viterbi,
                               batch_size=None,
@@ -263,7 +266,7 @@ def predict_from_files_to_files(audio_files,
                                 hop_length=None,
                                 fmin=50.,
                                 fmax=MAX_FMAX,
-                                checkpoint=FULL_CHECKPOINT,
+                                checkpoint=None,
                                 decoder=penne.decode.viterbi,
                                 batch_size=None,
                                 device='cpu'):
@@ -319,7 +322,7 @@ def predict_from_files_to_files(audio_files,
 def embed(audio,
           sample_rate,
           hop_length=None,
-          checkpoint=FULL_CHECKPOINT,
+          checkpoint=None,
           model=None,
           batch_size=None,
           device='cpu'):
@@ -364,7 +367,7 @@ def embed(audio,
 
 def embed_from_file(audio_file,
                     hop_length=None,
-                    checkpoint=FULL_CHECKPOINT,
+                    checkpoint=None,
                     model=None,
                     batch_size=None,
                     device='cpu'):
@@ -396,7 +399,7 @@ def embed_from_file(audio_file,
 def embed_from_file_to_file(audio_file,
                             output_file,
                             hop_length=None,
-                            checkpoint=FULL_CHECKPOINT,
+                            checkpoint=None,
                             model=None,
                             batch_size=None,
                             device='cpu'):
@@ -434,7 +437,7 @@ def embed_from_file_to_file(audio_file,
 def embed_from_files_to_files(audio_files,
                               output_files,
                               hop_length=None,
-                              checkpoint=FULL_CHECKPOINT,
+                              checkpoint=None,
                               model=None,
                               batch_size=None,
                               device='cpu'):
@@ -474,7 +477,7 @@ def embed_from_files_to_files(audio_files,
 ###############################################################################
 
 
-def infer(frames, checkpoint=FULL_CHECKPOINT, model=None, embed=False):
+def infer(frames, checkpoint=None, model=None, embed=False):
     """Forward pass through the model
 
     Arguments
