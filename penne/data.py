@@ -156,6 +156,26 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
         ])
     else:
         dataset_obj = Dataset(dataset, partition, voiceonly)
+    if penne.DETERMINISTIC:
+
+        def seed_worker(worker_id):
+            worker_seed = torch.initial_seed() % 2**32
+            np.random.seed(worker_seed)
+            random.seed(worker_seed)
+
+        g = torch.Generator()
+        g.manual_seed(0)
+
+        torch.utils.data.DataLoader(
+            dataset=dataset_obj,
+            batch_size=batch_size,
+            shuffle='test' not in partition,
+            num_workers=os.cpu_count() if num_workers is None else num_workers,
+            pin_memory=True,
+            collate_fn=collate_fn,
+            worker_init_fn=seed_worker,
+            generator=g,
+        )
     return torch.utils.data.DataLoader(
         dataset=dataset_obj,
         batch_size=batch_size,
@@ -163,6 +183,8 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
         num_workers=os.cpu_count() if num_workers is None else num_workers,
         pin_memory=True,
         collate_fn=collate_fn)
+
+
 
 ###############################################################################
 # Collate function

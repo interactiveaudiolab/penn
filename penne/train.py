@@ -7,6 +7,9 @@ from pathlib import Path
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import penne
+import torch
+import random
+import numpy as np
 
 
 ###############################################################################
@@ -15,6 +18,12 @@ import penne
 
 
 def main():
+    if penne.DETERMINISTIC:
+        torch.manual_seed(0)
+        random.seed(0)
+        np.random.seed(0)
+        torch.use_deterministic_algorithms(True)
+
     """Train a model"""
     # Parse command-line arguments
     args = parse_args()
