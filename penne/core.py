@@ -607,15 +607,14 @@ def preprocess_from_audio(audio,
         # Place on device
         frames = frames.to(device)
 
-        if penne.WHITEN:
-            # Mean-center
-            frames -= frames.mean(dim=1, keepdim=True)
+        # Mean-center
+        frames -= frames.mean(dim=1, keepdim=True)
 
-            # Scale
-            # Note: during silent frames, this produces very large values. But
-            # this seems to be what the network expects.
-            frames /= torch.max(torch.tensor(1e-10, device=frames.device),
-                                frames.std(dim=1, keepdim=True))
+        # Scale
+        # Note: during silent frames, this produces very large values. But
+        # this seems to be what the network expects.
+        frames /= torch.max(torch.tensor(1e-10, device=frames.device),
+                            frames.std(dim=1, keepdim=True))
 
         yield frames
 
