@@ -176,7 +176,7 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
         torch.utils.data.DataLoader(
             dataset=dataset_obj,
             batch_size=batch_size,
-            shuffle='test' not in partition,
+            shuffle=False,#'test' not in partition,
             num_workers=os.cpu_count() if num_workers is None else num_workers,
             pin_memory=True,
             collate_fn=collate_fn,
@@ -186,7 +186,7 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
     return torch.utils.data.DataLoader(
         dataset=dataset_obj,
         batch_size=batch_size,
-        shuffle='test' not in partition,
+        shuffle=False,#'test' not in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
         pin_memory=True,
         collate_fn=collate_fn)
