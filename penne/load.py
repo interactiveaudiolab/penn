@@ -19,7 +19,7 @@ def audio(filename):
     return torch.tensor(np.copy(audio))[None], sample_rate
 
 
-def model(device, checkpoint=penne.FULL_CHECKPOINT, pdc=False):
+def model(device, checkpoint, pdc=False):
     """Preloads model from disk"""
     # Bind model and capacity
     penne.infer.checkpoint = checkpoint

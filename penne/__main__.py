@@ -55,7 +55,6 @@ def parse_args():
         help='The maximum frequency allowed')
     parser.add_argument(
         '--checkpoint',
-        default=penne.FULL_CHECKPOINT,
         type=Path,
         help='The model checkpoint file')
     parser.add_argument(
