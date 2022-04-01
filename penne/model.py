@@ -164,7 +164,11 @@ class Model(pl.LightningModule):
     def training_step(self, batch, index):
         """Performs one step of training"""
         x, y, voicing = batch
+        assert x.shape == (32, 1024)
+        assert y.shape == (32,)
+        assert voicing.shape == (32,)
         output = self(x)
+        assert output.shape == (32, 360)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
 
@@ -182,7 +186,11 @@ class Model(pl.LightningModule):
     def validation_step(self, batch, index):
         """Performs one step of validation"""
         x, y, voicing = batch
+        assert x.shape == (32, 1024)
+        assert y.shape == (32,)
+        assert voicing.shape == (32,)
         output = self(x)
+        assert output.shape == (32, 360)
         loss = self.my_loss(output, y)
         acc = self.my_acc(output, y)
 

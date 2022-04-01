@@ -33,7 +33,7 @@ EARLY_STOP_PATIENCE = 32
 
 # Options
 VOICE_ONLY = False # toggle training with voice only or not
-DETERMINISTIC = True # will make training deterministic
+DETERMINISTIC = False # will make training deterministic
 LOG_EXAMPLE = 'MDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
 LOG_EXAMPLE_FREQUENCY = 50 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
 LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits

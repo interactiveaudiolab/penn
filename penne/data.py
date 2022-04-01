@@ -78,11 +78,13 @@ class Dataset(torch.utils.data.Dataset):
         """Retrieve the indexth item"""
         # get the stem that indexth item is from
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
+        assert stem_idx < len(self.stems[name])
         stem = self.stems[name][stem_idx]
 
         # get samples in indexth frame
         frame_idx = index - self.offsets[name][stem_idx]
         frames = np.load(penne.data.stem_to_cache_frames(name, stem, self.voiceonly), mmap_mode='r')
+        assert frame_idx < frames.shape[2]
         frame = frames[:,:,frame_idx]
         # Convert to float32
         if frame.dtype == np.int16:
@@ -103,7 +105,10 @@ class Dataset(torch.utils.data.Dataset):
         # choose a random bin if unvoiced
         if annotation == 0:
             annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
-        # insert shape comment
+        # (1, 1024), (1,), (1,)
+        assert frame.shape == (1, 1024)
+        assert annotation.shape == (1,)
+        assert voicing.shape == (1,)
         return (frame, annotation, voicing)
         
 
@@ -198,6 +203,9 @@ def collate_fn(batch):
     col_targets = torch.cat(list(targets))
     col_voicing = torch.cat(list(voicing))
     # (batch, window_size), (batch), (batch)
+    assert col_features.shape == (32, 1024)
+    assert col_targets.shape == (32,)
+    assert col_voicing.shape == (32,)
     return (col_features, col_targets, col_voicing)
 
 ###############################################################################
