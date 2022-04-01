@@ -41,6 +41,7 @@ Recommended arguments:
  - `--name=NAME`, which uses NAME for logging organization purposes
  - `--batch_size=32`, which is the batch size used in the original CREPE paper
  - `--limit_train_batches=500` and `--limit_val_batches=500`, which runs 500 random batches per epoch as in the original CREPE paper
+ - `--gpus=1` to train on gpu 1. Click [here](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#gpus) for more info.
  - `--pdc` flag will train using the PDC model
 
 
