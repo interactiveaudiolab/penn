@@ -13,7 +13,7 @@ import torch
 ###############################################################################
 
 
-def dataset(dataset):
+def dataset(dataset, clean=False):
     """Preprocess dataset in data directory and save in cache
 
     Arguments
@@ -31,14 +31,14 @@ def dataset(dataset):
     audio_dir.mkdir(exist_ok=True, parents=True)
 
     if dataset in ['MDB', 'PTDB']:
-        preprocess_data(dataset, voiceonly_dir, all_dir, audio_dir)
+        preprocess_data(dataset, voiceonly_dir, all_dir, audio_dir, clean)
     else:
         raise ValueError(f'Dataset {dataset} is not implemented')
 
-def preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir):
+def preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, clean):
     all_offsets = {"totals": {}, "train": {}, "valid": {}, "test": {}}
     voiceonly_offsets = {"totals": {}, "train": {}, "valid": {}, "test": {}}
-    stem_dict = penne.data.partitions(dataset)
+    stem_dict = penne.data.partitions(dataset, clean)
 
     for part in stem_dict.keys():
         all_total_frames = 0

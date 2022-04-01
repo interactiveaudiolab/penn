@@ -17,6 +17,10 @@ def parse_args():
     parser.add_argument(
         'dataset',
         help='The name of the dataset to preprocess')
+    parser.add_argument(
+        '--clean',
+        action='store_true',
+        help='Use cleaned data partition')
     return parser.parse_args()
 
 

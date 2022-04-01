@@ -26,11 +26,13 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY):
+    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY, clean=False):
         self.name = name
         self.voiceonly = voiceonly
         self.stems = {}
         self.offsets = {}
+        offset_json = 'clean_offsets.json' if clean else 'offsets.json'
+
         
         # read information from cache directory
         subfolder = 'voiceonly' if voiceonly else 'all'
@@ -202,7 +204,7 @@ def collate_fn(batch):
 # Utilities
 ###############################################################################
 
-def partitions(name):
+def partitions(name, clean=False):
     """Retrieve the data partitions for a dataset
 
     Arguments
@@ -214,8 +216,9 @@ def partitions(name):
             The dataset partitions. The key is the partition name and the
             value is the list of stems belonging to that partition.
     """
+    partition_json = 'clean_partition.json' if clean else 'partition.json'
     if not hasattr(partitions, name):
-        with open(penne.ASSETS_DIR / name / 'partition.json') as file:
+        with open(penne.ASSETS_DIR / name / partition_json) as file:
             setattr(partitions, name, json.load(file))
     return getattr(partitions, name)
 
