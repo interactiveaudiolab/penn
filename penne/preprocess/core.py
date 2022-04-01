@@ -31,7 +31,7 @@ def dataset(dataset, clean=False):
     audio_dir.mkdir(exist_ok=True, parents=True)
 
     if dataset in ['MDB', 'PTDB']:
-        preprocess_data(dataset, voiceonly_dir, all_dir, audio_dir, clean)
+        preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, clean)
     else:
         raise ValueError(f'Dataset {dataset} is not implemented')
 
