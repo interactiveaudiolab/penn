@@ -22,7 +22,7 @@ data
 |   |-- MALE
 |   |   |-- ...
 ```
-
+You can accomplish this manually, or by running the download_data.sh script.
 
 ### Partition data
 
