@@ -35,12 +35,12 @@ def main():
     datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
                                 args.num_workers)
-    early_stop_callback = EarlyStopping(
-                                monitor='val_accuracy',
-                                min_delta=0.00,
-                                patience=patience,
-                                verbose=False,
-                                mode='max')
+    # early_stop_callback = EarlyStopping(
+    #                             monitor='val_accuracy',
+    #                             min_delta=0.00,
+    #                             patience=patience,
+    #                             verbose=False,
+    #                             mode='max')
 
     # Setup log directory and model according to --pdc flag
     if args.pdc:
@@ -54,7 +54,7 @@ def main():
     logger = pl.loggers.TensorBoardLogger(penne.RUNS_DIR / 'logs' / logdir, name=args.name)
 
     # Setup trainer
-    trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[early_stop_callback])
+    trainer = pl.Trainer.from_argparse_args(args, logger=logger)#, callbacks=[early_stop_callback])
 
     # Train
     trainer.fit(model, datamodule=datamodule)
