@@ -31,7 +31,7 @@ class Model(pl.LightningModule):
         self.ex_batch = None
         self.best_loss = float('inf')
 
-        self.last_batch_dir = penne.CACHE_DIR / 'last_batch'
+        self.last_batch_dir = penne.CACHE_DIR / 'broke_batch'
         self.last_batch_dir.mkdir(exist_ok=True, parents=True)
 
         # metrics
@@ -166,13 +166,13 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
-        # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
-        # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
-        x, y, voicing = batch
-        torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
-        torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
-        torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
+        x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
+        y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
+        voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
+        # x, y, voicing = batch
+        # torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
+        # torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
+        # torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
         assert x.shape == (32, 1024)
         assert y.shape == (32,)
         assert voicing.shape == (32,)
@@ -194,13 +194,13 @@ class Model(pl.LightningModule):
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        x, y, voicing = batch
-        torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
-        torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
-        torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
-        # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
-        # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
-        # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
+        # x, y, voicing = batch
+        # torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
+        # torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
+        # torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
+        x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
+        y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
+        voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
         assert x.shape == (32, 1024)
         assert y.shape == (32,)
         assert voicing.shape == (32,)
