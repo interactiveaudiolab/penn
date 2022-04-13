@@ -169,18 +169,18 @@ class Model(pl.LightningModule):
         # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
         # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
         # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
-        print("start" + index)
+        print(f"start{index}")
         x, y, voicing = batch
-        print("batch" + index)
+        print(f"batch{index}")
         torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
         torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
         torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        print("self" + index)
+        print(f"self{index}")
         loss = self.my_loss(output, y)
-        print("loss" + index)
+        print(f"loss{index}")
         acc = self.my_acc(output, y)
-        print("acc" + index)
+        print(f"acc{index}")
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -191,14 +191,14 @@ class Model(pl.LightningModule):
         self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
         self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        print("metric" + index)
+        print(f"metric{index}")
         return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        print("vstart" + index)
+        print(f"vstart{index}")
         x, y, voicing = batch
-        print("vbatch" + index)
+        print(f"vbatch{index}")
         torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
         torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
         torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
@@ -206,11 +206,11 @@ class Model(pl.LightningModule):
         # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
         # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        print("vself" + index)
+        print(f"vself{index}")
         loss = self.my_loss(output, y)
-        print("vloss" + index)
+        print(f"vloss{index}")
         acc = self.my_acc(output, y)
-        print("vacc" + index)
+        print(f"vacc{index}")
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -221,7 +221,7 @@ class Model(pl.LightningModule):
         self.val_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.val_rpa.update(np_y_hat_freq, np_y)
         self.val_rca.update(np_y_hat_freq, np_y)
-        print("metric" + index)
+        print(f"vmetric{index}")
         return {"loss": loss, "accuracy": acc}
 
     def training_epoch_end(self, outputs):
