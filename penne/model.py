@@ -31,7 +31,7 @@ class Model(pl.LightningModule):
         self.ex_batch = None
         self.best_loss = float('inf')
 
-        self.last_batch_dir = penne.CACHE_DIR / 'broke_batch'
+        self.last_batch_dir = penne.CACHE_DIR / 'last_batch'
         self.last_batch_dir.mkdir(exist_ok=True, parents=True)
 
         # metrics
@@ -166,20 +166,21 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
-        y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
-        voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
-        # x, y, voicing = batch
-        # torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
-        # torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
-        # torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
-        assert x.shape == (32, 1024)
-        assert y.shape == (32,)
-        assert voicing.shape == (32,)
+        # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
+        # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
+        # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
+        print("start" + index)
+        x, y, voicing = batch
+        print("batch" + index)
+        torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
+        torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
+        torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        assert output.shape == (32, 360)
+        print("self" + index)
         loss = self.my_loss(output, y)
+        print("loss" + index)
         acc = self.my_acc(output, y)
+        print("acc" + index)
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -190,24 +191,26 @@ class Model(pl.LightningModule):
         self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
         self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
+        print("metric" + index)
         return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        # x, y, voicing = batch
-        # torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
-        # torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
-        # torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
-        x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
-        y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
-        voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
-        assert x.shape == (32, 1024)
-        assert y.shape == (32,)
-        assert voicing.shape == (32,)
+        print("vstart" + index)
+        x, y, voicing = batch
+        print("vbatch" + index)
+        torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
+        torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
+        torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
+        # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
+        # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
+        # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        assert output.shape == (32, 360)
+        print("vself" + index)
         loss = self.my_loss(output, y)
+        print("vloss" + index)
         acc = self.my_acc(output, y)
+        print("vacc" + index)
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -218,6 +221,7 @@ class Model(pl.LightningModule):
         self.val_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.val_rpa.update(np_y_hat_freq, np_y)
         self.val_rca.update(np_y_hat_freq, np_y)
+        print("metric" + index)
         return {"loss": loss, "accuracy": acc}
 
     def training_epoch_end(self, outputs):
