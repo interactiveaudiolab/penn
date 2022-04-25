@@ -176,12 +176,19 @@ class Model(pl.LightningModule):
         torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
         torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        torch.save(output, self.last_batch_dir / f'output{index % 10}.pt')
-        print(f"self{index}")
-        loss = self.my_loss(output, y)
-        print(f"loss{index}")
-        acc = self.my_acc(output, y)
-        print(f"acc{index}")
+        try:
+            torch.save(output, self.last_batch_dir / f'output{index % 10}.pt')
+            print(f"self{index}")
+            loss = self.my_loss(output, y)
+            print(f"loss{index}")
+            acc = self.my_acc(output, y)
+            print(f"acc{index}")
+        except Exception as error:
+            print(error)
+            checkpoint_path = penne.CHECKPOINT_DIR.joinpath('crepe', self.name, 'broke.ckpt')
+            self.trainer.save_checkpoint(checkpoint_path)
+            import pdb; pdb.set_trace()
+            pass
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -207,13 +214,20 @@ class Model(pl.LightningModule):
         # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
         # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        torch.save(output, self.last_batch_dir / f'output{index % 10}.pt')
-        print(f"vself{index}")
-        loss = self.my_loss(output, y)
-        print(f"vloss{index}")
-        acc = self.my_acc(output, y)
-        print(f"vacc{index}")
-
+        try:
+            torch.save(output, self.last_batch_dir / f'output{index % 10}.pt')
+            print(f"vself{index}")
+            loss = self.my_loss(output, y)
+            print(f"vloss{index}")
+            acc = self.my_acc(output, y)
+            print(f"vacc{index}")
+        except Exception as error:
+            print(error)
+            checkpoint_path = penne.CHECKPOINT_DIR.joinpath('crepe', self.name, 'broke.ckpt')
+            self.trainer.save_checkpoint(checkpoint_path)
+            import pdb; pdb.set_trace()
+            pass
+        
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
         np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
