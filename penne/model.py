@@ -31,9 +31,6 @@ class Model(pl.LightningModule):
         self.ex_batch = None
         self.best_loss = float('inf')
 
-        self.last_batch_dir = penne.CACHE_DIR / 'last_batch'
-        self.last_batch_dir.mkdir(exist_ok=True, parents=True)
-
         # metrics
         self.train_rmse = penne.metrics.WRMSE()
         self.train_rpa = penne.metrics.RPA()
@@ -166,29 +163,10 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, index):
         """Performs one step of training"""
-        # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
-        # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
-        # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
-        print(f"start{index}")
         x, y, voicing = batch
-        print(f"batch{index}")
-        torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
-        torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
-        torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        try:
-            torch.save(output, self.last_batch_dir / f'output{index % 10}.pt')
-            print(f"self{index}")
-            loss = self.my_loss(output, y)
-            print(f"loss{index}")
-            acc = self.my_acc(output, y)
-            print(f"acc{index}")
-        except Exception as error:
-            print(error)
-            checkpoint_path = penne.CHECKPOINT_DIR.joinpath('crepe', self.name, 'broke.ckpt')
-            self.trainer.save_checkpoint(checkpoint_path)
-            import pdb; pdb.set_trace()
-            pass
+        loss = self.my_loss(output, y)
+        acc = self.my_acc(output, y)
 
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -199,34 +177,14 @@ class Model(pl.LightningModule):
         self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
         self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        print(f"metric{index}")
         return {"loss": loss, "accuracy": acc}
 
     def validation_step(self, batch, index):
         """Performs one step of validation"""
-        print(f"vstart{index}")
         x, y, voicing = batch
-        print(f"vbatch{index}")
-        torch.save(x, self.last_batch_dir / f'x{index % 10}.pt')
-        torch.save(y, self.last_batch_dir / f'y{index % 10}.pt')
-        torch.save(voicing, self.last_batch_dir / f'voicing{index % 10}.pt')
-        # x = torch.load(self.last_batch_dir / f'x{index % 10}.pt')
-        # y = torch.load(self.last_batch_dir / f'y{index % 10}.pt')
-        # voicing = torch.load(self.last_batch_dir / f'voicing{index % 10}.pt')
         output = self(x)
-        try:
-            torch.save(output, self.last_batch_dir / f'output{index % 10}.pt')
-            print(f"vself{index}")
-            loss = self.my_loss(output, y)
-            print(f"vloss{index}")
-            acc = self.my_acc(output, y)
-            print(f"vacc{index}")
-        except Exception as error:
-            print(error)
-            checkpoint_path = penne.CHECKPOINT_DIR.joinpath('crepe', self.name, 'broke.ckpt')
-            self.trainer.save_checkpoint(checkpoint_path)
-            import pdb; pdb.set_trace()
-            pass
+        loss = self.my_loss(output, y)
+        acc = self.my_acc(output, y)
         
         # update epoch's cumulative rmse, rpa, rca with current batch
         y_hat = output.argmax(dim=1)
@@ -237,7 +195,6 @@ class Model(pl.LightningModule):
         self.val_rmse.update(np_y_hat_freq, np_y, np_voicing)
         self.val_rpa.update(np_y_hat_freq, np_y)
         self.val_rca.update(np_y_hat_freq, np_y)
-        print(f"vmetric{index}")
         return {"loss": loss, "accuracy": acc}
 
     def training_epoch_end(self, outputs):
@@ -289,6 +246,7 @@ class Model(pl.LightningModule):
                 checkpoint_path = penne.CHECKPOINT_DIR.joinpath('crepe', self.name, str(self.current_epoch)+'.ckpt')
                 self.trainer.save_checkpoint(checkpoint_path)
 
+            # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
             # plot logits and posterior distribution
             if self.current_epoch < 5 or self.current_epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
                 # load a batch for logging if not yet loaded
@@ -593,6 +551,7 @@ class PDCModel(pl.LightningModule):
                 checkpoint_path = penne.CHECKPOINT_DIR.joinpath('pdc', self.name, str(self.current_epoch)+'.ckpt')
                 self.trainer.save_checkpoint(checkpoint_path)
 
+            # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
             # plot logits and posterior distribution
             if self.current_epoch < 5 or self.current_epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
                 # load a batch for logging if not yet loaded

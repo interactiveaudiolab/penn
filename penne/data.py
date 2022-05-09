@@ -78,13 +78,11 @@ class Dataset(torch.utils.data.Dataset):
         """Retrieve the indexth item"""
         # get the stem that indexth item is from
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
-        assert stem_idx < len(self.stems[name])
         stem = self.stems[name][stem_idx]
 
         # get samples in indexth frame
         frame_idx = index - self.offsets[name][stem_idx]
         frames = np.load(penne.data.stem_to_cache_frames(name, stem, self.voiceonly), mmap_mode='r')
-        assert frame_idx < frames.shape[2]
         frame = frames[:,:,frame_idx]
         # Convert to float32
         if frame.dtype == np.int16:
@@ -106,9 +104,6 @@ class Dataset(torch.utils.data.Dataset):
         if annotation == 0:
             annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
         # (1, 1024), (1,), (1,)
-        assert frame.shape == (1, 1024)
-        assert annotation.shape == (1,)
-        assert voicing.shape == (1,)
         return (frame, annotation, voicing)
         
 
@@ -163,26 +158,6 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
         ])
     else:
         dataset_obj = Dataset(dataset, partition, voiceonly)
-    if penne.DETERMINISTIC:
-
-        def seed_worker(worker_id):
-            worker_seed = torch.initial_seed() % 2**32
-            np.random.seed(worker_seed)
-            random.seed(worker_seed)
-
-        g = torch.Generator()
-        g.manual_seed(0)
-
-        torch.utils.data.DataLoader(
-            dataset=dataset_obj,
-            batch_size=batch_size,
-            shuffle='test' not in partition,
-            num_workers=os.cpu_count() if num_workers is None else num_workers,
-            pin_memory=True,
-            collate_fn=collate_fn,
-            worker_init_fn=seed_worker,
-            generator=g,
-        )
     return torch.utils.data.DataLoader(
         dataset=dataset_obj,
         batch_size=batch_size,
@@ -203,9 +178,6 @@ def collate_fn(batch):
     col_targets = torch.cat(list(targets))
     col_voicing = torch.cat(list(voicing))
     # (batch, window_size), (batch), (batch)
-    assert col_features.shape == (32, 1024)
-    assert col_targets.shape == (32,)
-    assert col_voicing.shape == (32,)
     return (col_features, col_targets, col_voicing)
 
 ###############################################################################
