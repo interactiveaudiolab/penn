@@ -67,6 +67,16 @@ this particular evaluation run.`--pdc` flag is required for evaluating
 PDC models. Results show up in `runs/eval/DATASET/<model_name>`.
 
 
+### Clean
+
+For experiments with cleaner data, you may want to run the clean module.
+This allows you to filter out low-scoring stems. Use
+`python -m penne.clean <path> <partition> --dataset=DATASET`
+where DATASET is either `MDB` or `PTDB`, `<path>` is the path to the per
+stem json output from evaluation, and `partition` is `test`, `train`, or `valid`.
+This requires you to have already evaluated on the stems in that partition.
+
+
 ## References
 [1] J. W. Kim, J. Salamon, P. Li, and J. P. Bello, “Crepe: A
 Convolutional Representation for Pitch Estimation,” in 2018 IEEE

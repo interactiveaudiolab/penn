@@ -16,6 +16,7 @@ import penne
 ###############################################################################
 
 def clean_data(results_path, partition, dataset, rpa_threshold, f1_threshold):
+    # results_path should be the per stem output from evaluation
     with open(results_path) as f:
         results = json.load(f)
         # scores sorted by rpa
@@ -23,12 +24,20 @@ def clean_data(results_path, partition, dataset, rpa_threshold, f1_threshold):
         # remove stems that don't meet score thresholds
         good_stems = [stem for stem, rpa, f1 in scores if rpa > rpa_threshold and f1 > f1_threshold]
 
-        with open(penne.ASSETS_DIR / dataset / 'partition.json') as g:
-            # replace partition with new stems
-            parts = json.load(g)
-            parts[partition] = good_stems
-            with open(penne.ASSETS_DIR / dataset / 'clean_partition.json', 'w') as h:
-                json.dump(parts, h)
+        # update existing clean_partition unless we don't have a clean_partition yet
+        if os.path.exists(penne.ASSETS_DIR / dataset / 'clean_partition.json'):
+            with open(penne.ASSETS_DIR / dataset / 'clean_partition.json') as g:
+                # replace partition with new stems
+                parts = json.load(g)
+                parts[partition] = good_stems
+                json.dump(parts, g)
+        else:
+            with open(penne.ASSETS_DIR / dataset / 'partition.json') as g:
+                # replace partition with new stems
+                parts = json.load(g)
+                parts[partition] = good_stems
+                with open(penne.ASSETS_DIR / dataset / 'clean_partition.json', 'w') as h:
+                    json.dump(parts, h)
 
 
 ###############################################################################
