@@ -26,7 +26,7 @@ def clean_data(results_path, partition, dataset, rpa_threshold, f1_threshold):
 
         # update existing clean_partition unless we don't have a clean_partition yet
         if os.path.exists(penne.ASSETS_DIR / dataset / 'clean_partition.json'):
-            with open(penne.ASSETS_DIR / dataset / 'clean_partition.json', 'w') as g:
+            with open(penne.ASSETS_DIR / dataset / 'clean_partition.json', 'r+') as g:
                 # replace partition with new stems
                 parts = json.load(g)
                 parts[partition] = good_stems
