@@ -179,7 +179,7 @@ def main():
 
         #Validate on each batch (from previous validation_step)
         with torch.no_grad():
-            for t, (x, y, voicing) in enumerate(tqdm(train_loader, desc='Epoch ' + str(epoch) + ' validation', total=min(len(train_loader), args.limit_train_batches))):
+            for t, (x, y, voicing) in enumerate(tqdm(valid_loader, desc='Epoch ' + str(epoch) + ' validation', total=min(len(valid_loader), args.limit_val_batches))):
                 """Performs one step of validation"""
                 if t > args.limit_val_batches:
                     break
