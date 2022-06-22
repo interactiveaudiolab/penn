@@ -294,7 +294,7 @@ def parse_args():
     parser.add_argument(
         '--limit_train_batches',
         type=int,
-        help='Maximum number of batches to train on'
+        help='Maximum number of batches to train on',
         default=500
     )
     parser.add_argument(
