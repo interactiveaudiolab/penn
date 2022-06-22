@@ -2,6 +2,7 @@
 
 
 import argparse
+import os
 from pathlib import Path
 import matplotlib
 
@@ -231,7 +232,10 @@ def main():
         if val_loss < best_loss and epoch > 5:
             best_loss = val_loss
             cp_path = 'pdc' if args.pdc else 'crepe'
-            checkpoint_path = penne.CHECKPOINT_DIR.joinpath(cp_path, args.name, str(epoch)+'.ckpt')
+            checkpoint_dir = penne.CHECKPOINT_DIR.joinpath(cp_path, args.name)
+            checkpoint_path = checkpoint_dir.joinpath(str(epoch)+'.ckpt')
+            if not os.path.isdir(checkpoint_dir):
+                os.makedirs(checkpoint_dir)
             torch.save({'model_state_dict': model.state_dict()}, checkpoint_path)
             print("Validation loss improved to " + str(val_loss) + ", saving to " + str(checkpoint_path))
 
