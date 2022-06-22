@@ -3,11 +3,14 @@
 
 import argparse
 from pathlib import Path
+import matplotlib
 
 from tqdm import tqdm
 import penne
 import torch
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
 import random
 import numpy as np
 
@@ -54,6 +57,27 @@ def my_loss(y_hat, y):
 def my_acc(y_hat, y):
     argmax_y_hat = y_hat.argmax(dim=1)
     return argmax_y_hat.eq(y).sum().item()/y.numel()
+
+def ex_batch_for_logging(dataset, device='cuda'):
+        if dataset == 'PTDB':
+            audio_file = penne.data.stem_to_file(dataset, 'F01_sa1')
+            ex_audio, ex_sr = penne.load.audio(audio_file)
+            ex_audio = penne.resample(ex_audio, ex_sr)
+            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device=device))
+        elif dataset == 'MDB':
+            audio_file = penne.data.stem_to_file(dataset, 'MusicDelta_InTheHalloftheMountainKing_STEM_03')
+            ex_audio, ex_sr = penne.load.audio(audio_file)
+            ex_audio = penne.resample(ex_audio, ex_sr)
+            # limit length to avoid memory error
+            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device=device))[:1200,:]
+
+def write_posterior_distribution(probabilities, writer, epoch):
+    # plot the posterior distribution for ex_batch
+    checkpoint_label = str(epoch)+'.ckpt'
+    fig = plt.figure(figsize=(12, 3))
+    plt.imshow(probabilities.detach().numpy().T, origin='lower')
+    plt.title(checkpoint_label)
+    writer.add_figure('output distribution', fig, global_step=epoch)
 
 def main():
     """Train a model"""
@@ -110,6 +134,10 @@ def main():
     val_rpa = penne.metrics.RPA()
     val_rca = penne.metrics.RCA()
 
+    writer = SummaryWriter(penne.RUNS_DIR / "logs" / args.name)
+
+    ex_batch = None
+
     for epoch in range(1, args.max_epochs + 1):
         train_losses = AverageMeter('Loss', ':.4e')
         train_accs = AverageMeter('Accuracy', ':6.4f')
@@ -142,6 +170,14 @@ def main():
             optimizer.step()
 
         print('training loss: %.5f, training accuracy: %.5f' % (train_losses.avg, train_accs.avg))
+        
+        # log metrics to tensorboard
+        writer.add_scalar("Loss/Train", train_losses.avg, epoch)
+        writer.add_scalar("Accuracy/Train", train_accs.avg, epoch)
+        writer.add_scalar("RMSE/Train", train_rmse(), epoch)
+        writer.add_scalar("RPA/Train", train_rpa(), epoch)
+        writer.add_scalar("RCA/Train", train_rca(), epoch)
+        
         train_rmse.reset()
         train_rpa.reset()
         train_rca.reset()
@@ -171,10 +207,17 @@ def main():
                 valid_accs.update(acc, x.size(0))
         
         print('validation loss: %.5f, validation accuracy: %.5f' % (valid_losses.avg, valid_accs.avg))
-        
-        #Check for early stopping
         val_accuracy = valid_accs.avg
         val_loss = valid_losses.avg
+
+        # log metrics to tensorboard
+        writer.add_scalar("Loss/Val", val_loss, epoch)
+        writer.add_scalar("Accuracy/Val", val_accuracy, epoch)
+        writer.add_scalar("RMSE/Val", val_rmse(), epoch)
+        writer.add_scalar("RPA/Val", val_rpa(), epoch)
+        writer.add_scalar("RCA/Val", val_rca(), epoch)
+
+        #Check for early stopping
         if val_accuracy - last_val_acc <= 0:
             early_stop_count += 1
         else:
@@ -191,6 +234,20 @@ def main():
             checkpoint_path = penne.CHECKPOINT_DIR.joinpath(cp_path, args.name, str(epoch)+'.ckpt')
             torch.save({'model_state_dict': model.state_dict()}, checkpoint_path)
             print("Validation loss improved to " + str(val_loss) + ", saving to " + str(checkpoint_path))
+
+        # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
+        # plot logits and posterior distribution
+        if epoch < 5 or epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
+            # load a batch for logging if not yet loaded
+            if ex_batch is None:
+                ex_batch = ex_batch_for_logging(penne.LOG_EXAMPLE, device=device)
+            # plot logits
+            logits = penne.infer(ex_batch, model=model).cpu()
+            # plot posterior distribution
+            if penne.LOG_WITH_SOFTMAX:
+                write_posterior_distribution(torch.nn.Softmax(dim=1)(logits), writer, epoch)
+            write_posterior_distribution(logits, writer, epoch)
+            del logits
 
         val_rmse.reset()
         val_rpa.reset()
