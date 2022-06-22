@@ -92,12 +92,6 @@ def main():
     datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
                                 args.num_workers)
-    # early_stop_callback = EarlyStopping(
-    #                             monitor='val_accuracy',
-    #                             min_delta=0.00,
-    #                             patience=patience,
-    #                             verbose=False,
-    #                             mode='max')
 
     # Setup log directory and model according to --pdc flag
     if args.pdc:
@@ -257,15 +251,6 @@ def main():
         val_rpa.reset()
         val_rca.reset()
 
-    # Setup tensorboard
-    #logger = pl.loggers.TensorBoardLogger(penne.RUNS_DIR / 'logs' / logdir, name=args.name)
-
-    # Setup trainer
-    #trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[early_stop_callback])
-
-    # Train
-    #trainer.fit(model, datamodule=datamodule)
-
 
 def parse_args():
     """Parse command-line arguments"""
@@ -310,18 +295,14 @@ def parse_args():
         '--limit_train_batches',
         type=int,
         help='Maximum number of batches to train on'
+        default=500
     )
     parser.add_argument(
         '--limit_val_batches',
         type=int,
-        help='Maximum number of batches to validate on'
+        help='Maximum number of batches to validate on',
+        default=500
     )
-
-    # Add model arguments
-    parser = penne.Model.add_model_specific_args(parser)
-
-    # Add trainer arguments
-    #parser = pl.Trainer.add_argparse_args(parser)
 
     # Parse
     return parser.parse_args()
