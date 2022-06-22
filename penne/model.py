@@ -2,7 +2,7 @@ import functools
 
 import torch
 import torch.nn.functional as F
-import pytorch_lightning as pl
+#import pytorch_lightning as pl
 
 import penne
 import argparse
@@ -15,14 +15,14 @@ import math
 # Model definition
 ###############################################################################
 
-class Model(pl.LightningModule):
+class Model(torch.nn.Module):
     """PyTorch Lightning model definition"""
 
     def __init__(self, name='default'):
         super().__init__()
 
         self.epsilon = 0.0010000000474974513
-        self.learning_rate = 2e-4
+        self.learning_rate = penne.LEARNING_RATE
 
         # equivalent to Keras default momentum
         self.momentum = 0.01
@@ -320,7 +320,7 @@ class Model(pl.LightningModule):
         return F.dropout(x, p=0.25, training=self.training)
 
 
-class PDCModel(pl.LightningModule):
+class PDCModel(torch.nn.Module):
     """PyTorch Lightning model definition"""
 
     def __init__(self, name='default'):

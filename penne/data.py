@@ -3,7 +3,6 @@
 import json
 import os
 
-import pytorch_lightning as pl
 import torch
 import numpy as np
 import random
@@ -115,8 +114,8 @@ class Dataset(torch.utils.data.Dataset):
 # Data module
 ###############################################################################
 
-class DataModule(pl.LightningDataModule):
-    """PyTorch Lightning data module
+class DataModule():
+    """Data module object encapsulation
 
     Arguments
         name - string

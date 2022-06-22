@@ -30,6 +30,7 @@ SAMPLE_RATE = 16000  # hz
 UNVOICED = np.nan
 WINDOW_SIZE = 1024  # samples
 EARLY_STOP_PATIENCE = 32
+LEARNING_RATE = 2e-4
 
 # Options
 VOICE_ONLY = False # toggle training with voice only or not
