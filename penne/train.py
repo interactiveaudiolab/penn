@@ -138,6 +138,13 @@ def main():
 
     ex_batch = None
 
+    #Checkpointing setup
+
+    cp_path = 'pdc' if args.pdc else 'crepe'
+    checkpoint_dir = penne.CHECKPOINT_DIR.joinpath(cp_path, args.name)
+    if not os.path.isdir(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+
     ###########################################################################
     # Train loop
     ###########################################################################
@@ -253,13 +260,20 @@ def main():
 
         if val_loss < best_loss and epoch > 5:
             best_loss = val_loss
-            cp_path = 'pdc' if args.pdc else 'crepe'
-            checkpoint_dir = penne.CHECKPOINT_DIR.joinpath(cp_path, args.name)
-            checkpoint_path = checkpoint_dir.joinpath(str(epoch)+'.ckpt')
-            if not os.path.isdir(checkpoint_dir):
-                os.makedirs(checkpoint_dir)
-            torch.save({'model_state_dict': model.state_dict()}, checkpoint_path)
-            print("Validation loss improved to " + str(val_loss) + ", saving to " + str(checkpoint_path))
+            checkpoint_path = checkpoint_dir.joinpath('best.ckpt')
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict()
+            }, checkpoint_path)
+            print("Validation loss improved to " + str(val_loss) + ", best model saved")
+
+        if epoch % penne.CHECKPOINT_FREQ == 0:
+            checkpoint_path = checkpoint_dir.joinpath(str(epoch) + '.ckpt')
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict()
+            }, checkpoint_path)
+            print("Checkpoint saved at epoch " + str(epoch))
 
         # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
         # plot logits and posterior distribution
@@ -278,6 +292,13 @@ def main():
         val_rmse.reset()
         val_rpa.reset()
         val_rca.reset()
+    
+    checkpoint_path = checkpoint_dir.joinpath('latest.ckpt')
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict()
+    }, checkpoint_path)
+    print("Latest model saved")
 
 
 def parse_args():
