@@ -82,6 +82,11 @@ def write_posterior_distribution(probabilities, writer, epoch):
 
 def main():
     """Train a model"""
+
+    ###########################################################################
+    # Setup
+    ###########################################################################
+
     # Parse command-line arguments
     args = parse_args()
 
@@ -133,12 +138,20 @@ def main():
 
     ex_batch = None
 
+    ###########################################################################
+    # Train loop
+    ###########################################################################
+
     for epoch in range(1, args.max_epochs + 1):
         train_losses = AverageMeter('Loss', ':.4e')
         train_accs = AverageMeter('Accuracy', ':6.4f')
         valid_losses = AverageMeter('Loss', ':.4e')
         valid_accs = AverageMeter('Accuracy', ':6.4f')
-        #Training on each batch (from previous train_step)
+
+        ###########################################################################
+        # Training on each batch (from previous train_step)
+        ###########################################################################
+
         for t, (x, y, voicing) in enumerate(tqdm(train_loader, desc='Epoch ' + str(epoch) + ' training', total=min(len(train_loader), args.limit_train_batches))):
             if t > args.limit_train_batches:
                 break
@@ -166,7 +179,10 @@ def main():
 
         print('training loss: %.5f, training accuracy: %.5f' % (train_losses.avg, train_accs.avg))
         
-        # log metrics to tensorboard
+        ###########################################################################
+        # Log training metrics to Tensorboard
+        ###########################################################################
+
         writer.add_scalar("Loss/Train", train_losses.avg, epoch)
         writer.add_scalar("Accuracy/Train", train_accs.avg, epoch)
         writer.add_scalar("RMSE/Train", train_rmse(), epoch)
@@ -177,7 +193,10 @@ def main():
         train_rpa.reset()
         train_rca.reset()
 
-        #Validate on each batch (from previous validation_step)
+        ###########################################################################
+        # Validate on each batch (from previous validation_step)
+        ###########################################################################
+
         with torch.no_grad():
             for t, (x, y, voicing) in enumerate(tqdm(valid_loader, desc='Epoch ' + str(epoch) + ' validation', total=min(len(valid_loader), args.limit_val_batches))):
                 """Performs one step of validation"""
@@ -205,14 +224,20 @@ def main():
         val_accuracy = valid_accs.avg
         val_loss = valid_losses.avg
 
-        # log metrics to tensorboard
+        ###########################################################################
+        # Log validation metrics to Tensorboard
+        ###########################################################################
+
         writer.add_scalar("Loss/Val", val_loss, epoch)
         writer.add_scalar("Accuracy/Val", val_accuracy, epoch)
         writer.add_scalar("RMSE/Val", val_rmse(), epoch)
         writer.add_scalar("RPA/Val", val_rpa(), epoch)
         writer.add_scalar("RCA/Val", val_rca(), epoch)
 
-        #Check for early stopping
+        ###########################################################################
+        # Early stopping
+        ###########################################################################
+
         if val_accuracy - last_val_acc <= 0:
             early_stop_count += 1
         else:
@@ -222,7 +247,10 @@ def main():
             print("Validation accuracy has not improved, stopping early")
             break
 
-        #Save the best checkpoint so far
+        ###########################################################################
+        # Checkpoint saving
+        ###########################################################################
+
         if val_loss < best_loss and epoch > 5:
             best_loss = val_loss
             cp_path = 'pdc' if args.pdc else 'crepe'
@@ -268,7 +296,7 @@ def parse_args():
     parser.add_argument(
         '--num_workers',
         type=int,
-        default=6,
+        default=0,
         help='Number data loading jobs to launch. If None, uses number of ' +
              'cpu cores.')
     parser.add_argument(
