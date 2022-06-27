@@ -44,16 +44,16 @@ class Model(torch.nn.Module):
         self.in_features = 2048
 
         # Shared layer parameters
-        kernel_sizes = [(512, 1)] + 5 * [(64, 1)]
-        strides = [(4, 1)] + 5 * [(1, 1)]
+        kernel_sizes = [512] + 5 * [64]
+        strides = [4] + 5 * [1]
 
         # Overload with eps and momentum conversion given by MMdnn
-        batch_norm_fn = functools.partial(torch.nn.BatchNorm2d,
+        batch_norm_fn = functools.partial(torch.nn.BatchNorm1d,
                                           eps=self.epsilon,
                                           momentum=self.momentum)
 
         # Layer definitions
-        self.conv1 = torch.nn.Conv2d(
+        self.conv1 = torch.nn.Conv1d(
             in_channels=in_channels[0],
             out_channels=out_channels[0],
             kernel_size=kernel_sizes[0],
@@ -61,7 +61,7 @@ class Model(torch.nn.Module):
         self.conv1_BN = batch_norm_fn(
             num_features=out_channels[0])
 
-        self.conv2 = torch.nn.Conv2d(
+        self.conv2 = torch.nn.Conv1d(
             in_channels=in_channels[1],
             out_channels=out_channels[1],
             kernel_size=kernel_sizes[1],
@@ -69,7 +69,7 @@ class Model(torch.nn.Module):
         self.conv2_BN = batch_norm_fn(
             num_features=out_channels[1])
 
-        self.conv3 = torch.nn.Conv2d(
+        self.conv3 = torch.nn.Conv1d(
             in_channels=in_channels[2],
             out_channels=out_channels[2],
             kernel_size=kernel_sizes[2],
@@ -77,7 +77,7 @@ class Model(torch.nn.Module):
         self.conv3_BN = batch_norm_fn(
             num_features=out_channels[2])
 
-        self.conv4 = torch.nn.Conv2d(
+        self.conv4 = torch.nn.Conv1d(
             in_channels=in_channels[3],
             out_channels=out_channels[3],
             kernel_size=kernel_sizes[3],
@@ -85,7 +85,7 @@ class Model(torch.nn.Module):
         self.conv4_BN = batch_norm_fn(
             num_features=out_channels[3])
 
-        self.conv5 = torch.nn.Conv2d(
+        self.conv5 = torch.nn.Conv1d(
             in_channels=in_channels[4],
             out_channels=out_channels[4],
             kernel_size=kernel_sizes[4],
@@ -93,7 +93,7 @@ class Model(torch.nn.Module):
         self.conv5_BN = batch_norm_fn(
             num_features=out_channels[4])
 
-        self.conv6 = torch.nn.Conv2d(
+        self.conv6 = torch.nn.Conv1d(
             in_channels=in_channels[5],
             out_channels=out_channels[5],
             kernel_size=kernel_sizes[5],
@@ -120,7 +120,7 @@ class Model(torch.nn.Module):
         x = self.layer(x, self.conv6, self.conv6_BN)
 
         # shape=(batch, self.in_features)
-        x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
+        x = x.permute(0, 2, 1).reshape(-1, self.in_features)
 
         # Compute logits
         return self.classifier(x)
@@ -131,23 +131,23 @@ class Model(torch.nn.Module):
 
     def embed(self, x):
         """Map input audio to pitch embedding"""
-        # shape=(batch, 1, 1024, 1)
-        x = x[:, None, :, None]
+        # shape=(batch, 1, 1024)
+        x = x[:, None, :]
         # Forward pass through first five layers
-        x = self.layer(x, self.conv1, self.conv1_BN, (0, 0, 254, 254))
+        x = self.layer(x, self.conv1, self.conv1_BN, (254, 254))
         x = self.layer(x, self.conv2, self.conv2_BN)
         x = self.layer(x, self.conv3, self.conv3_BN)
         x = self.layer(x, self.conv4, self.conv4_BN)
         x = self.layer(x, self.conv5, self.conv5_BN)
         return x
 
-    def layer(self, x, conv, batch_norm, padding=(0, 0, 31, 32)):
+    def layer(self, x, conv, batch_norm, padding=(31, 32)):
         """Forward pass through one layer"""
         x = F.pad(x, padding)
         x = conv(x)
         x = F.relu(x)
         x = batch_norm(x)
-        x = F.max_pool2d(x, (2, 1), (2, 1))
+        x = F.max_pool1d(x, 2, 2)
         return F.dropout(x, p=0.25, training=self.training)
 
 
@@ -158,7 +158,7 @@ class PDCModel(torch.nn.Module):
         super().__init__()
 
         self.epsilon = 0.0010000000474974513
-        self.learning_rate = 2e-4
+        self.learning_rate = penne.LEARNING_RATE
 
         # equivalent to Keras default momentum
         self.momentum = 0.01
