@@ -53,53 +53,18 @@ class Model(torch.nn.Module):
                                           momentum=self.momentum)
 
         # Layer definitions
-        self.conv1 = torch.nn.Conv1d(
-            in_channels=in_channels[0],
-            out_channels=out_channels[0],
-            kernel_size=kernel_sizes[0],
-            stride=strides[0])
-        self.conv1_BN = batch_norm_fn(
-            num_features=out_channels[0])
-
-        self.conv2 = torch.nn.Conv1d(
-            in_channels=in_channels[1],
-            out_channels=out_channels[1],
-            kernel_size=kernel_sizes[1],
-            stride=strides[1])
-        self.conv2_BN = batch_norm_fn(
-            num_features=out_channels[1])
-
-        self.conv3 = torch.nn.Conv1d(
-            in_channels=in_channels[2],
-            out_channels=out_channels[2],
-            kernel_size=kernel_sizes[2],
-            stride=strides[2])
-        self.conv3_BN = batch_norm_fn(
-            num_features=out_channels[2])
-
-        self.conv4 = torch.nn.Conv1d(
-            in_channels=in_channels[3],
-            out_channels=out_channels[3],
-            kernel_size=kernel_sizes[3],
-            stride=strides[3])
-        self.conv4_BN = batch_norm_fn(
-            num_features=out_channels[3])
-
-        self.conv5 = torch.nn.Conv1d(
-            in_channels=in_channels[4],
-            out_channels=out_channels[4],
-            kernel_size=kernel_sizes[4],
-            stride=strides[4])
-        self.conv5_BN = batch_norm_fn(
-            num_features=out_channels[4])
-
-        self.conv6 = torch.nn.Conv1d(
-            in_channels=in_channels[5],
-            out_channels=out_channels[5],
-            kernel_size=kernel_sizes[5],
-            stride=strides[5])
-        self.conv6_BN = batch_norm_fn(
-            num_features=out_channels[5])
+        self.conv = torch.nn.ModuleList()
+        self.conv_BN = torch.nn.ModuleList()
+        for i in range(6):
+            self.conv.append(torch.nn.Conv1d(
+                in_channels=in_channels[i],
+                out_channels=out_channels[i],
+                kernel_size=kernel_sizes[i],
+                stride=strides[i])
+            )
+            self.conv_BN.append(batch_norm_fn(
+                num_features=out_channels[i]
+            ))
 
         self.classifier = torch.nn.Linear(
             in_features=self.in_features,
@@ -117,7 +82,7 @@ class Model(torch.nn.Module):
             return x
 
         # Forward pass through layer six
-        x = self.layer(x, self.conv6, self.conv6_BN)
+        x = self.layer(x, self.conv[5], self.conv_BN[5], (31, 32))
 
         # shape=(batch, self.in_features)
         x = x.permute(0, 2, 1).reshape(-1, self.in_features)
@@ -134,14 +99,12 @@ class Model(torch.nn.Module):
         # shape=(batch, 1, 1024)
         x = x[:, None, :]
         # Forward pass through first five layers
-        x = self.layer(x, self.conv1, self.conv1_BN, (254, 254))
-        x = self.layer(x, self.conv2, self.conv2_BN)
-        x = self.layer(x, self.conv3, self.conv3_BN)
-        x = self.layer(x, self.conv4, self.conv4_BN)
-        x = self.layer(x, self.conv5, self.conv5_BN)
+        for i in range(5):
+            padding = (254, 254) if i == 0 else (31, 32)
+            x = self.layer(x, self.conv[i], self.conv_BN[i], padding)
         return x
 
-    def layer(self, x, conv, batch_norm, padding=(31, 32)):
+    def layer(self, x, conv, batch_norm, padding):
         """Forward pass through one layer"""
         x = F.pad(x, padding)
         x = conv(x)
@@ -189,53 +152,18 @@ class PDCModel(torch.nn.Module):
                                           momentum=self.momentum)
 
         # Layer definitions
-        self.conv1 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[0],
-            out_channels=out_channels[0],
-            kernel_size=kernel_sizes[0],
-            stride=strides[0])
-        self.conv1_BN = batch_norm_fn(
-            num_features=out_channels[0])
-
-        self.conv2 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[1],
-            out_channels=out_channels[1],
-            kernel_size=kernel_sizes[1],
-            stride=strides[1])
-        self.conv2_BN = batch_norm_fn(
-            num_features=out_channels[1])
-
-        self.conv3 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[2],
-            out_channels=out_channels[2],
-            kernel_size=kernel_sizes[2],
-            stride=strides[2])
-        self.conv3_BN = batch_norm_fn(
-            num_features=out_channels[2])
-
-        self.conv4 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[3],
-            out_channels=out_channels[3],
-            kernel_size=kernel_sizes[3],
-            stride=strides[3])
-        self.conv4_BN = batch_norm_fn(
-            num_features=out_channels[3])
-
-        self.conv5 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[4],
-            out_channels=out_channels[4],
-            kernel_size=kernel_sizes[4],
-            stride=strides[4])
-        self.conv5_BN = batch_norm_fn(
-            num_features=out_channels[4])
-
-        self.conv6 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[5],
-            out_channels=out_channels[5],
-            kernel_size=kernel_sizes[5],
-            stride=strides[5])
-        self.conv6_BN = batch_norm_fn(
-            num_features=out_channels[5])
+        self.conv = torch.nn.ModuleList()
+        self.conv_BN = torch.nn.ModuleList()
+        for i in range(6):
+            self.conv.append(PrimeDilatedConvolutionBlock(
+                in_channels=in_channels[i],
+                out_channels=out_channels[i],
+                kernel_size=kernel_sizes[i],
+                stride=strides[i]
+            ))
+            self.conv_BN.append(batch_norm_fn(
+                num_features=out_channels[i]
+            ))
 
         self.classifier = torch.nn.Linear(
             in_features=self.in_features,
@@ -253,7 +181,7 @@ class PDCModel(torch.nn.Module):
             return x
 
         # Forward pass through layer six
-        x = self.layer(x, self.conv6, self.conv6_BN)
+        x = self.layer(x, self.conv[5], self.conv_BN[5])
 
         # shape=(batch, self.in_features)
         x = x.reshape(-1, self.in_features)
@@ -270,11 +198,8 @@ class PDCModel(torch.nn.Module):
         # shape=(batch, 1, 1024)
         x = x[:, None, :]
         # Forward pass through first five layers
-        x = self.layer(x, self.conv1, self.conv1_BN)
-        x = self.layer(x, self.conv2, self.conv2_BN)
-        x = self.layer(x, self.conv3, self.conv3_BN)
-        x = self.layer(x, self.conv4, self.conv4_BN)
-        x = self.layer(x, self.conv5, self.conv5_BN)
+        for i in range(5):
+            x = self.layer(x, self.conv[i], self.conv_BN[i])
         return x
 
     def layer(self, x, conv, batch_norm, padding=(0, 0, 0, 0), pooling=2):
