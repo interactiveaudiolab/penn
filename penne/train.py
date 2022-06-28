@@ -123,9 +123,8 @@ def main():
     last_val_acc = 0
 
     model.train() #Model in training mode
-    torch.set_grad_enabled(True)
 
-    best_loss = float('inf')
+    
 
     train_rmse = penne.metrics.WRMSE()
     train_rpa = penne.metrics.RPA()
@@ -140,16 +139,32 @@ def main():
 
     #Checkpointing setup
 
+    best_loss = float('inf')
+
     cp_path = 'pdc' if args.pdc else 'crepe'
-    checkpoint_dir = penne.CHECKPOINT_DIR.joinpath(cp_path, args.name)
-    if not os.path.isdir(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
+    checkpoint_dir = penne.CHECKPOINT_DIR / cp_path / args.name
+    checkpoint_dir.mkdir(exist_ok=True, parents=True)
+    checkpoint_file = checkpoint_dir / 'latest.ckpt'
+    if checkpoint_file.exists():
+        checkpoint = torch.load(checkpoint_file, map_location='cpu')
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        epoch = checkpoint['epoch'] + 1
+        best_loss = checkpoint['val_loss']
+        print("Resuming training from epoch " + str(epoch))
+    else:
+        epoch = 1
+    best_checkpoint_file = checkpoint_dir / 'best.ckpt'
+    if best_checkpoint_file.exists():
+        best_checkpoint = torch.load(checkpoint_file, map_location='cpu')
+        best_loss = best_checkpoint['val_loss']
+        
 
     ###########################################################################
     # Train loop
     ###########################################################################
 
-    for epoch in range(1, args.max_epochs + 1):
+    while epoch < args.max_epochs + 1:
         train_losses = AverageMeter('Loss', ':.4e')
         train_accs = AverageMeter('Accuracy', ':6.4f')
         valid_losses = AverageMeter('Loss', ':.4e')
@@ -260,20 +275,33 @@ def main():
 
         if val_loss < best_loss and epoch > 5:
             best_loss = val_loss
-            checkpoint_path = checkpoint_dir.joinpath('best.ckpt')
+            checkpoint_path = checkpoint_dir / 'best.ckpt'
             torch.save({
                 'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()
+                'optimizer_state_dict': optimizer.state_dict(),
+                'epoch': epoch,
+                'val_loss': val_loss
             }, checkpoint_path)
             print("Validation loss improved to " + str(val_loss) + ", best model saved")
 
         if epoch % penne.CHECKPOINT_FREQ == 0:
-            checkpoint_path = checkpoint_dir.joinpath(str(epoch) + '.ckpt')
+            checkpoint_path = checkpoint_dir / (str(epoch) + '.ckpt')
             torch.save({
                 'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()
+                'optimizer_state_dict': optimizer.state_dict(),
+                'epoch': epoch,
+                'val_loss': val_loss
             }, checkpoint_path)
             print("Checkpoint saved at epoch " + str(epoch))
+
+        checkpoint_path = checkpoint_dir / 'latest.ckpt'
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'epoch': epoch,
+            'val_loss': val_loss
+        }, checkpoint_path)
+        print("Latest model saved")
 
         # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
         # plot logits and posterior distribution
@@ -292,13 +320,10 @@ def main():
         val_rmse.reset()
         val_rpa.reset()
         val_rca.reset()
+
+        epoch += 1
     
-    checkpoint_path = checkpoint_dir.joinpath('latest.ckpt')
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict()
-    }, checkpoint_path)
-    print("Latest model saved")
+
 
 
 def parse_args():
