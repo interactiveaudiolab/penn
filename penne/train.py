@@ -102,6 +102,8 @@ def main():
     if args.pdc:
         logdir = 'pdc'
         model = penne.PDCModel(name=args.name)
+    elif args.harmof0:
+        model = penne.HarmoF0()
     else:
         logdir = 'crepe'
         model = penne.Model(name=args.name)
@@ -141,7 +143,7 @@ def main():
 
     best_loss = float('inf')
 
-    cp_path = 'pdc' if args.pdc else 'crepe'
+    cp_path = 'pdc' if args.pdc else ('harmof0' if args.harmof0 else 'crepe')
     checkpoint_dir = penne.CHECKPOINT_DIR / cp_path / args.name
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
     checkpoint_file = checkpoint_dir / 'latest.ckpt'
@@ -178,7 +180,9 @@ def main():
             if t > args.limit_train_batches:
                 break
             x, y, voicing = x.to(device), y.to(device), voicing.to(device)
+            print(x.shape)
             output = model(x)
+            print(output.shape)
             loss = my_loss(output, y)
             acc = my_acc(output, y)
 
@@ -376,6 +380,11 @@ def parse_args():
         type=int,
         help='Maximum number of batches to validate on',
         default=500
+    )
+    parser.add_argument(
+        '--harmof0',
+        action='store_true',
+        help='Use the HarmoF0 model'
     )
 
     # Parse
