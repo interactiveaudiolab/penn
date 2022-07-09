@@ -25,11 +25,12 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY, clean=False):
+    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY, clean=False, num_samples=1):
         self.name = name
         self.voiceonly = voiceonly
         self.stems = {}
         self.offsets = {}
+        self.num_samples = num_samples
         offset_json = 'clean_offsets.json' if clean else 'offsets.json'
 
         
@@ -62,27 +63,40 @@ class Dataset(torch.utils.data.Dataset):
                 self.total_nframes = offset_json['totals'][partition]
         else:
             raise ValueError("Dataset name must be MDB, PTDB, or BOTH")
+        #Adjust offsets to cut off ends when num_samples isn't 1 (becomes null-op when num_samples is 1)
+        for key in self.offsets.keys():
+            self.offsets[key] = list(self.offsets[key]) #Make mutable
+            accum_loss = 0
+            for i, offset in enumerate(self.offsets[key]):
+                loss = (offset - accum_loss) % self.num_samples
+                self.offsets[key][i] = (offset - accum_loss) // num_samples * num_samples
+                accum_loss += loss
+            self.total_nframes -= accum_loss
+            # Find loss from last frame as well
+            last = np.load(penne.data.stem_to_cache_frames(key, self.stems[key][-1], self.voiceonly), mmap_mode='r')
+            self.total_nframes -= last.shape[2] % self.num_samples
 
     def __getitem__(self, index):
         if self.name in ['MDB', 'PTDB']:
-            return self.getitem_from_dataset(self.name, index)
+            return self.getitem_from_dataset(self.name, index, self.num_samples)
         else:
             if index < self.split:
-                return self.getitem_from_dataset('MDB', index)
+                return self.getitem_from_dataset('MDB', index, self.num_samples)
             else:
-                return self.getitem_from_dataset('PTDB', index - self.split)
+                return self.getitem_from_dataset('PTDB', index - self.split, self.num_samples)
 
 
-    def getitem_from_dataset(self, name, index):
+    def getitem_from_dataset(self, name, index, num_samples):
         """Retrieve the indexth item"""
         # get the stem that indexth item is from
+        index = index * self.num_samples
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
         stem = self.stems[name][stem_idx]
 
         # get samples in indexth frame
         frame_idx = index - self.offsets[name][stem_idx]
         frames = np.load(penne.data.stem_to_cache_frames(name, stem, self.voiceonly), mmap_mode='r')
-        frame = frames[:,:,frame_idx]
+        frame = frames[:,:,frame_idx:frame_idx+num_samples]
         # Convert to float32
         if frame.dtype == np.int16:
             frame = frame.astype(np.float32) / np.iinfo(np.int16).max
@@ -96,19 +110,21 @@ class Dataset(torch.utils.data.Dataset):
         # get the annotation bin
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
         annotations = penne.load.annotation_from_cache(annotation_path)
-        annotation = annotations[:,frame_idx]
-
-        voicing = torch.zeros(annotation.shape) if annotation == 0 else torch.ones(annotation.shape)
+        annotation = annotations[:,frame_idx:frame_idx+num_samples]
+        voicing = (annotation == 0)
         # choose a random bin if unvoiced
-        if annotation == 0:
-            annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
+        annotation = torch.where(annotation == 0, torch.randint(0, penne.PITCH_BINS, (1,), dtype=torch.int32), annotation)
+        if num_samples == 1: #Collapse last dimension if not getting multiple samples
+            frame = frame.reshape(frame.shape[:-1])
+            annotation = annotation.reshape(annotation.shape[:-1])
+            voicing = voicing.reshape(voicing.shape[:-1])
         # (1, 1024), (1,), (1,)
         return (frame, annotation, voicing)
         
 
     def __len__(self):
         """Length of the dataset"""
-        return self.total_nframes
+        return self.total_nframes // self.num_samples
 
 ###############################################################################
 # Data module

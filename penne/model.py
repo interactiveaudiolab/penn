@@ -472,9 +472,9 @@ class HarmoF0(torch.nn.Module):
 
     def forward(self, waveforms):
         # input: [b x num_frames x frame_len]
-        # output: [b x num_frames x 352], [b x num_frames x 352]
+        # output: [b x num_frames x 360]
 
-        specgram = self.waveform_to_logspecgram(waveforms).float()
+        specgram = self.waveform_to_logspecgram(waveforms.transpose(2,1)).float()
         # => [b x 1 x num_frames x n_bins]
         x = specgram[None, :]
 
@@ -483,7 +483,7 @@ class HarmoF0(torch.nn.Module):
         x = self.block_3(x)
         x = self.block_4(x)
 
-        # [b x 128 x T x 352] => [b x 64 x T x 352]
+        # [b x 128 x T x 360] => [b x 64 x T x 360]
         x = self.conv_5(x)
         x = torch.relu(x)
         x = self.conv_6(x)
