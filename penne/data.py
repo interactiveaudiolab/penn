@@ -140,39 +140,42 @@ class DataModule():
             The size of a batch
         num_workers - int or None
             Number data loading jobs to launch. If None, uses num cpu cores.
+        num_samples - int
+            Number of samples to load at a time. Should be 1 for CREPE and PDC, 100 for HarmoF0
     """
 
-    def __init__(self, name, batch_size=64, num_workers=None):
+    def __init__(self, name, batch_size=64, num_workers=None, num_samples=1):
         super().__init__()
         self.name = name
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.num_samples = num_samples
 
     def train_dataloader(self):
         """Retrieve the PyTorch DataLoader for training"""
-        return loader(self.name, 'train', self.batch_size, self.num_workers, penne.VOICE_ONLY)
+        return loader(self.name, 'train', self.batch_size, self.num_workers, penne.VOICE_ONLY, self.num_samples)
 
     def val_dataloader(self):
         """Retrieve the PyTorch DataLoader for validation"""
-        return loader(self.name, 'valid', self.batch_size, self.num_workers, True)
+        return loader(self.name, 'valid', self.batch_size, self.num_workers, True, self.num_samples)
 
     def test_dataloader(self):
         """Retrieve the PyTorch DataLoader for testing"""
-        return loader(self.name, 'test', self.batch_size, self.num_workers, True)
+        return loader(self.name, 'test', self.batch_size, self.num_workers, True, self.num_samples)
 
 ###############################################################################
 # Data loader
 ###############################################################################
 
-def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.VOICE_ONLY):
+def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.VOICE_ONLY, num_samples=1):
     """Retrieve a data loader"""
     if dataset == 'BOTH':
         dataset_obj = torch.utils.data.ConcatDataset([
-            Dataset('MDB', partition, voiceonly),
-            Dataset('PTDB', partition, voiceonly)
+            Dataset('MDB', partition, voiceonly, num_samples=num_samples),
+            Dataset('PTDB', partition, voiceonly, num_samples=num_samples)
         ])
     else:
-        dataset_obj = Dataset(dataset, partition, voiceonly)
+        dataset_obj = Dataset(dataset, partition, voiceonly, num_samples=num_samples)
     return torch.utils.data.DataLoader(
         dataset=dataset_obj,
         batch_size=batch_size,

@@ -5,6 +5,7 @@ import argparse
 import os
 from pathlib import Path
 import matplotlib
+import time
 
 from tqdm import tqdm
 import penne
@@ -93,10 +94,13 @@ def main():
     # Setup early stopping for 32 epochs (by default according to CREPE) of no val accuracy improvement
     patience = penne.EARLY_STOP_PATIENCE
 
+    num_samples = 100 if args.harmof0 else 1
+
     # Setup data
     datamodule = penne.data.DataModule(args.dataset,
                                 args.batch_size,
-                                args.num_workers)
+                                args.num_workers,
+                                num_samples)
 
     # Setup log directory and model according to --pdc flag
     if args.pdc:
@@ -180,9 +184,13 @@ def main():
             if t > args.limit_train_batches:
                 break
             x, y, voicing = x.to(device), y.to(device), voicing.to(device)
-            print(x.shape)
             output = model(x)
-            print(output.shape)
+
+            #If we have multiple samples (i.e. for HarmoF0), squish the batch and num_samples dimensions for loss evaluation
+            if len(output.shape) == 3:
+                output = output.view(-1, output.shape[-1])
+                y = y.view(-1)
+                voicing = voicing.view(-1)
             loss = my_loss(output, y)
             acc = my_acc(output, y)
 
@@ -229,6 +237,11 @@ def main():
                 if t > args.limit_val_batches:
                     break
                 x, y, voicing = x.to(device), y.to(device), voicing.to(device)
+                #If we have multiple samples (i.e. for HarmoF0), squish the batch and num_samples dimensions for loss evaluation
+                if len(output.shape) == 3:
+                    output = output.view(-1, output.shape[-1])
+                    y = y.view(-1)
+                    voicing = voicing.view(-1)
                 output = model(x)
                 loss = my_loss(output, y)
                 acc = my_acc(output, y)

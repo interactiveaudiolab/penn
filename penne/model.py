@@ -476,7 +476,7 @@ class HarmoF0(torch.nn.Module):
 
         specgram = self.waveform_to_logspecgram(waveforms.transpose(2,1)).float()
         # => [b x 1 x num_frames x n_bins]
-        x = specgram[None, :]
+        x = specgram.unsqueeze(1)
 
         x = self.block_1(x)
         x = self.block_2(x)
@@ -492,4 +492,4 @@ class HarmoF0(torch.nn.Module):
         x = torch.squeeze(x, dim=1)
         # x = torch.clip(x, 1e-4, 1 - 1e-4)
         # => [num_frames x n_bins]
-        return x, specgram
+        return x
