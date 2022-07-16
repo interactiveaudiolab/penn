@@ -374,7 +374,8 @@ def parse_args():
     parser.add_argument(
         '--gpus',
         type=int,
-        help='Number of GPUs to use (-1 for no GPU)'
+        help='Device ordinal of GPU to use (-1 for no GPU)',
+        default=-1
     )
     parser.add_argument(
         '--max_epochs',
