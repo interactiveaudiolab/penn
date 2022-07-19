@@ -237,12 +237,12 @@ def main():
                 if t > args.limit_val_batches:
                     break
                 x, y, voicing = x.to(device), y.to(device), voicing.to(device)
+                output = model(x)
                 #If we have multiple samples (i.e. for HarmoF0), squish the batch and num_samples dimensions for loss evaluation
                 if len(output.shape) == 3:
                     output = output.view(-1, output.shape[-1])
                     y = y.view(-1)
                     voicing = voicing.view(-1)
-                output = model(x)
                 loss = my_loss(output, y)
                 acc = my_acc(output, y)
                 
@@ -322,7 +322,7 @@ def main():
 
         # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
         # plot logits and posterior distribution
-        if epoch < 5 or epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
+        if (epoch < 5 or epoch % penne.LOG_EXAMPLE_FREQUENCY == 0) and not args.harmof0:
             # load a batch for logging if not yet loaded
             if ex_batch is None:
                 ex_batch = ex_batch_for_logging(penne.LOG_EXAMPLE, device=device)
