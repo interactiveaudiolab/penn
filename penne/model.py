@@ -470,7 +470,7 @@ class HarmoF0(torch.nn.Module):
         self.conv_5 = torch.nn.Conv2d(channels[3], channels[3]//2, kernel_size=[1,1])
         self.conv_6 = torch.nn.Conv2d(channels[3]//2, 1, kernel_size=[1,1])
 
-    def forward(self, waveforms):
+    def forward(self, waveforms, embed=False):
         # input: [b x num_frames x frame_len]
         # output: [b x num_frames x 360]
 

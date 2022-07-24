@@ -322,10 +322,12 @@ def main():
 
         # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
         # plot logits and posterior distribution
-        if (epoch < 5 or epoch % penne.LOG_EXAMPLE_FREQUENCY == 0) and not args.harmof0:
+        if (epoch < 5 or epoch % penne.LOG_EXAMPLE_FREQUENCY == 0):
             # load a batch for logging if not yet loaded
             if ex_batch is None:
                 ex_batch = ex_batch_for_logging(penne.LOG_EXAMPLE, device=device)
+                if args.harmof0:
+                    ex_batch = ex_batch.unsqueeze(0).transpose(2, 1)
             # plot logits
             logits = penne.infer(ex_batch, model=model).cpu()
             # plot posterior distribution
