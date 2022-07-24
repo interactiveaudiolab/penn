@@ -111,9 +111,9 @@ class Dataset(torch.utils.data.Dataset):
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
         annotations = penne.load.annotation_from_cache(annotation_path)
         annotation = annotations[:,frame_idx:frame_idx+num_samples]
-        voicing = (annotation == 0)
+        voicing = (annotation != 0)
         # choose a random bin if unvoiced
-        annotation = torch.where(annotation == 0, torch.randint(0, penne.PITCH_BINS, (1,), dtype=torch.int32), annotation)
+        annotation = torch.where(annotation == 0, torch.randint(0, penne.PITCH_BINS, annotation.shape, dtype=torch.int32), annotation)
         if num_samples == 1: #Collapse last dimension if not getting multiple samples
             frame = frame.reshape(frame.shape[:-1])
             annotation = annotation.reshape(annotation.shape[:-1])
