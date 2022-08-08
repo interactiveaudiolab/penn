@@ -475,6 +475,9 @@ class HarmoF0(torch.nn.Module):
         # output: [b x num_frames x 360]
 
         specgram = self.waveform_to_logspecgram(waveforms.transpose(2,1)).float()
+        #TRY REPLACE WITH
+        #https://pytorch.org/audio/stable/transforms.html#melspectrogram
+        #Followed by amplitudetodb (for log)
         # => [b x 1 x num_frames x n_bins]
         x = specgram.unsqueeze(1)
 

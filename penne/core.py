@@ -35,8 +35,8 @@ CHECKPOINT_FREQ = 20
 
 # Options
 VOICE_ONLY = False # toggle training with voice only or not
-LOG_EXAMPLE = 'MDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
-LOG_EXAMPLE_FREQUENCY = 10 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
+LOG_EXAMPLE = 'PTDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
+LOG_EXAMPLE_FREQUENCY = 2 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
 LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits
 
 

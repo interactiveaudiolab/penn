@@ -43,7 +43,8 @@ class AverageMeter(object):
         self.val = val
         self.sum += val * n
         self.count += n
-        self.avg = self.sum / self.count
+        if self.count != 0:
+            self.avg = self.sum / self.count
 
 def my_loss(y_hat, y):
         # apply Gaussian blur around target bin
@@ -56,9 +57,13 @@ def my_loss(y_hat, y):
         assert y_hat.shape == y.shape
         return F.binary_cross_entropy_with_logits(y_hat, y.float())
 
-def my_acc(y_hat, y):
-    argmax_y_hat = y_hat.argmax(dim=1)
-    return argmax_y_hat.eq(y).sum().item()/y.numel()
+def my_acc(y_hat, y, voicing):
+    y_hat_voiced = y_hat[voicing == 0]
+    y_voiced = y[voicing == 0]
+    argmax_y_hat = y_hat_voiced.argmax(dim=1)
+    if y_voiced.numel() == 0:
+        return 0, 0
+    return argmax_y_hat.eq(y_voiced).sum().item()/y_voiced.numel(), y_voiced.numel() #Also return count properly
 
 def ex_batch_for_logging(dataset, device='cuda'):
         if dataset == 'PTDB':
@@ -192,7 +197,7 @@ def main():
                 y = y.view(-1)
                 voicing = voicing.view(-1)
             loss = my_loss(output, y)
-            acc = my_acc(output, y)
+            acc, num_voiced = my_acc(output, y, voicing)
 
             # update epoch's cumulative rmse, rpa, rca with current batch
             y_hat = output.argmax(dim=1)
@@ -205,7 +210,7 @@ def main():
             train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
 
             train_losses.update(loss.item(), x.size(0))
-            train_accs.update(acc, x.size(0))
+            train_accs.update(acc, num_voiced)
 
             optimizer.zero_grad()
             loss.backward()
@@ -244,7 +249,7 @@ def main():
                     y = y.view(-1)
                     voicing = voicing.view(-1)
                 loss = my_loss(output, y)
-                acc = my_acc(output, y)
+                acc, num_voiced = my_acc(output, y, voicing)
                 
                 # update epoch's cumulative rmse, rpa, rca with current batch
                 y_hat = output.argmax(dim=1)
@@ -257,7 +262,7 @@ def main():
                 val_rca.update(np_y_hat_freq, np_y)
 
                 valid_losses.update(loss.item(), x.size(0))
-                valid_accs.update(acc, x.size(0))
+                valid_accs.update(acc, num_voiced)
         
         print('validation loss: %.5f, validation accuracy: %.5f' % (valid_losses.avg, valid_accs.avg))
         val_accuracy = valid_accs.avg
