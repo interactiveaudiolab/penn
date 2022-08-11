@@ -58,8 +58,8 @@ def my_loss(y_hat, y):
         return F.binary_cross_entropy_with_logits(y_hat, y.float())
 
 def my_acc(y_hat, y, voicing):
-    y_hat_voiced = y_hat[voicing == 0]
-    y_voiced = y[voicing == 0]
+    y_hat_voiced = y_hat[voicing == 1]
+    y_voiced = y[voicing == 1]
     argmax_y_hat = y_hat_voiced.argmax(dim=1)
     if y_voiced.numel() == 0:
         return 0, 0
@@ -155,16 +155,20 @@ def main():
     cp_path = 'pdc' if args.pdc else ('harmof0' if args.harmof0 else 'crepe')
     checkpoint_dir = penne.CHECKPOINT_DIR / cp_path / args.name
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
-    checkpoint_file = checkpoint_dir / 'latest.ckpt'
-    if checkpoint_file.exists():
-        checkpoint = torch.load(checkpoint_file, map_location='cpu')
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        epoch = checkpoint['epoch'] + 1
-        best_loss = checkpoint['val_loss']
-        print("Resuming training from epoch " + str(epoch))
+    if not args.restart:
+        checkpoint_file = checkpoint_dir / 'latest.ckpt'
+        if checkpoint_file.exists():
+            checkpoint = torch.load(checkpoint_file, map_location='cpu')
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            epoch = checkpoint['epoch'] + 1
+            best_loss = checkpoint['val_loss']
+            print("Resuming training from epoch " + str(epoch))
+        else:
+            epoch = 1
     else:
         epoch = 1
+        for checkpoint in checkpoint_dir.iterdir(): checkpoint.unlink() #Clear checkpoints from previous run if restarting
     best_checkpoint_file = checkpoint_dir / 'best.ckpt'
     if best_checkpoint_file.exists():
         best_checkpoint = torch.load(checkpoint_file, map_location='cpu')
@@ -406,6 +410,11 @@ def parse_args():
         '--harmof0',
         action='store_true',
         help='Use the HarmoF0 model'
+    )
+    parser.add_argument(
+        '--restart',
+        action='store_true',
+        help='Restart model training (rather than starting from checkpoint)'
     )
 
     # Parse
