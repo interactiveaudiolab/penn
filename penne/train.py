@@ -123,8 +123,8 @@ def main():
     else:
         device = torch.device('cpu')
     model = model.to(device)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=penne.LEARNING_RATE)
+    lr = penne.HARMO_LEARNING_RATE if args.harmof0 else penne.LEARNING_RATE 
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     train_loader = datamodule.train_dataloader()
     valid_loader = datamodule.val_dataloader()
