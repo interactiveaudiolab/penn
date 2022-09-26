@@ -24,21 +24,24 @@ def dataset(dataset, clean=False):
     all_dir = penne.CACHE_DIR / 'all' / dataset
     voiceonly_dir = penne.CACHE_DIR / 'voiceonly' / dataset
     audio_dir = penne.CACHE_DIR / 'audio' / dataset
-    for output_dir in [all_dir, voiceonly_dir]:
+    harmo_dir = penne.CACHE_DIR / 'harmo' / dataset
+    for output_dir in [all_dir, voiceonly_dir, harmo_dir]:
         for subdir in ['annotation', 'frames']:
             sub_directory = output_dir / subdir
             sub_directory.mkdir(exist_ok=True, parents=True)
     audio_dir.mkdir(exist_ok=True, parents=True)
 
     if dataset in ['MDB', 'PTDB']:
-        preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, clean)
+        preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, harmo_dir, clean)
     else:
         raise ValueError(f'Dataset {dataset} is not implemented')
 
-def preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, clean):
+def preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, harmo_dir, clean):
     all_offsets = {"totals": {}, "train": {}, "valid": {}, "test": {}}
     voiceonly_offsets = {"totals": {}, "train": {}, "valid": {}, "test": {}}
     stem_dict = penne.data.partitions(dataset, clean)
+
+    harmo_instance = penne.harmo_preprocess.PitchTracker(dataset=dataset)
 
     for part in stem_dict.keys():
         all_total_frames = 0
@@ -59,6 +62,8 @@ def preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, clean):
             all_total_frames += annotation.shape[1]
             # save annotation to numpy
             filename = all_dir / "annotation" / f'{annotation_file.stem}.npy'
+            np.save(filename, annotation)
+            filename = harmo_dir / "annotation" / f'{annotation_file.stem}.npy'
             np.save(filename, annotation)
 
             # mask out unvoiced frames
@@ -110,12 +115,20 @@ def preprocess_data(dataset, all_dir, voiceonly_dir, audio_dir, clean):
             frame_filename = voiceonly_dir / "frames" / f'{audio_file.stem}.npy'
             np.save(frame_filename, frames)
 
+            # save outputted for harmof0
+            frames = harmo_instance.pred_file(audio_file)
+
+            frame_filename = harmo_dir / "frames" / f'{audio_file.stem}.npy'
+            np.save(frame_filename, frames)
+
         # store total frames for each partition
         all_offsets["totals"][part] = all_total_frames
         voiceonly_offsets["totals"][part] = voiceonly_total_frames
 
     # save offsets to json
     with open(all_dir / "offsets.json", 'w') as f:
+        json.dump(all_offsets, f, indent=4)
+    with open(harmo_dir / "offsets.json", 'w') as f:
         json.dump(all_offsets, f, indent=4)
     with open(voiceonly_dir / "offsets.json", 'w') as f:
         json.dump(voiceonly_offsets, f, indent=4)

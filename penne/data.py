@@ -36,6 +36,7 @@ class Dataset(torch.utils.data.Dataset):
         
         # read information from cache directory
         subfolder = 'voiceonly' if voiceonly else 'all'
+        if num_samples != 1: subfolder = 'harmo'
         self.split = 0
         self.total_nframes = 0
         if self.name == 'BOTH':
@@ -103,9 +104,10 @@ class Dataset(torch.utils.data.Dataset):
         frame = torch.from_numpy(frame.copy())
 
         # normalize
-        frame -= frame.mean(dim=1, keepdim=True)
-        frame /= torch.max(torch.tensor(1e-10, device=frame.device),
-            frame.std(dim=1, keepdim=True))
+        if self.num_samples == 1:
+            frame -= frame.mean(dim=1, keepdim=True)
+            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+                frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
@@ -157,11 +159,11 @@ class DataModule():
 
     def val_dataloader(self):
         """Retrieve the PyTorch DataLoader for validation"""
-        return loader(self.name, 'valid', self.batch_size, self.num_workers, True, self.num_samples)
+        return loader(self.name, 'valid', self.batch_size, self.num_workers, penne.VOICE_ONLY, self.num_samples)
 
     def test_dataloader(self):
         """Retrieve the PyTorch DataLoader for testing"""
-        return loader(self.name, 'test', self.batch_size, self.num_workers, True, self.num_samples)
+        return loader(self.name, 'test', self.batch_size, self.num_workers, penne.VOICE_ONLY, self.num_samples)
 
 ###############################################################################
 # Data loader

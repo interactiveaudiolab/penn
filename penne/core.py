@@ -659,4 +659,6 @@ def resample(audio, sample_rate):
 
 
 def entropy(distribution):
-    return 1 + (1 / np.log2(penne.PITCH_BINS)) * ((distribution * torch.log2(distribution)).sum())
+    return 1 - (1 / np.log2(penne.PITCH_BINS)) * ((distribution * torch.log2(distribution)).sum())
+    #Assumes one frame
+    #TODO: sum only over dimension for one frame
