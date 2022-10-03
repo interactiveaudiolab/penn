@@ -33,7 +33,7 @@ class Dataset(torch.utils.data.Dataset):
         self.num_samples = num_samples
         offset_json = 'clean_offsets.json' if clean else 'offsets.json'
 
-        
+
         # read information from cache directory
         subfolder = 'voiceonly' if voiceonly else 'all'
         if num_samples != 1: subfolder = 'harmo'
@@ -89,6 +89,9 @@ class Dataset(torch.utils.data.Dataset):
 
     def getitem_from_dataset(self, name, index, num_samples):
         """Retrieve the indexth item"""
+        # TODO - For harmof0, track valid starting point indices
+        #      - Requires knowing the number of prior examples in the dataset
+
         # get the stem that indexth item is from
         index = index * self.num_samples
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
@@ -122,10 +125,11 @@ class Dataset(torch.utils.data.Dataset):
             voicing = voicing.reshape(voicing.shape[:-1])
         # (1, 1024), (1,), (1,)
         return (frame, annotation, voicing)
-        
+
 
     def __len__(self):
         """Length of the dataset"""
+        # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset
         return self.total_nframes // self.num_samples
 
 ###############################################################################
@@ -284,7 +288,7 @@ def MDB_stem_to_annotation(directory, stem):
     return directory / 'annotation_stems' / (stem + ".RESYN.csv")
 
 def PTDB_stem_to_annotation(directory, stem):
-    # This file contains a four column matrix which includes the pitch, a voicing decision, the 
+    # This file contains a four column matrix which includes the pitch, a voicing decision, the
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     sub_folder = stem[:3]
@@ -378,7 +382,7 @@ def MDB_stem_to_cache_annotation(directory, stem):
     return directory / 'annotation' / (stem + ".RESYN.npy")
 
 def PTDB_stem_to_cache_annotation(directory, stem):
-    # This file contains a four column matrix which includes the pitch, a voicing decision, the 
+    # This file contains a four column matrix which includes the pitch, a voicing decision, the
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     return directory / 'annotation' / ("ref_" + stem + ".npy")
