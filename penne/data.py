@@ -104,10 +104,10 @@ class Dataset(torch.utils.data.Dataset):
         frame = torch.from_numpy(frame.copy())
 
         # normalize
-        if self.num_samples == 1:
-            frame -= frame.mean(dim=1, keepdim=True)
-            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
-                frame.std(dim=1, keepdim=True))
+        # if self.num_samples == 1:
+        frame -= frame.mean(dim=1, keepdim=True)
+        frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+            frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
@@ -181,7 +181,7 @@ def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.
     return torch.utils.data.DataLoader(
         dataset=dataset_obj,
         batch_size=batch_size,
-        shuffle='test' not in partition,
+        shuffle='train' in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
         pin_memory=True,
         collate_fn=collate_fn)

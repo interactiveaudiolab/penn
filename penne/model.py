@@ -438,7 +438,7 @@ class HarmoF0(torch.nn.Module):
             n_har=12, 
             bins_per_octave=60, 
             dilation_modes=['log_scale', 'fixed', 'fixed', 'fixed'],
-            dilation_rates=[48, 48, 48, 48],
+            dilation_rates=[60, 60, 60, 60], #[48, 48, 48, 48]
             logspecgram_type='logharmgram',
             channels=[32, 64, 128, 128],
             fmin=31.75,

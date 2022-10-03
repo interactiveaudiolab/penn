@@ -46,17 +46,21 @@ class AverageMeter(object):
         if self.count != 0:
             self.avg = self.sum / self.count
 
-def my_loss(y_hat, y, harmo=False):
-        if not harmo:
-            # apply Gaussian blur around target bin
-            mean = penne.convert.bins_to_cents(y)
-            normal = torch.distributions.Normal(mean, 25)
+def my_loss(y_hat, y, blur=True, harmo=False):
+    blur = True #Forces True for now
+    if blur:
+        # apply Gaussian blur around target bin
+        mean = penne.convert.bins_to_cents(y)
+        normal = torch.distributions.Normal(mean, 25)
         bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
         bins = bins[:, None]
         y = torch.exp(normal.log_prob(bins)).permute(1,0)
         y /= y.max(dim=1, keepdims=True).values
-        assert y_hat.shape == y.shape
-        return F.binary_cross_entropy_with_logits(y_hat, y.float(), weight=torch.ones(y_hat.shape).cuda() * 20)
+    else:
+        y = torch.nn.functional.one_hot(y.long(), num_classes=penne.PITCH_BINS)
+    assert y_hat.shape == y.shape
+    weight = torch.ones(y_hat.shape).cuda() * 20 if harmo else torch.ones(y_hat.shape).cuda()
+    return F.binary_cross_entropy_with_logits(y_hat, y.float(), weight=weight)
 
 def my_acc(y_hat, y, voicing):
     y_hat_voiced = y_hat[voicing == 1]
@@ -100,7 +104,7 @@ def main():
     # Setup early stopping for 32 epochs (by default according to CREPE) of no val accuracy improvement
     patience = penne.EARLY_STOP_PATIENCE
 
-    num_samples = 200 if args.harmof0 else 1
+    num_samples = 100 if args.harmof0 else 1
 
     # Setup data
     datamodule = penne.data.DataModule(args.dataset,
@@ -201,7 +205,7 @@ def main():
                 output = output.view(-1, output.shape[-1])
                 y = y.view(-1)
                 voicing = voicing.view(-1)
-            loss = my_loss(output, y)
+            loss = my_loss(output, y, harmo=args.harmof0)
             acc, num_voiced = my_acc(output, y, voicing)
 
             # update epoch's cumulative rmse, rpa, rca with current batch
@@ -253,7 +257,7 @@ def main():
                     output = output.view(-1, output.shape[-1])
                     y = y.view(-1)
                     voicing = voicing.view(-1)
-                loss = my_loss(output, y)
+                loss = my_loss(output, y, harmo=args.harmof0)
                 acc, num_voiced = my_acc(output, y, voicing)
                 
                 # update epoch's cumulative rmse, rpa, rca with current batch
