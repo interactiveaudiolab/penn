@@ -128,8 +128,6 @@ class Dataset(torch.utils.data.Dataset):
     def __len__(self):
         """Length of the dataset"""
         # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset    
-        # FOR TESTING LOW SAMPLE AMOUNTS
-        return 1
         return self.total_nframes
 
 ###############################################################################
