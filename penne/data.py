@@ -92,6 +92,7 @@ class Dataset(torch.utils.data.Dataset):
         #      - Requires knowing the number of prior examples in the dataset
 
         # get the stem that indexth item is from
+        #index = index + 700 #NOTE: FOR TESTING ONLY, DON'T USE
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
         stem = self.stems[name][stem_idx]
 
@@ -116,7 +117,7 @@ class Dataset(torch.utils.data.Dataset):
         annotation = annotations[:,frame_idx:frame_idx+num_samples]
         voicing = (annotation != 0)
         # choose a random bin if unvoiced
-        annotation = torch.where(annotation == 0, torch.randint(0, penne.PITCH_BINS, annotation.shape, dtype=torch.int32), annotation)
+        #annotation = torch.where(annotation == 0, torch.randint(0, penne.PITCH_BINS, annotation.shape, dtype=torch.int32), annotation)
         if num_samples == 1: #Collapse last dimension if not getting multiple samples
             frame = frame.reshape(frame.shape[:-1])
             annotation = annotation.reshape(annotation.shape[:-1])
@@ -127,7 +128,9 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         """Length of the dataset"""
-        # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset
+        # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset    
+        #FOR TESTING LOW SAMPLE AMOUNTS
+        return 1
         return self.total_nframes
 
 ###############################################################################
