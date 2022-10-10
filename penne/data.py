@@ -65,17 +65,16 @@ class Dataset(torch.utils.data.Dataset):
         else:
             raise ValueError("Dataset name must be MDB, PTDB, or BOTH")
         #Adjust offsets to cut off ends when num_samples isn't 1 (becomes null-op when num_samples is 1)
+        loss = num_samples - 1
         for key in self.offsets.keys():
             self.offsets[key] = list(self.offsets[key]) #Make mutable
             accum_loss = 0
             for i, offset in enumerate(self.offsets[key]):
-                loss = (offset - accum_loss) % self.num_samples
-                self.offsets[key][i] = (offset - accum_loss) // num_samples * num_samples
+                self.offsets[key][i] = (offset - accum_loss)
                 accum_loss += loss
             self.total_nframes -= accum_loss
-            # Find loss from last frame as well
-            last = np.load(penne.data.stem_to_cache_frames(key, self.stems[key][-1], self.voiceonly), mmap_mode='r')
-            self.total_nframes -= last.shape[2] % self.num_samples
+            # Account for loss from last frame as well
+            self.total_nframes -= loss
 
     def __getitem__(self, index):
         if self.name in ['MDB', 'PTDB']:
@@ -93,7 +92,6 @@ class Dataset(torch.utils.data.Dataset):
         #      - Requires knowing the number of prior examples in the dataset
 
         # get the stem that indexth item is from
-        index = index * self.num_samples
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
         stem = self.stems[name][stem_idx]
 
@@ -130,7 +128,7 @@ class Dataset(torch.utils.data.Dataset):
     def __len__(self):
         """Length of the dataset"""
         # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset
-        return self.total_nframes // self.num_samples
+        return self.total_nframes
 
 ###############################################################################
 # Data module

@@ -179,7 +179,7 @@ def main():
         best_checkpoint = torch.load(checkpoint_file, map_location='cpu')
         best_loss = best_checkpoint['val_loss']
         
-
+    num_steps = 0
     ###########################################################################
     # Train loop
     ###########################################################################
@@ -200,6 +200,7 @@ def main():
             x, y, voicing = x.to(device), y.to(device), voicing.to(device)
             output = model(x)
 
+            num_steps = num_steps + 1
             #If we have multiple samples (i.e. for HarmoF0), squish the batch and num_samples dimensions for loss evaluation
             if len(output.shape) == 3:
                 output = output.view(-1, output.shape[-1])
@@ -225,17 +226,25 @@ def main():
             loss.backward()
             optimizer.step()
 
+            if num_steps % penne.LOG_STEP_FREQ == 0:
+                writer.add_scalar("Loss/Train", train_losses.avg, num_steps)
+                writer.add_scalar("Accuracy/Train", train_accs.avg, num_steps)
+                writer.add_scalar("RMSE/Train", train_rmse(), num_steps)
+                writer.add_scalar("RPA/Train", train_rpa(), num_steps)
+                writer.add_scalar("RCA/Train", train_rca(), num_steps)
+
+
         print('training loss: %.5f, training accuracy: %.5f' % (train_losses.avg, train_accs.avg))
         
         ###########################################################################
         # Log training metrics to Tensorboard
         ###########################################################################
 
-        writer.add_scalar("Loss/Train", train_losses.avg, epoch)
-        writer.add_scalar("Accuracy/Train", train_accs.avg, epoch)
-        writer.add_scalar("RMSE/Train", train_rmse(), epoch)
-        writer.add_scalar("RPA/Train", train_rpa(), epoch)
-        writer.add_scalar("RCA/Train", train_rca(), epoch)
+        writer.add_scalar("Loss/Train", train_losses.avg, num_steps)
+        writer.add_scalar("Accuracy/Train", train_accs.avg, num_steps)
+        writer.add_scalar("RMSE/Train", train_rmse(), num_steps)
+        writer.add_scalar("RPA/Train", train_rpa(), num_steps)
+        writer.add_scalar("RCA/Train", train_rca(), num_steps)
         
         train_rmse.reset()
         train_rpa.reset()
@@ -281,11 +290,11 @@ def main():
         # Log validation metrics to Tensorboard
         ###########################################################################
 
-        writer.add_scalar("Loss/Val", val_loss, epoch)
-        writer.add_scalar("Accuracy/Val", val_accuracy, epoch)
-        writer.add_scalar("RMSE/Val", val_rmse(), epoch)
-        writer.add_scalar("RPA/Val", val_rpa(), epoch)
-        writer.add_scalar("RCA/Val", val_rca(), epoch)
+        writer.add_scalar("Loss/Val", val_loss, num_steps)
+        writer.add_scalar("Accuracy/Val", val_accuracy, num_steps)
+        writer.add_scalar("RMSE/Val", val_rmse(), num_steps)
+        writer.add_scalar("RPA/Val", val_rpa(), num_steps)
+        writer.add_scalar("RCA/Val", val_rca(), num_steps)
 
         ###########################################################################
         # Early stopping

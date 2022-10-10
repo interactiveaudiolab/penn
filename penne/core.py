@@ -33,6 +33,7 @@ EARLY_STOP_PATIENCE = 32
 LEARNING_RATE = 2e-4
 HARMO_LEARNING_RATE = 1e-3
 CHECKPOINT_FREQ = 20
+LOG_STEP_FREQ = 200
 
 # Options
 VOICE_ONLY = False # toggle training with voice only or not
