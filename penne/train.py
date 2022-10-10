@@ -180,6 +180,10 @@ def main():
         best_loss = best_checkpoint['val_loss']
         
     num_steps = 0
+
+    if args.limit_train_batches == None: args.limit_train_batches = len(train_loader)
+    if args.limit_val_batches == None: args.limit_val_batches = len(valid_loader)
+
     ###########################################################################
     # Train loop
     ###########################################################################
@@ -412,13 +416,13 @@ def parse_args():
         '--limit_train_batches',
         type=int,
         help='Maximum number of batches to train on',
-        default=500
+        default=None
     )
     parser.add_argument(
         '--limit_val_batches',
         type=int,
         help='Maximum number of batches to validate on',
-        default=500
+        default=None
     )
     parser.add_argument(
         '--harmof0',
