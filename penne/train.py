@@ -47,7 +47,6 @@ class AverageMeter(object):
             self.avg = self.sum / self.count
 
 def my_loss(y_hat, y, blur=True, harmo=False):
-    blur = True #Forces True for now
     if blur:
         # apply Gaussian blur around target bin
         mean = penne.convert.bins_to_cents(y)
@@ -210,7 +209,7 @@ def main():
                 output = output.view(-1, output.shape[-1])
                 y = y.view(-1)
                 voicing = voicing.view(-1)
-            loss = my_loss(output, y, harmo=args.harmof0)
+            loss = my_loss(output, y, blur=args.blur, harmo=args.harmof0)
             acc, num_voiced = my_acc(output, y, voicing)
 
             # update epoch's cumulative rmse, rpa, rca with current batch
@@ -270,7 +269,7 @@ def main():
                     output = output.view(-1, output.shape[-1])
                     y = y.view(-1)
                     voicing = voicing.view(-1)
-                loss = my_loss(output, y, harmo=args.harmof0)
+                loss = my_loss(output, y, blur=args.blur, harmo=args.harmof0)
                 acc, num_voiced = my_acc(output, y, voicing)
                 
                 # update epoch's cumulative rmse, rpa, rca with current batch
@@ -433,6 +432,12 @@ def parse_args():
         '--restart',
         action='store_true',
         help='Restart model training (rather than starting from checkpoint)'
+    )
+    parser.add_argument(
+        '--no_blur',
+        action='store_false',
+        dest='blur',
+        help="Don't use blur when training"
     )
 
     # Parse
