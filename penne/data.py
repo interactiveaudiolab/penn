@@ -52,7 +52,7 @@ class Dataset(torch.utils.data.Dataset):
                     self.total_nframes += offset_json['totals'][partition]
                 if self.split == 0:
                     self.split = self.total_nframes
-        elif name in ['MDB', 'PTDB']:
+        elif name in ['MDB', 'PTDB', 'TOY']:
             with open(penne.CACHE_DIR / subfolder / self.name / "offsets.json", 'r') as f:
                 offset_json = json.load(f)
                 # save list of stems for given dataset
@@ -73,11 +73,9 @@ class Dataset(torch.utils.data.Dataset):
                 self.offsets[key][i] = (offset - accum_loss)
                 accum_loss += loss
             self.total_nframes -= accum_loss
-            # Account for loss from last frame as well
-            self.total_nframes -= loss
 
     def __getitem__(self, index):
-        if self.name in ['MDB', 'PTDB']:
+        if self.name in ['MDB', 'PTDB', 'TOY']:
             return self.getitem_from_dataset(self.name, index, self.num_samples)
         else:
             if index < self.split:
@@ -106,9 +104,10 @@ class Dataset(torch.utils.data.Dataset):
 
         # normalize
         # if self.num_samples == 1:
-        frame -= frame.mean(dim=1, keepdim=True)
-        frame /= torch.max(torch.tensor(1e-10, device=frame.device),
-            frame.std(dim=1, keepdim=True))
+        if not name == "TOY":
+            frame -= frame.mean(dim=1, keepdim=True)
+            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+                frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
@@ -127,7 +126,9 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         """Length of the dataset"""
-        # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset    
+        # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset
+        # FOR TESTING LOW SAMPLE AMOUNTS
+        #return 1    
         return self.total_nframes
 
 ###############################################################################
@@ -373,6 +374,8 @@ def stem_to_cache_annotation(name, stem, voiceonly=False):
         return MDB_stem_to_cache_annotation(directory, stem)
     elif name == 'PTDB':
         return PTDB_stem_to_cache_annotation(directory, stem)
+    elif name == 'TOY':
+        return TOY_stem_to_cache_annotation(directory, stem)
 
     raise ValueError(f'Dataset {name} is not implemented')
 
@@ -384,6 +387,9 @@ def PTDB_stem_to_cache_annotation(directory, stem):
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     return directory / 'annotation' / ("ref_" + stem + ".npy")
+
+def TOY_stem_to_cache_annotation(directory, stem):
+    return directory / 'annotation' / stem
 
 def stem_to_cache_frames(name, stem, voiceonly=False):
     """Resolve stem to a numpy array of frames in the cache
@@ -406,6 +412,8 @@ def stem_to_cache_frames(name, stem, voiceonly=False):
         return MDB_stem_to_cache_frames(directory, stem)
     elif name == 'PTDB':
         return PTDB_stem_to_cache_frames(directory, stem)
+    elif name == 'TOY':
+        return TOY_stem_to_cache_frames(directory, stem)
 
     raise ValueError(f'Dataset {name} is not implemented')
 
@@ -414,3 +422,6 @@ def MDB_stem_to_cache_frames(directory, stem):
 
 def PTDB_stem_to_cache_frames(directory, stem):
     return directory / 'frames' / ("mic_" + stem + ".npy")
+
+def TOY_stem_to_cache_frames(directory, stem):
+    return directory / 'frames' / stem
