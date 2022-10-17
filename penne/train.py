@@ -60,7 +60,8 @@ def my_loss(y_hat, y, blur=True, harmo=False):
         y = torch.nn.functional.one_hot(y.long(), num_classes=penne.PITCH_BINS)
     assert y_hat.shape == y.shape
     weight = torch.ones(y_hat.shape).cuda() * 20 if harmo else torch.ones(y_hat.shape).cuda()
-    return F.binary_cross_entropy_with_logits(y_hat, y.float(), weight=weight)
+    return F.binary_cross_entropy_with_logits(y_hat, y.float(), pos_weight=weight)
+
 
 def my_acc(y_hat, y, voicing):
     y_hat_voiced = y_hat[voicing == 1]
@@ -203,7 +204,6 @@ def main():
                 break
             x, y, voicing = x.to(device), y.to(device), voicing.to(device)
             output = model(x)
-
             num_steps = num_steps + 1
             #If we have multiple samples (i.e. for HarmoF0), squish the batch and num_samples dimensions for loss evaluation
             if len(output.shape) == 3:
