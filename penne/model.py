@@ -2,7 +2,8 @@ import functools
 
 import torch
 import torch.nn.functional as F
-import pytorch_lightning as pl
+import torchaudio
+#import pytorch_lightning as pl
 
 import penne
 import argparse
@@ -15,14 +16,14 @@ import math
 # Model definition
 ###############################################################################
 
-class Model(pl.LightningModule):
+class Model(torch.nn.Module):
     """PyTorch Lightning model definition"""
 
     def __init__(self, name='default'):
         super().__init__()
 
         self.epsilon = 0.0010000000474974513
-        self.learning_rate = 2e-4
+        self.learning_rate = penne.LEARNING_RATE
 
         # equivalent to Keras default momentum
         self.momentum = 0.01
@@ -44,62 +45,27 @@ class Model(pl.LightningModule):
         self.in_features = 2048
 
         # Shared layer parameters
-        kernel_sizes = [(512, 1)] + 5 * [(64, 1)]
-        strides = [(4, 1)] + 5 * [(1, 1)]
+        kernel_sizes = [512] + 5 * [64]
+        strides = [4] + 5 * [1]
 
         # Overload with eps and momentum conversion given by MMdnn
-        batch_norm_fn = functools.partial(torch.nn.BatchNorm2d,
+        batch_norm_fn = functools.partial(torch.nn.BatchNorm1d,
                                           eps=self.epsilon,
                                           momentum=self.momentum)
 
         # Layer definitions
-        self.conv1 = torch.nn.Conv2d(
-            in_channels=in_channels[0],
-            out_channels=out_channels[0],
-            kernel_size=kernel_sizes[0],
-            stride=strides[0])
-        self.conv1_BN = batch_norm_fn(
-            num_features=out_channels[0])
-
-        self.conv2 = torch.nn.Conv2d(
-            in_channels=in_channels[1],
-            out_channels=out_channels[1],
-            kernel_size=kernel_sizes[1],
-            stride=strides[1])
-        self.conv2_BN = batch_norm_fn(
-            num_features=out_channels[1])
-
-        self.conv3 = torch.nn.Conv2d(
-            in_channels=in_channels[2],
-            out_channels=out_channels[2],
-            kernel_size=kernel_sizes[2],
-            stride=strides[2])
-        self.conv3_BN = batch_norm_fn(
-            num_features=out_channels[2])
-
-        self.conv4 = torch.nn.Conv2d(
-            in_channels=in_channels[3],
-            out_channels=out_channels[3],
-            kernel_size=kernel_sizes[3],
-            stride=strides[3])
-        self.conv4_BN = batch_norm_fn(
-            num_features=out_channels[3])
-
-        self.conv5 = torch.nn.Conv2d(
-            in_channels=in_channels[4],
-            out_channels=out_channels[4],
-            kernel_size=kernel_sizes[4],
-            stride=strides[4])
-        self.conv5_BN = batch_norm_fn(
-            num_features=out_channels[4])
-
-        self.conv6 = torch.nn.Conv2d(
-            in_channels=in_channels[5],
-            out_channels=out_channels[5],
-            kernel_size=kernel_sizes[5],
-            stride=strides[5])
-        self.conv6_BN = batch_norm_fn(
-            num_features=out_channels[5])
+        self.conv = torch.nn.ModuleList()
+        self.conv_BN = torch.nn.ModuleList()
+        for i in range(6):
+            self.conv.append(torch.nn.Conv1d(
+                in_channels=in_channels[i],
+                out_channels=out_channels[i],
+                kernel_size=kernel_sizes[i],
+                stride=strides[i])
+            )
+            self.conv_BN.append(batch_norm_fn(
+                num_features=out_channels[i]
+            ))
 
         self.classifier = torch.nn.Linear(
             in_features=self.in_features,
@@ -117,182 +83,13 @@ class Model(pl.LightningModule):
             return x
 
         # Forward pass through layer six
-        x = self.layer(x, self.conv6, self.conv6_BN)
+        x = self.layer(x, self.conv[5], self.conv_BN[5], (31, 32))
 
         # shape=(batch, self.in_features)
-        x = x.permute(0, 2, 1, 3).reshape(-1, self.in_features)
+        x = x.permute(0, 2, 1).reshape(-1, self.in_features)
 
         # Compute logits
         return self.classifier(x)
-
-    ###########################################################################
-    # PyTorch Lightning - model-specific argparse argument hook
-    ###########################################################################
-
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        """Add model hyperparameters as argparse arguments"""
-        parser = argparse.ArgumentParser(
-            parents=[parent_parser], add_help=False)
-        return parser
-
-    ###########################################################################
-    # PyTorch Lightning - step model hooks
-    ###########################################################################
-
-    def my_loss(self, y_hat, y):
-        # apply Gaussian blur around target bin
-        mean = penne.convert.bins_to_cents(y)
-        normal = torch.distributions.Normal(mean, 25)
-        bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
-        bins = bins[:, None]
-        y = torch.exp(normal.log_prob(bins)).permute(1,0)
-        y /= y.max(dim=1, keepdims=True).values
-        assert y_hat.shape == y.shape
-        return F.binary_cross_entropy_with_logits(y_hat, y.float())
-
-    def my_acc(self, y_hat, y):
-        argmax_y_hat = y_hat.argmax(dim=1)
-        return argmax_y_hat.eq(y).sum().item()/y.numel()
-
-    def topk_acc(self, y_hat, y, k):
-        total = 0
-        for i in range(k):
-            total += torch.topk(y_hat, k, dim=1)[1][:,i].eq(y).sum().item()
-        return total / y.numel()
-
-    def training_step(self, batch, index):
-        """Performs one step of training"""
-        x, y, voicing = batch
-        output = self(x)
-        loss = self.my_loss(output, y)
-        acc = self.my_acc(output, y)
-
-        # update epoch's cumulative rmse, rpa, rca with current batch
-        y_hat = output.argmax(dim=1)
-        np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        np_y = y.cpu().numpy()[None,:]
-        np_voicing = voicing.cpu().numpy()[None,:]
-        # np_voicing masks out unvoiced frames
-        self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
-        self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        return {"loss": loss, "accuracy": acc}
-
-    def validation_step(self, batch, index):
-        """Performs one step of validation"""
-        x, y, voicing = batch
-        output = self(x)
-        loss = self.my_loss(output, y)
-        acc = self.my_acc(output, y)
-        
-        # update epoch's cumulative rmse, rpa, rca with current batch
-        y_hat = output.argmax(dim=1)
-        np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        np_y = y.cpu().numpy()[None,:]
-        np_voicing = voicing.cpu().numpy()[None,:]
-        # np_voicing masks out unvoiced frames
-        self.val_rmse.update(np_y_hat_freq, np_y, np_voicing)
-        self.val_rpa.update(np_y_hat_freq, np_y)
-        self.val_rca.update(np_y_hat_freq, np_y)
-        return {"loss": loss, "accuracy": acc}
-
-    def training_epoch_end(self, outputs):
-        # compute mean loss and accuracy
-        loss_sum = 0
-        acc_sum = 0
-        for x in outputs:
-            loss_sum += x['loss']
-            acc_sum += x['accuracy']
-        loss_mean = loss_sum / len(outputs)
-        acc_mean = acc_sum / len(outputs)
-
-        # log metrics to tensorboard
-        self.logger.experiment.add_scalar("Loss/Train", loss_mean, self.current_epoch)
-        self.logger.experiment.add_scalar("Accuracy/Train", acc_mean, self.current_epoch)
-        self.logger.experiment.add_scalar("RMSE/Train", self.train_rmse(), self.current_epoch)
-        self.logger.experiment.add_scalar("RPA/Train", self.train_rpa(), self.current_epoch)
-        self.logger.experiment.add_scalar("RCA/Train", self.train_rca(), self.current_epoch)
-
-        # reset metrics for next epoch
-        self.train_rmse.reset()
-        self.train_rpa.reset()
-        self.train_rca.reset()
-
-    def validation_epoch_end(self, outputs):
-        # compute mean loss and accuracy
-        if not self.trainer.sanity_checking:
-            loss_sum = 0
-            acc_sum = 0
-            for x in outputs:
-                loss_sum += x['loss']
-                acc_sum += x['accuracy']
-            loss_mean = loss_sum / len(outputs)
-            acc_mean = acc_sum / len(outputs)
-
-            # log metrics to tensorboard
-            self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
-            self.logger.experiment.add_scalar("Accuracy/Val", acc_mean, self.current_epoch)
-            self.logger.experiment.add_scalar("RMSE/Val", self.val_rmse(), self.current_epoch)
-            self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
-            self.logger.experiment.add_scalar("RCA/Val", self.val_rca(), self.current_epoch)
-
-            # log mean validation accuracy for early stopping
-            self.log('val_accuracy', acc_mean)
-
-            # save the best checkpoint so far
-            if loss_mean < self.best_loss and self.current_epoch > 5:
-                self.best_loss = loss_mean
-                checkpoint_path = penne.CHECKPOINT_DIR.joinpath('crepe', self.name, str(self.current_epoch)+'.ckpt')
-                self.trainer.save_checkpoint(checkpoint_path)
-
-            # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
-            # plot logits and posterior distribution
-            if self.current_epoch < 5 or self.current_epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
-                # load a batch for logging if not yet loaded
-                if self.ex_batch is None:
-                    self.ex_batch = self.ex_batch_for_logging(penne.LOG_EXAMPLE)
-
-                # plot logits
-                logits = penne.infer(self.ex_batch, model=self).cpu()
-
-                # plot posterior distribution
-                if penne.LOG_WITH_SOFTMAX:
-                    self.write_posterior_distribution(torch.nn.Softmax(dim=1)(logits))
-                self.write_posterior_distribution(logits)
-
-        self.val_rmse.reset()
-        self.val_rpa.reset()
-        self.val_rca.reset()
-
-    def ex_batch_for_logging(self, dataset):
-        if dataset == 'PTDB':
-            audio_file = penne.data.stem_to_file(dataset, 'F01_sa1')
-            ex_audio, ex_sr = penne.load.audio(audio_file)
-            ex_audio = penne.resample(ex_audio, ex_sr)
-            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
-        elif dataset == 'MDB':
-            audio_file = penne.data.stem_to_file(dataset, 'MusicDelta_InTheHalloftheMountainKing_STEM_03')
-            ex_audio, ex_sr = penne.load.audio(audio_file)
-            ex_audio = penne.resample(ex_audio, ex_sr)
-            # limit length to avoid memory error
-            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
-
-    def write_posterior_distribution(self, probabilities):
-        # plot the posterior distribution for ex_batch
-        checkpoint_label = str(self.current_epoch)+'.ckpt'
-        fig = plt.figure(figsize=(12, 3))
-        plt.imshow(probabilities.detach().numpy().T, origin='lower')
-        plt.title(checkpoint_label)
-        self.logger.experiment.add_figure('output distribution', fig, global_step=self.current_epoch)
-
-    ###########################################################################
-    # PyTorch Lightning - optimizer
-    ###########################################################################
-
-    def configure_optimizers(self):
-        """Configure optimizer for training"""
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     ###########################################################################
     # Forward pass utilities
@@ -300,34 +97,32 @@ class Model(pl.LightningModule):
 
     def embed(self, x):
         """Map input audio to pitch embedding"""
-        # shape=(batch, 1, 1024, 1)
-        x = x[:, None, :, None]
+        # shape=(batch, 1, 1024)
+        x = x[:, None, :]
         # Forward pass through first five layers
-        x = self.layer(x, self.conv1, self.conv1_BN, (0, 0, 254, 254))
-        x = self.layer(x, self.conv2, self.conv2_BN)
-        x = self.layer(x, self.conv3, self.conv3_BN)
-        x = self.layer(x, self.conv4, self.conv4_BN)
-        x = self.layer(x, self.conv5, self.conv5_BN)
+        for i in range(5):
+            padding = (254, 254) if i == 0 else (31, 32)
+            x = self.layer(x, self.conv[i], self.conv_BN[i], padding)
         return x
 
-    def layer(self, x, conv, batch_norm, padding=(0, 0, 31, 32)):
+    def layer(self, x, conv, batch_norm, padding):
         """Forward pass through one layer"""
         x = F.pad(x, padding)
         x = conv(x)
         x = F.relu(x)
         x = batch_norm(x)
-        x = F.max_pool2d(x, (2, 1), (2, 1))
+        x = F.max_pool1d(x, 2, 2)
         return F.dropout(x, p=0.25, training=self.training)
 
 
-class PDCModel(pl.LightningModule):
+class PDCModel(torch.nn.Module):
     """PyTorch Lightning model definition"""
 
     def __init__(self, name='default'):
         super().__init__()
 
         self.epsilon = 0.0010000000474974513
-        self.learning_rate = 2e-4
+        self.learning_rate = penne.LEARNING_RATE
 
         # equivalent to Keras default momentum
         self.momentum = 0.01
@@ -358,53 +153,18 @@ class PDCModel(pl.LightningModule):
                                           momentum=self.momentum)
 
         # Layer definitions
-        self.conv1 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[0],
-            out_channels=out_channels[0],
-            kernel_size=kernel_sizes[0],
-            stride=strides[0])
-        self.conv1_BN = batch_norm_fn(
-            num_features=out_channels[0])
-
-        self.conv2 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[1],
-            out_channels=out_channels[1],
-            kernel_size=kernel_sizes[1],
-            stride=strides[1])
-        self.conv2_BN = batch_norm_fn(
-            num_features=out_channels[1])
-
-        self.conv3 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[2],
-            out_channels=out_channels[2],
-            kernel_size=kernel_sizes[2],
-            stride=strides[2])
-        self.conv3_BN = batch_norm_fn(
-            num_features=out_channels[2])
-
-        self.conv4 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[3],
-            out_channels=out_channels[3],
-            kernel_size=kernel_sizes[3],
-            stride=strides[3])
-        self.conv4_BN = batch_norm_fn(
-            num_features=out_channels[3])
-
-        self.conv5 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[4],
-            out_channels=out_channels[4],
-            kernel_size=kernel_sizes[4],
-            stride=strides[4])
-        self.conv5_BN = batch_norm_fn(
-            num_features=out_channels[4])
-
-        self.conv6 = PrimeDilatedConvolutionBlock(
-            in_channels=in_channels[5],
-            out_channels=out_channels[5],
-            kernel_size=kernel_sizes[5],
-            stride=strides[5])
-        self.conv6_BN = batch_norm_fn(
-            num_features=out_channels[5])
+        self.conv = torch.nn.ModuleList()
+        self.conv_BN = torch.nn.ModuleList()
+        for i in range(6):
+            self.conv.append(PrimeDilatedConvolutionBlock(
+                in_channels=in_channels[i],
+                out_channels=out_channels[i],
+                kernel_size=kernel_sizes[i],
+                stride=strides[i]
+            ))
+            self.conv_BN.append(batch_norm_fn(
+                num_features=out_channels[i]
+            ))
 
         self.classifier = torch.nn.Linear(
             in_features=self.in_features,
@@ -422,182 +182,13 @@ class PDCModel(pl.LightningModule):
             return x
 
         # Forward pass through layer six
-        x = self.layer(x, self.conv6, self.conv6_BN)
+        x = self.layer(x, self.conv[5], self.conv_BN[5])
 
         # shape=(batch, self.in_features)
         x = x.reshape(-1, self.in_features)
 
         # Compute logits
         return self.classifier(x)
-
-    ###########################################################################
-    # PyTorch Lightning - model-specific argparse argument hook
-    ###########################################################################
-
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        """Add model hyperparameters as argparse arguments"""
-        parser = argparse.ArgumentParser(
-            parents=[parent_parser], add_help=False)
-        return parser
-
-    ###########################################################################
-    # PyTorch Lightning - step model hooks
-    ###########################################################################
-
-    def my_loss(self, y_hat, y):
-        # apply Gaussian blur around target bin
-        mean = penne.convert.bins_to_cents(y)
-        normal = torch.distributions.Normal(mean, 25)
-        bins = penne.convert.bins_to_cents(torch.arange(penne.PITCH_BINS).to(y.device))
-        bins = bins[:, None]
-        y = torch.exp(normal.log_prob(bins)).permute(1,0)
-        y /= y.max(dim=1, keepdims=True).values
-        assert y_hat.shape == y.shape
-        return F.binary_cross_entropy_with_logits(y_hat, y.float())
-
-    def my_acc(self, y_hat, y):
-        argmax_y_hat = y_hat.argmax(dim=1)
-        return argmax_y_hat.eq(y).sum().item()/y.numel()
-
-    def topk_acc(self, y_hat, y, k):
-        total = 0
-        for i in range(k):
-            total += torch.topk(y_hat, k, dim=1)[1][:,i].eq(y).sum().item()
-        return total / y.numel()
-
-    def training_step(self, batch, index):
-        """Performs one step of training"""
-        x, y, voicing = batch
-        output = self(x)
-        loss = self.my_loss(output, y)
-        acc = self.my_acc(output, y)
-
-        # update epoch's cumulative rmse, rpa, rca with current batch
-        y_hat = output.argmax(dim=1)
-        np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        np_y = y.cpu().numpy()[None,:]
-        np_voicing = voicing.cpu().numpy()[None,:]
-        # np_voicing masks out unvoiced frames
-        self.train_rmse.update(np_y_hat_freq, np_y, np_voicing)
-        self.train_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        self.train_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        return {"loss": loss, "accuracy": acc}
-
-    def validation_step(self, batch, index):
-        """Performs one step of validation"""
-        x, y, voicing = batch
-        output = self(x)
-        loss = self.my_loss(output, y)
-        acc = self.my_acc(output, y)
-
-        # update epoch's cumulative rmse, rpa, rca with current batch
-        y_hat = output.argmax(dim=1)
-        np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
-        np_y = y.cpu().numpy()[None,:]
-        np_voicing = voicing.cpu().numpy()[None,:]
-        # np_voicing masks out unvoiced frames
-        self.val_rmse.update(np_y_hat_freq, np_y, np.ones(np_y.shape))
-        self.val_rpa.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        self.val_rca.update(np_y_hat_freq, np_y, voicing=np_voicing)
-        return {"loss": loss, "accuracy": acc}
-
-    def training_epoch_end(self, outputs):
-        # compute mean loss and accuracy
-        loss_sum = 0
-        acc_sum = 0
-        for x in outputs:
-            loss_sum += x['loss']
-            acc_sum += x['accuracy']
-        loss_mean = loss_sum / len(outputs)
-        acc_mean = acc_sum / len(outputs)
-
-        # log metrics to tensorboard
-        self.logger.experiment.add_scalar("Loss/Train", loss_mean, self.current_epoch)
-        self.logger.experiment.add_scalar("Accuracy/Train", acc_mean, self.current_epoch)
-        self.logger.experiment.add_scalar("RMSE/Train", self.train_rmse(), self.current_epoch)
-        self.logger.experiment.add_scalar("RPA/Train", self.train_rpa(), self.current_epoch)
-        self.logger.experiment.add_scalar("RCA/Train", self.train_rca(), self.current_epoch)
-
-        # reset metrics for next epoch
-        self.train_rmse.reset()
-        self.train_rpa.reset()
-        self.train_rca.reset()
-
-    def validation_epoch_end(self, outputs):
-        # compute mean loss and accuracy
-        if not self.trainer.sanity_checking:
-            loss_sum = 0
-            acc_sum = 0
-            for x in outputs:
-                loss_sum += x['loss']
-                acc_sum += x['accuracy']
-            loss_mean = loss_sum / len(outputs)
-            acc_mean = acc_sum / len(outputs)
-
-            # log metrics to tensorboard
-            self.logger.experiment.add_scalar("Loss/Val", loss_mean, self.current_epoch)
-            self.logger.experiment.add_scalar("Accuracy/Val", acc_mean, self.current_epoch)
-            self.logger.experiment.add_scalar("RMSE/Val", self.val_rmse(), self.current_epoch)
-            self.logger.experiment.add_scalar("RPA/Val", self.val_rpa(), self.current_epoch)
-            self.logger.experiment.add_scalar("RCA/Val", self.val_rca(), self.current_epoch)
-
-            # log mean validation accuracy for early stopping
-            self.log('val_accuracy', acc_mean)
-
-            # save the best checkpoint so far
-            if loss_mean < self.best_loss and self.current_epoch > 5:
-                self.best_loss = loss_mean
-                checkpoint_path = penne.CHECKPOINT_DIR.joinpath('pdc', self.name, str(self.current_epoch)+'.ckpt')
-                self.trainer.save_checkpoint(checkpoint_path)
-
-            # make plots of a specific example every LOG_EXAMPLE_FREQUENCY epochs
-            # plot logits and posterior distribution
-            if self.current_epoch < 5 or self.current_epoch % penne.LOG_EXAMPLE_FREQUENCY == 0:
-                # load a batch for logging if not yet loaded
-                if self.ex_batch is None:
-                    self.ex_batch = self.ex_batch_for_logging(penne.LOG_EXAMPLE)
-
-                # plot logits
-                logits = penne.infer(self.ex_batch, model=self).cpu()
-
-                # plot posterior distribution
-                if penne.LOG_WITH_SOFTMAX:
-                    self.write_posterior_distribution(torch.nn.Softmax(dim=1)(logits))
-                self.write_posterior_distribution(logits)
-
-        self.val_rmse.reset()
-        self.val_rpa.reset()
-        self.val_rca.reset()
-
-    def ex_batch_for_logging(self, dataset):
-        if dataset == 'PTDB':
-            audio_file = penne.data.stem_to_file(dataset, 'F01_sa1')
-            ex_audio, ex_sr = penne.load.audio(audio_file)
-            ex_audio = penne.resample(ex_audio, ex_sr)
-            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))
-        elif dataset == 'MDB':
-            audio_file = penne.data.stem_to_file(dataset, 'MusicDelta_InTheHalloftheMountainKing_STEM_03')
-            ex_audio, ex_sr = penne.load.audio(audio_file)
-            ex_audio = penne.resample(ex_audio, ex_sr)
-            # limit length to avoid memory error
-            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device='cuda'))[:1200,:]
-
-    def write_posterior_distribution(self, probabilities):
-        # plot the posterior distribution for ex_batch
-        checkpoint_label = str(self.current_epoch)+'.ckpt'
-        fig = plt.figure(figsize=(12, 3))
-        plt.imshow(probabilities.detach().numpy().T, origin='lower')
-        plt.title(checkpoint_label)
-        self.logger.experiment.add_figure('output distribution', fig, global_step=self.current_epoch)
-
-    ###########################################################################
-    # PyTorch Lightning - optimizer
-    ###########################################################################
-
-    def configure_optimizers(self):
-        """Configure optimizer for training"""
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     ###########################################################################
     # Forward pass utilities
@@ -608,11 +199,8 @@ class PDCModel(pl.LightningModule):
         # shape=(batch, 1, 1024)
         x = x[:, None, :]
         # Forward pass through first five layers
-        x = self.layer(x, self.conv1, self.conv1_BN)
-        x = self.layer(x, self.conv2, self.conv2_BN)
-        x = self.layer(x, self.conv3, self.conv3_BN)
-        x = self.layer(x, self.conv4, self.conv4_BN)
-        x = self.layer(x, self.conv5, self.conv5_BN)
+        for i in range(5):
+            x = self.layer(x, self.conv[i], self.conv_BN[i])
         return x
 
     def layer(self, x, conv, batch_norm, padding=(0, 0, 0, 0), pooling=2):
@@ -684,3 +272,227 @@ class PrimeDilatedConvolutionBlock(torch.nn.Module):
                 layer_out = layer(F.pad(x, (padding, padding)))
                 layer_outs.append(layer_out)
             return torch.cat(layer_outs, dim=1)
+
+############################
+# From harmof0: layers.py
+############################
+
+# Multiple Rate Dilated Convolution
+class MRDConv(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, dilation_list = [0, 12, 19, 24, 28, 31, 34, 36]):
+        super().__init__()
+        self.dilation_list = dilation_list
+        self.conv_list = []
+        for i in range(len(dilation_list)):
+            self.conv_list += [torch.nn.Conv2d(in_channels, out_channels, kernel_size = [1, 1])]
+        self.conv_list = torch.nn.ModuleList(self.conv_list)
+        
+    def forward(self, specgram):
+        # input [b x C x T x n_freq]
+        # output: [b x C x T x n_freq] 
+        specgram
+        dilation = self.dilation_list[0]
+        y = self.conv_list[0](specgram)
+        y = F.pad(y, pad=[0, dilation])
+        y = y[:, :, :, dilation:]
+        for i in range(1, len(self.conv_list)):
+            dilation = self.dilation_list[i]
+            x = self.conv_list[i](specgram)
+            # => [b x T x (n_freq + dilation)]
+            # x = F.pad(x, pad=[0, dilation])
+            x = x[:, :, :, dilation:]
+            n_freq = x.size()[3]
+            y[:, :, :, :n_freq] += x
+
+        return y
+
+# Fixed Rate Dilated Casual Convolution
+class FRDConv(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=[1,3], dilation=[1, 1]) -> None:
+        super().__init__()
+        right = (kernel_size[1]-1) * dilation[1]
+        bottom = (kernel_size[0]-1) * dilation[0]
+        self.padding = torch.nn.ZeroPad2d([0, right, 0 , bottom])
+        self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, dilation=dilation)
+
+    def forward(self,x):
+        x = self.padding(x)
+        x = self.conv2d(x)
+        return x
+
+
+class WaveformToLogSpecgram(torch.nn.Module):
+    def __init__(self, sample_rate, n_fft, fmin, bins_per_octave, freq_bins, hop_length, logspecgram_type): #, device
+        super().__init__()
+
+        e = freq_bins/bins_per_octave
+        fmax = fmin * (2 ** e)
+
+        self.logspecgram_type = logspecgram_type
+        self.n_fft = n_fft
+        hamming_window = torch.hann_window(self.n_fft)#.to(device)
+        # => [1 x 1 x n_fft]
+        hamming_window = hamming_window[None, None, :]
+        self.register_buffer("hamming_window", hamming_window, persistent=False)
+
+        # torch.hann_window()
+
+        fre_resolution = sample_rate/n_fft
+
+        idxs = torch.arange(0, freq_bins) #, device=device
+
+        log_idxs = fmin * (2**(idxs/bins_per_octave)) / fre_resolution
+
+        # Linear interpolation： y_k = y_i * (k-i) + y_{i+1} * ((i+1)-k)
+        log_idxs_floor = torch.floor(log_idxs).long()
+        log_idxs_floor_w = (log_idxs - log_idxs_floor).reshape([1, 1, freq_bins])
+        log_idxs_ceiling = torch.ceil(log_idxs).long()
+        log_idxs_ceiling_w = (log_idxs_ceiling - log_idxs).reshape([1, 1, freq_bins])
+        self.register_buffer("log_idxs_floor", log_idxs_floor, persistent=False)
+        self.register_buffer("log_idxs_floor_w", log_idxs_floor_w, persistent=False)
+        self.register_buffer("log_idxs_ceiling", log_idxs_ceiling, persistent=False)
+        self.register_buffer("log_idxs_ceiling_w", log_idxs_ceiling_w, persistent=False)
+
+        self.waveform_to_specgram = torchaudio.transforms.Spectrogram(n_fft, hop_length=hop_length)#.to(device)
+
+        assert(bins_per_octave % 12 == 0)
+        bins_per_semitone = bins_per_octave // 12
+        
+        self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(top_db=80)
+
+    def forward(self, waveforms):
+        # inputs: [b x num_frames x frame_len]
+        # outputs: [b x num_frames x n_bins]
+
+        if(self.logspecgram_type == 'logharmgram'):
+            waveforms = waveforms * self.hamming_window
+            specgram =  torch.fft.fft(waveforms)
+            specgram = torch.abs(specgram[:, :, :self.n_fft//2 + 1])
+            specgram = specgram * specgram
+            # => [num_frames x n_fft//2 x 1]
+            # specgram = torch.unsqueeze(specgram, dim=2)
+
+            # => [b x freq_bins x T]
+            specgram = specgram[:,:, self.log_idxs_floor] * self.log_idxs_floor_w + specgram[:, :, self.log_idxs_ceiling] * self.log_idxs_ceiling_w
+
+        specgram_db = self.amplitude_to_db(specgram)
+        # specgram_db = specgram_db[:, :, :-1] # remove the last frame.
+        # specgram_db = specgram_db.permute([0, 2, 1])
+        return specgram_db
+
+############################
+# From harmof0: network.py
+############################
+
+def dila_conv_block( 
+    in_channel, out_channel, 
+    bins_per_octave,
+    n_har,
+    dilation_mode,
+    dilation_rate,
+    dil_kernel_size,
+    kernel_size = [1,3],
+    padding = [0,1],
+):
+
+    conv = torch.nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, padding=padding)
+    batch_norm = torch.nn.BatchNorm2d(out_channel)
+
+    # dilation mode: 'log_scale', 'fixed'
+    if(dilation_mode == 'log_scale'):
+        a = np.log(np.arange(1, n_har + 1))/np.log(2**(1.0/bins_per_octave))
+        dilation_list = a.round().astype(np.int)
+        conv_log_dil = MRDConv(out_channel, out_channel, dilation_list)
+        return torch.nn.Sequential(
+            conv,torch.nn.ReLU(),
+            conv_log_dil,torch.nn.ReLU(),
+            batch_norm,
+            # pool
+        )
+    elif(dilation_mode == 'fixed_causal'):
+        dilation_list = np.array([i * dil_kernel_size[1] for i in range(dil_kernel_size[1])])
+        causal_conv = FRDConv(out_channel, out_channel, dil_kernel_size, dilation=[1, dilation_rate])
+        return torch.nn.Sequential(
+            conv,torch.nn.ReLU(),
+            causal_conv,torch.nn.ReLU(),
+            batch_norm,
+            # pool
+        )
+    elif(dilation_mode == 'fixed'):
+        conv_dil = torch.nn.Conv2d(out_channel, out_channel, kernel_size=dil_kernel_size, padding='same', dilation=[1, dilation_rate])
+        
+        return torch.nn.Sequential(
+            conv,torch.nn.ReLU(),
+            conv_dil,torch.nn.ReLU(),
+            batch_norm,
+            # pool
+        )
+    else:
+        assert False, "unknown dilation type: " + dilation_mode
+
+
+class HarmoF0(torch.nn.Module):
+    def __init__(self, 
+            sample_rate=16000, 
+            n_freq=512, 
+            n_har=12, 
+            bins_per_octave=60, 
+            dilation_modes=['log_scale', 'fixed', 'fixed', 'fixed'],
+            dilation_rates=[60, 60, 60, 60], #[48, 48, 48, 48]
+            logspecgram_type='logharmgram',
+            channels=[32, 64, 128, 128],
+            fmin=31.75,
+            freq_bins=360,
+            dil_kernel_sizes= [[1, 3], [1,3], [1,3], [1,3]],
+        ):
+        super().__init__()
+        self.logspecgram_type = logspecgram_type
+
+        n_fft = n_freq * 2
+        self.n_freq = n_freq
+        self.freq_bins = freq_bins
+        
+        self.waveform_to_logspecgram = WaveformToLogSpecgram(sample_rate, n_fft, fmin, bins_per_octave, freq_bins, n_freq, logspecgram_type) #, device
+
+        bins = bins_per_octave
+
+        # [b x 1 x T x 88*8] => [b x 32 x T x 88*4]
+        self.block_1 = dila_conv_block(1, channels[0], bins, n_har=n_har, dilation_mode=dilation_modes[0], dilation_rate=dilation_rates[0], dil_kernel_size=dil_kernel_sizes[0], kernel_size=[3, 3], padding=[1,1])
+        
+        bins = bins // 2
+        # => [b x 64 x T x 88*4]
+        self.block_2 = dila_conv_block(channels[0], channels[1], bins, 3, dilation_mode=dilation_modes[1], dilation_rate=dilation_rates[1], dil_kernel_size=dil_kernel_sizes[1], kernel_size=[3, 3], padding=[1,1])
+        # => [b x 128 x T x 88*4]
+        self.block_3 = dila_conv_block(channels[1], channels[2], bins, 3, dilation_mode=dilation_modes[2], dilation_rate=dilation_rates[2], dil_kernel_size=dil_kernel_sizes[2], kernel_size=[3, 3], padding=[1,1])
+        # => [b x 128 x T x 88*4]
+        self.block_4 = dila_conv_block(channels[2], channels[3], bins, 3, dilation_mode=dilation_modes[3], dilation_rate=dilation_rates[3], dil_kernel_size=dil_kernel_sizes[3], kernel_size=[3, 3], padding=[1,1])
+
+        self.conv_5 = torch.nn.Conv2d(channels[3], channels[3]//2, kernel_size=[1,1])
+        self.conv_6 = torch.nn.Conv2d(channels[3]//2, 1, kernel_size=[1,1])
+
+    def forward(self, waveforms, embed=False):
+        # input: [b x num_frames x frame_len]
+        # output: [b x num_frames x 360]
+
+        specgram = self.waveform_to_logspecgram(waveforms.transpose(2,1)).float()
+        #TRY REPLACE WITH
+        #https://pytorch.org/audio/stable/transforms.html#melspectrogram
+        #Followed by amplitudetodb (for log)
+        # => [b x 1 x num_frames x n_bins]
+        x = specgram.unsqueeze(1)
+
+        x = self.block_1(x)
+        x = self.block_2(x)
+        x = self.block_3(x)
+        x = self.block_4(x)
+
+        # [b x 128 x T x 360] => [b x 64 x T x 360]
+        x = self.conv_5(x)
+        x = torch.relu(x)
+        x = self.conv_6(x)
+        x = torch.sigmoid(x)
+
+        x = torch.squeeze(x, dim=1)
+        # x = torch.clip(x, 1e-4, 1 - 1e-4)
+        # => [num_frames x n_bins]
+        return x

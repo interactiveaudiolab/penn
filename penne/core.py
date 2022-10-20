@@ -30,11 +30,15 @@ SAMPLE_RATE = 16000  # hz
 UNVOICED = np.nan
 WINDOW_SIZE = 1024  # samples
 EARLY_STOP_PATIENCE = 32
+LEARNING_RATE = 2e-4
+HARMO_LEARNING_RATE = 1e-3
+CHECKPOINT_FREQ = 20
+LOG_STEP_FREQ = 200
 
 # Options
 VOICE_ONLY = False # toggle training with voice only or not
-LOG_EXAMPLE = 'MDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
-LOG_EXAMPLE_FREQUENCY = 50 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
+LOG_EXAMPLE = 'PTDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
+LOG_EXAMPLE_FREQUENCY = 2 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
 LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits
 
 
@@ -656,4 +660,6 @@ def resample(audio, sample_rate):
 
 
 def entropy(distribution):
-    return 1 + (1 / np.log2(penne.PITCH_BINS)) * ((distribution * torch.log2(distribution)).sum())
+    return 1 - (1 / np.log2(penne.PITCH_BINS)) * ((distribution * torch.log2(distribution)).sum())
+    #Assumes one frame
+    #TODO: sum only over dimension for one frame

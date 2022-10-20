@@ -3,7 +3,6 @@
 import json
 import os
 
-import pytorch_lightning as pl
 import torch
 import numpy as np
 import random
@@ -26,16 +25,18 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY, clean=False):
+    def __init__(self, name, partition, voiceonly=penne.VOICE_ONLY, clean=False, num_samples=1):
         self.name = name
         self.voiceonly = voiceonly
         self.stems = {}
         self.offsets = {}
+        self.num_samples = num_samples
         offset_json = 'clean_offsets.json' if clean else 'offsets.json'
 
-        
+
         # read information from cache directory
         subfolder = 'voiceonly' if voiceonly else 'all'
+        if num_samples != 1: subfolder = 'harmo'
         self.split = 0
         self.total_nframes = 0
         if self.name == 'BOTH':
@@ -51,7 +52,7 @@ class Dataset(torch.utils.data.Dataset):
                     self.total_nframes += offset_json['totals'][partition]
                 if self.split == 0:
                     self.split = self.total_nframes
-        elif name in ['MDB', 'PTDB']:
+        elif name in ['MDB', 'PTDB', 'TOY']:
             with open(penne.CACHE_DIR / subfolder / self.name / "offsets.json", 'r') as f:
                 offset_json = json.load(f)
                 # save list of stems for given dataset
@@ -63,19 +64,31 @@ class Dataset(torch.utils.data.Dataset):
                 self.total_nframes = offset_json['totals'][partition]
         else:
             raise ValueError("Dataset name must be MDB, PTDB, or BOTH")
+        #Adjust offsets to cut off ends when num_samples isn't 1 (becomes null-op when num_samples is 1)
+        loss = num_samples - 1
+        for key in self.offsets.keys():
+            self.offsets[key] = list(self.offsets[key]) #Make mutable
+            accum_loss = 0
+            for i, offset in enumerate(self.offsets[key]):
+                self.offsets[key][i] = (offset - accum_loss)
+                accum_loss += loss
+            self.total_nframes -= accum_loss
 
     def __getitem__(self, index):
-        if self.name in ['MDB', 'PTDB']:
-            return self.getitem_from_dataset(self.name, index)
+        if self.name in ['MDB', 'PTDB', 'TOY']:
+            return self.getitem_from_dataset(self.name, index, self.num_samples)
         else:
             if index < self.split:
-                return self.getitem_from_dataset('MDB', index)
+                return self.getitem_from_dataset('MDB', index, self.num_samples)
             else:
-                return self.getitem_from_dataset('PTDB', index - self.split)
+                return self.getitem_from_dataset('PTDB', index - self.split, self.num_samples)
 
 
-    def getitem_from_dataset(self, name, index):
+    def getitem_from_dataset(self, name, index, num_samples):
         """Retrieve the indexth item"""
+        # TODO - For harmof0, track valid starting point indices
+        #      - Requires knowing the number of prior examples in the dataset
+
         # get the stem that indexth item is from
         stem_idx = bisect.bisect_right(self.offsets[name], index) - 1
         stem = self.stems[name][stem_idx]
@@ -83,40 +96,47 @@ class Dataset(torch.utils.data.Dataset):
         # get samples in indexth frame
         frame_idx = index - self.offsets[name][stem_idx]
         frames = np.load(penne.data.stem_to_cache_frames(name, stem, self.voiceonly), mmap_mode='r')
-        frame = frames[:,:,frame_idx]
+        frame = frames[:,:,frame_idx:frame_idx+num_samples]
         # Convert to float32
         if frame.dtype == np.int16:
             frame = frame.astype(np.float32) / np.iinfo(np.int16).max
         frame = torch.from_numpy(frame.copy())
 
         # normalize
-        frame -= frame.mean(dim=1, keepdim=True)
-        frame /= torch.max(torch.tensor(1e-10, device=frame.device),
-            frame.std(dim=1, keepdim=True))
+        # if self.num_samples == 1:
+        if not name == "TOY":
+            frame -= frame.mean(dim=1, keepdim=True)
+            frame /= torch.max(torch.tensor(1e-10, device=frame.device),
+                frame.std(dim=1, keepdim=True))
 
         # get the annotation bin
         annotation_path = stem_to_cache_annotation(name, stem, self.voiceonly)
         annotations = penne.load.annotation_from_cache(annotation_path)
-        annotation = annotations[:,frame_idx]
-
-        voicing = torch.zeros(annotation.shape) if annotation == 0 else torch.ones(annotation.shape)
+        annotation = annotations[:,frame_idx:frame_idx+num_samples]
+        voicing = (annotation != 0)
         # choose a random bin if unvoiced
-        if annotation == 0:
-            annotation[0] = torch.randint(0, penne.PITCH_BINS, annotation.shape)
+        annotation = torch.where(annotation == 0, torch.randint(0, penne.PITCH_BINS, annotation.shape, dtype=torch.int32), annotation)
+        if num_samples == 1: #Collapse last dimension if not getting multiple samples
+            frame = frame.reshape(frame.shape[:-1])
+            annotation = annotation.reshape(annotation.shape[:-1])
+            voicing = voicing.reshape(voicing.shape[:-1])
         # (1, 1024), (1,), (1,)
         return (frame, annotation, voicing)
-        
+
 
     def __len__(self):
         """Length of the dataset"""
+        # TODO - length is the number of valid starting points for a window of length self.num_samples in the dataset
+        # FOR TESTING LOW SAMPLE AMOUNTS
+        #return 1    
         return self.total_nframes
 
 ###############################################################################
 # Data module
 ###############################################################################
 
-class DataModule(pl.LightningDataModule):
-    """PyTorch Lightning data module
+class DataModule():
+    """Data module object encapsulation
 
     Arguments
         name - string
@@ -125,43 +145,46 @@ class DataModule(pl.LightningDataModule):
             The size of a batch
         num_workers - int or None
             Number data loading jobs to launch. If None, uses num cpu cores.
+        num_samples - int
+            Number of samples to load at a time. Should be 1 for CREPE and PDC, 100 for HarmoF0
     """
 
-    def __init__(self, name, batch_size=64, num_workers=None):
+    def __init__(self, name, batch_size=64, num_workers=None, num_samples=1):
         super().__init__()
         self.name = name
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.num_samples = num_samples
 
     def train_dataloader(self):
         """Retrieve the PyTorch DataLoader for training"""
-        return loader(self.name, 'train', self.batch_size, self.num_workers, penne.VOICE_ONLY)
+        return loader(self.name, 'train', self.batch_size, self.num_workers, penne.VOICE_ONLY, self.num_samples)
 
     def val_dataloader(self):
         """Retrieve the PyTorch DataLoader for validation"""
-        return loader(self.name, 'valid', self.batch_size, self.num_workers, True)
+        return loader(self.name, 'valid', self.batch_size, self.num_workers, penne.VOICE_ONLY, self.num_samples)
 
     def test_dataloader(self):
         """Retrieve the PyTorch DataLoader for testing"""
-        return loader(self.name, 'test', self.batch_size, self.num_workers, True)
+        return loader(self.name, 'test', self.batch_size, self.num_workers, penne.VOICE_ONLY, self.num_samples)
 
 ###############################################################################
 # Data loader
 ###############################################################################
 
-def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.VOICE_ONLY):
+def loader(dataset, partition, batch_size=64, num_workers=None, voiceonly=penne.VOICE_ONLY, num_samples=1):
     """Retrieve a data loader"""
     if dataset == 'BOTH':
         dataset_obj = torch.utils.data.ConcatDataset([
-            Dataset('MDB', partition, voiceonly),
-            Dataset('PTDB', partition, voiceonly)
+            Dataset('MDB', partition, voiceonly, num_samples=num_samples),
+            Dataset('PTDB', partition, voiceonly, num_samples=num_samples)
         ])
     else:
-        dataset_obj = Dataset(dataset, partition, voiceonly)
+        dataset_obj = Dataset(dataset, partition, voiceonly, num_samples=num_samples)
     return torch.utils.data.DataLoader(
         dataset=dataset_obj,
         batch_size=batch_size,
-        shuffle='test' not in partition,
+        shuffle='train' in partition,
         num_workers=os.cpu_count() if num_workers is None else num_workers,
         pin_memory=True,
         collate_fn=collate_fn)
@@ -264,7 +287,7 @@ def MDB_stem_to_annotation(directory, stem):
     return directory / 'annotation_stems' / (stem + ".RESYN.csv")
 
 def PTDB_stem_to_annotation(directory, stem):
-    # This file contains a four column matrix which includes the pitch, a voicing decision, the 
+    # This file contains a four column matrix which includes the pitch, a voicing decision, the
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     sub_folder = stem[:3]
@@ -351,6 +374,8 @@ def stem_to_cache_annotation(name, stem, voiceonly=False):
         return MDB_stem_to_cache_annotation(directory, stem)
     elif name == 'PTDB':
         return PTDB_stem_to_cache_annotation(directory, stem)
+    elif name == 'TOY':
+        return TOY_stem_to_cache_annotation(directory, stem)
 
     raise ValueError(f'Dataset {name} is not implemented')
 
@@ -358,10 +383,13 @@ def MDB_stem_to_cache_annotation(directory, stem):
     return directory / 'annotation' / (stem + ".RESYN.npy")
 
 def PTDB_stem_to_cache_annotation(directory, stem):
-    # This file contains a four column matrix which includes the pitch, a voicing decision, the 
+    # This file contains a four column matrix which includes the pitch, a voicing decision, the
     # root mean square values and the peak-normalized autocorrelation values respectively
     # (https://www2.spsc.tugraz.at//databases/PTDB-TUG/DOCUMENTATION/PTDB-TUG_REPORT.pdf)
     return directory / 'annotation' / ("ref_" + stem + ".npy")
+
+def TOY_stem_to_cache_annotation(directory, stem):
+    return directory / 'annotation' / stem
 
 def stem_to_cache_frames(name, stem, voiceonly=False):
     """Resolve stem to a numpy array of frames in the cache
@@ -384,6 +412,8 @@ def stem_to_cache_frames(name, stem, voiceonly=False):
         return MDB_stem_to_cache_frames(directory, stem)
     elif name == 'PTDB':
         return PTDB_stem_to_cache_frames(directory, stem)
+    elif name == 'TOY':
+        return TOY_stem_to_cache_frames(directory, stem)
 
     raise ValueError(f'Dataset {name} is not implemented')
 
@@ -392,3 +422,6 @@ def MDB_stem_to_cache_frames(directory, stem):
 
 def PTDB_stem_to_cache_frames(directory, stem):
     return directory / 'frames' / ("mic_" + stem + ".npy")
+
+def TOY_stem_to_cache_frames(directory, stem):
+    return directory / 'frames' / stem

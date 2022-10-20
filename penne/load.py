@@ -32,10 +32,12 @@ def model(device, checkpoint, pdc=False):
             torch.load(checkpoint, map_location=device))
 
     elif checkpoint.suffix =='.ckpt':
-        if pdc:
-            penne.infer.model = penne.PDCModel.load_from_checkpoint(checkpoint)
-        else:
-            penne.infer.model = penne.Model.load_from_checkpoint(checkpoint)
+        penne.infer.model = penne.PDCModel() if pdc else penne.Model()
+
+        # Load weights
+        penne.infer.model.load_state_dict(
+            torch.load(checkpoint, map_location=device)['model_state_dict'])
+
     else:
         raise ValueError(f'Invalid checkpoint extension for {checkpoint}')
     
