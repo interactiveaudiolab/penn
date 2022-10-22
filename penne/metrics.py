@@ -1,31 +1,18 @@
-import abc
-
 import torch
-import numpy as np
+
 import penne
-import math
+
 
 ###############################################################################
-# Base metric
+# Constants
 ###############################################################################
 
 
-class Metric(abc.ABC):
+# Evaluation threshold for RPA and RCA
+THRESHOLD = 50  # cents
 
-    @abc.abstractmethod
-    def __call__(self):
-        """Retrieve the value for the metric"""
-        pass
-
-    @abc.abstractmethod
-    def update(self):
-        """Update the metric with one batch"""
-        pass
-
-    @abc.abstractmethod
-    def reset(self):
-        """Reset the metric"""
-        pass
+# One octave in cents
+OCTAVE = 1200  # cents
 
 
 ###############################################################################
@@ -41,7 +28,6 @@ class F1:
         self.thresh_function = thresh_function
 
     def __call__(self):
-        """Compute the aggregate rmse, precision, recall, and f1"""
         precision = \
             self.true_positives / (self.true_positives + self.false_positives)
         recall = \
@@ -50,10 +36,9 @@ class F1:
         return precision, recall, f1
 
     def update(self, source, target, source_periodicity):
-        """Update the precision, recall, and f1"""
         # use threshold to extract predicted voicings
         thresh_source = self.thresh_function(torch.from_numpy(source), torch.from_numpy(source_periodicity)).numpy()
-        source_voiced = ~np.isnan(thresh_source)
+        source_voiced = ~torch.isnan(thresh_source)
         # get voiced frames from annotation
         target_voiced = target != 0
         # get frames that are voiced for both source and target
@@ -70,39 +55,28 @@ class F1:
         self.false_positives = 0
         self.false_negatives = 0
 
-class WRMSE:
-    """Batch update WRMSE score"""
+
+class RMSE:
+    """Pitch RMSE"""
 
     def __init__(self):
         self.reset()
 
     def __call__(self):
-        """Compute the aggregate rmse, precision, recall, and f1"""
-        # take square root of mean square error
-        return math.sqrt(self.sum / self.count)
+        return torch.sqrt(self.sum / self.count)
 
-    def update(self, source, target, periodicity, target_type='bins'):
-        """Update the precision, recall, and f1"""
-        # convert all to cents
-        convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
-        if target_type == 'bins':
-            convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
-        elif target_type == 'freq':
-            convert_target = penne.convert.frequency_to_cents(torch.from_numpy(target)).numpy()
-        else:
-            raise ValueError('target_type must be "bins" or "freq"')
-        # compute sum of square error
-        self.sum += (periodicity * (convert_source-convert_target)**2).sum()
-        # source is shape (1, n)
-        self.count += source.shape[1]
+    def update(self, source, target, voiced):
+        self.sum += (cents(source[voiced], target[voiced]) ** 2).sum()
+        self.count += voiced.sum()
 
     def reset(self):
         """Reset the WRMSE score"""
         self.count = 0
         self.sum = 0
 
+
 class RPA:
-    """Batch update RPA score"""
+    """Raw prediction accuracy"""
 
     def __init__(self):
         self.reset()
@@ -110,32 +84,18 @@ class RPA:
     def __call__(self):
         return self.sum / self.count
 
-    def update(self, source, target, target_type='bins', voicing=None):
-        # convert all to cents
-        convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
-        if target_type == 'bins':
-            convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
-        elif target_type == 'freq':
-            convert_target = penne.convert.frequency_to_cents(torch.from_numpy(target)).numpy()
-        else:
-            raise ValueError('target_type must be "bins" or "freq"')
-        # mask out unvoiced regions according to annotation
-        if voicing is not None:
-            voiced = voicing == 1
-        else:
-            voiced = target != 0
-        diff = convert_source[voiced] - convert_target[voiced]
-        # count predictions that are within 50 cents of target
-        self.sum += (np.abs(diff) < 50).sum()
+    def update(self, source, target, voiced):
+        difference = cents(source[voiced], target[voiced])
+        self.sum += (torch.abs(difference) < THRESHOLD).sum()
         self.count += voiced.sum()
 
     def reset(self):
-        """Reset the RPA score"""
         self.count = 0
         self.sum = 0
 
+
 class RCA:
-    """Batch update RCA score"""
+    """Raw chroma accuracy"""
 
     def __init__(self):
         self.reset()
@@ -143,29 +103,18 @@ class RCA:
     def __call__(self):
         return self.sum / self.count
 
-    def update(self, source, target, target_type='bins', voicing=None):
-        # convert all to cents
-        convert_source = penne.convert.frequency_to_cents(torch.from_numpy(source)).numpy()
-        if target_type == 'bins':
-            convert_target = penne.convert.bins_to_cents(torch.from_numpy(target)).numpy()
-        elif target_type == 'freq':
-            convert_target = penne.convert.frequency_to_cents(torch.from_numpy(target)).numpy()
-        else:
-            raise ValueError('target_type must be "bins" or "freq"')
-        # mask out unvoiced regions according to annotation
-        if voicing is not None:
-            voiced = voicing == 1
-        else:
-            voiced = target != 0
-        diff = convert_source[voiced] - convert_target[voiced]
-        # forgive octave errors
-        diff[diff > 1150] -= 1200
-        diff[diff < -1150] += 1200
-        # count predictions that are within 50 cents of target
-        self.sum += (np.abs(diff) < 50).sum()
+    def update(self, source, target, voiced):
+        # Compute pitch difference in cents
+        difference = cents(source[voiced], target[voiced])
+
+        # Forgive octave errors
+        difference[difference > (OCTAVE - THRESHOLD)] -= OCTAVE
+        difference[difference < -(OCTAVE - THRESHOLD)] += OCTAVE
+
+        # Count predictions that are within 50 cents of target
+        self.sum += (torch.abs(difference) < THRESHOLD).sum()
         self.count += voiced.sum()
 
     def reset(self):
-        """Reset the RCA score"""
         self.count = 0
         self.sum = 0

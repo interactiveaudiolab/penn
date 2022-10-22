@@ -1,0 +1,38 @@
+import json
+import random
+
+import penne
+
+
+###############################################################################
+# Dataset-specific
+###############################################################################
+
+
+def datasets(datasets):
+    """Partition datasets"""
+    for name in datasets:
+        random.seed(penne.RANDOM_SEED)
+        dataset(name)
+
+
+def dataset(name):
+    """Partition dataset"""
+    # Get dataset stems
+    stems = sorted([
+        file.stem[:-6] for file in
+        (penne.CACHE_DIR / name).glob('*-audio.npy')])
+    random.shuffle(stems)
+
+    # Get split points
+    left, right = int(.70 * len(stems)), int(.85 * len(stems))
+
+    # Perform partition
+    partition = {
+        'train': stems[:left],
+        'valid': stems[left:right],
+        'test': stems[right:]}
+
+    # Write partition file
+    with open(penne.PARTITION_DIR / f'{name}.json', 'w') as file:
+        json.dump(partition, file, indent=4)

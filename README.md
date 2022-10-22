@@ -8,35 +8,40 @@ Clone this repo, navigate to the root directory of the folder and run `pip insta
 
 ### Download data
 
-Place datasets in `data/DATASET`, where `DATASET` is the name of the dataset. `MDB` and `PTDB` are supported. The internal folder hierarchy should be as downloaded ([MDB-stem-synth](https://zenodo.org/record/1481172), [PTDB-TUG](https://www2.spsc.tugraz.at/databases/PTDB-TUG/)), like the following:
-```
-data
-|-- MDB
-|   |-- annotation_stems
-|   |   |-- ...
-|   |-- audio_stems
-|   |   |-- ...
-|-- PTDB
-|   |-- FEMALE
-|   |   |-- ...
-|   |-- MALE
-|   |   |-- ...
-```
-You can accomplish this manually, or by running the download_data.sh script.
+`python -m penne.data.download`
+
+Downloads and uncompresses the `mdb` and `ptdb` datasets used for training.
+
+
+### Format data
+
+`python -m penne.data.format`
+
+Converts each dataset to a common format on disk.
+
 
 ### Partition data
 
-To generate training/testing/validation partitions, run `python -m penne.partition DATASET` where `DATASET` is either `MDB` or `PTDB`.
+`python -m penne.partition`
+
+Generates `train`, `valid`, and `test` partitions for `mdb` and `ptdb`.
 
 
 ### Preprocess data
+
+**TODO** - do we need a preprocess step?
 
 To preprocess data for training, run `python -m penne.preprocess DATASET` where `DATASET` is either `MDB` or `PTDB`.
 
 
 ### Train
 
-To train the model, run `python -m penne.train --dataset=DATASET <args>`. `DATASET` can be `MDB`, `PTDB`, or `BOTH`.
+**TODO** - dataset -> datasets
+**TODO** - better documentation of necessary arguments
+
+`python -m penne.train --dataset=DATASET <args>`
+
+Trains a model. `DATASET` can be `MDB`, `PTDB`, or `BOTH`.
 Recommended arguments:
  - `--name=NAME`, which uses NAME for logging organization purposes
  - `--batch_size=32`, which is the batch size used in the original CREPE paper
@@ -47,25 +52,25 @@ Recommended arguments:
 
 ### Monitor
 
-Run `tensorboard --logdir runs/logs`. If you are running training
-remotely, you must create a SSH connection with port forwarding to view
-Tensorboard. Some IDEs (e.g., VS Code) will do this automatically, or
-you can do this manually with `ssh -L 6006:localhost:6006 <user>@<server-ip-address>`.
-Then, open `localhost:6006` in your browser. By default, CREPE and
-PDC trainings are placed in `runs/logs/crepe` and `run/logs/pdc` subfolders
-respectively, so you can replace the `--logdir` path to see only those runs
-in the tensorboard.
+Run tensorboard --logdir runs/. If you are running training remotely, you
+must create a SSH connection with port forwarding to view Tensorboard.
+This can be done with ssh -L 6006:localhost:6006 <user>@<server-ip-address>.
+Then, open localhost:6006 in your browser.
 
 
 ### Evaluate
 
-To evaluate, run `python -m penne.evaluate --dataset=DATASET
---checkpoint=<checkpoint> --model_name=<model_name>`, where
-`DATASET` either `MDB` or `PTDB`, `<checkpoint>` is the checkpoint
-file to evaluate, and `<model_name>` is a name given to label
-this particular evaluation run.`--pdc` flag is required for evaluating
-PDC models. Results show up in `runs/eval/DATASET/<model_name>`.
+**TODO** - dataset -> datasets
 
+```
+python -m penne.evaluate \
+    --config <config> \
+    --checkpoint <checkpoint> \
+    --gpu <gpu>
+```
+
+Evaluate a model. `<checkpoint>` is the checkpoint file to evaluate and `<gpu>` is the GPU index.
+<!--
 
 ### Clean
 
@@ -74,7 +79,7 @@ This allows you to filter out low-scoring stems. Use
 `python -m penne.clean <path> <partition> --dataset=DATASET`
 where DATASET is either `MDB` or `PTDB`, `<path>` is the path to the per
 stem json output from evaluation, and `partition` is `test`, `train`, or `valid`.
-This requires you to have already evaluated on the stems in that partition.
+This requires you to have already evaluated on the stems in that partition. -->
 
 
 ## References

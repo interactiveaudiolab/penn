@@ -1,45 +1,10 @@
-import os
-from pathlib import Path
-
 import numpy as np
-import resampy
 import torch
+import torchaudio
 import tqdm
 import time
 
 import penne
-
-###############################################################################
-# Constants
-###############################################################################
-
-# Paths
-ASSETS_DIR = Path(__file__).parent / 'assets'
-DATA_DIR = Path(__file__).parent.parent / 'data'
-CACHE_DIR = Path(__file__).parent.parent / 'cache'
-CHECKPOINT_DIR = Path(__file__).parent / 'checkpoints'
-RUNS_DIR = Path(__file__).parent.parent / 'runs'
-EVAL_DIR = RUNS_DIR / 'eval'
-
-# Numerical Constants
-CENTS_PER_BIN = 20  # cents
-HOP_SIZE = 160
-MAX_FMAX = 2006.  # hz
-PITCH_BINS = 360
-SAMPLE_RATE = 16000  # hz
-UNVOICED = np.nan
-WINDOW_SIZE = 1024  # samples
-EARLY_STOP_PATIENCE = 32
-LEARNING_RATE = 2e-4
-HARMO_LEARNING_RATE = 1e-3
-CHECKPOINT_FREQ = 20
-LOG_STEP_FREQ = 200
-
-# Options
-VOICE_ONLY = False # toggle training with voice only or not
-LOG_EXAMPLE = 'PTDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
-LOG_EXAMPLE_FREQUENCY = 2 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
-LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits
 
 
 ###############################################################################
@@ -51,14 +16,14 @@ def predict(audio,
             sample_rate,
             hop_length=None,
             fmin=50.,
-            fmax=MAX_FMAX,
+            fmax=penne.MAX_FMAX,
             checkpoint=None,
             model=None,
-            decoder=penne.decode.viterbi,
+            decoder=penne.decode.argmax,
             return_periodicity=False,
             return_time=False,
             batch_size=None,
-            device='cpu', 
+            device='cpu',
             pad=True):
     """Performs pitch estimation
 
@@ -113,7 +78,7 @@ def predict(audio,
 
             # shape=(batch, 360, time / hop_length)
             probabilities = probabilities.reshape(
-                audio.size(0), -1, PITCH_BINS).transpose(1, 2)
+                audio.size(0), -1, penne.PITCH_BINS).transpose(1, 2)
 
             # Convert probabilities to F0 and periodicity
             result = postprocess(probabilities,
@@ -146,7 +111,7 @@ def predict(audio,
 def predict_from_file(audio_file,
                       hop_length=None,
                       fmin=50.,
-                      fmax=MAX_FMAX,
+                      fmax=penne.MAX_FMAX,
                       checkpoint=None,
                       model=None,
                       decoder=penne.decode.viterbi,
@@ -206,7 +171,7 @@ def predict_from_file_to_file(audio_file,
                               output_periodicity_file=None,
                               hop_length=None,
                               fmin=50.,
-                              fmax=MAX_FMAX,
+                              fmax=penne.MAX_FMAX,
                               checkpoint=None,
                               model=None,
                               decoder=penne.decode.viterbi,
@@ -261,7 +226,7 @@ def predict_from_files_to_files(audio_files,
                                 output_periodicity_files=None,
                                 hop_length=None,
                                 fmin=50.,
-                                fmax=MAX_FMAX,
+                                fmax=penne.MAX_FMAX,
                                 checkpoint=None,
                                 decoder=penne.decode.viterbi,
                                 batch_size=None,
@@ -309,6 +274,7 @@ def predict_from_files_to_files(audio_files,
                                   decoder,
                                   batch_size,
                                   device)
+
 
 ###############################################################################
 # Crepe pitch embedding
@@ -505,7 +471,7 @@ def infer(frames, checkpoint=None, model=None, embed=False):
 
 def postprocess(probabilities,
                 fmin=0.,
-                fmax=MAX_FMAX,
+                fmax=penne.MAX_FMAX,
                 decoder=penne.decode.viterbi,
                 return_periodicity=False):
     """Convert model output to F0 and periodicity
@@ -575,17 +541,17 @@ def preprocess_from_audio(audio,
     hop_length = sample_rate // 100 if hop_length is None else hop_length
 
     # Resample
-    if sample_rate != SAMPLE_RATE:
+    if sample_rate != penne.SAMPLE_RATE:
         audio = resample(audio, sample_rate)
-        hop_length = int(hop_length * SAMPLE_RATE / sample_rate)
+        hop_length = int(hop_length * penne.SAMPLE_RATE / sample_rate)
 
     # Get total number of frames and pad
     if pad:
         total_frames = 1 + int(audio.size(1) // hop_length)
         audio = torch.nn.functional.pad(audio,
-                                        (WINDOW_SIZE // 2, WINDOW_SIZE // 2))
+                                        (penne.WINDOW_SIZE // 2, penne.WINDOW_SIZE // 2))
     else:
-        total_frames = 1 + int((audio.size(1)-WINDOW_SIZE) // hop_length)
+        total_frames = 1 + int((audio.size(1)-penne.WINDOW_SIZE) // hop_length)
 
     # Default to running all frames in a single batch
     batch_size = total_frames if batch_size is None else batch_size
@@ -596,16 +562,16 @@ def preprocess_from_audio(audio,
         # Batch indices
         start = max(0, i * hop_length)
         end = min(audio.size(1),
-                  (i + batch_size - 1) * hop_length + WINDOW_SIZE)
+                  (i + batch_size - 1) * hop_length + penne.WINDOW_SIZE)
 
         # Chunk
         frames = torch.nn.functional.unfold(
             audio[:, None, None, start:end],
-            kernel_size=(1, WINDOW_SIZE),
+            kernel_size=(1, penne.WINDOW_SIZE),
             stride=(1, hop_length))
 
         # shape=(1 + int(time / hop_length, 1024)
-        frames = frames.transpose(1, 2).reshape(-1, WINDOW_SIZE)
+        frames = frames.transpose(1, 2).reshape(-1, penne.WINDOW_SIZE)
 
         # Place on device
         frames = frames.to(device)
@@ -631,7 +597,7 @@ def periodicity(logits, bins):
     """Computes the periodicity from the network output and pitch bins"""
     probabilities = torch.nn.Softmax(dim=1)(logits)
     # shape=(batch * time / hop_length, 360)
-    probs_stacked = probabilities.transpose(1, 2).reshape(-1, PITCH_BINS)
+    probs_stacked = probabilities.transpose(1, 2).reshape(-1, penne.PITCH_BINS)
 
     # shape=(batch * time / hop_length, 1)
     bins_stacked = bins.reshape(-1, 1).to(torch.int64)
@@ -643,20 +609,23 @@ def periodicity(logits, bins):
     return periodicity.reshape(probabilities.size(0), probabilities.size(2))
 
 
-def resample(audio, sample_rate):
-    """Resample audio"""
-    # Store device for later placement
-    device = audio.device
+def iterator(iterable, message, length=None):
+    """Create a tqdm iterator"""
+    length = len(iterable) if length is None else length
+    return tqdm.tqdm(
+        iterable,
+        desc=message,
+        dynamic_ncols=True,
+        total=length)
 
-    # Convert to numpy
-    audio = audio.detach().cpu().numpy().squeeze(0)
 
-    # Resample
-    # We have to use resampy if we want numbers to match Crepe
-    audio = resampy.resample(audio, sample_rate, SAMPLE_RATE)
-
-    # Convert to pytorch
-    return torch.tensor(audio, device=device).unsqueeze(0)
+def resample(audio, sample_rate, target_rate=penne.SAMPLE_RATE):
+    """Perform audio resampling"""
+    if sample_rate == target_rate:
+        return audio
+    resampler = torchaudio.transforms.Resample(sample_rate, target_rate)
+    resampler = resampler.to(audio.device)
+    return resampler(audio)
 
 
 def entropy(distribution):

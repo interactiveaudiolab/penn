@@ -13,8 +13,8 @@ def bins_to_cents(bins):
     """Converts pitch bins to cents"""
     cents = penne.CENTS_PER_BIN * bins + 1997.3794084376191
 
-    # Trade quantization error for noise
-    return dither(cents)
+    # Maybe trade quantization error for noise
+    return dither(cents) if penne.DITHER else cents
 
 
 def bins_to_frequency(bins):
@@ -42,14 +42,20 @@ def frequency_to_cents(frequency):
     """Convert frequency in Hz to cents"""
     return 1200 * torch.log2(frequency / 10.)
 
+
 def seconds_to_frames(seconds):
+    """Convert seconds to number of frames"""
     return samples_to_frames(seconds_to_samples(seconds))
 
+
 def seconds_to_samples(seconds):
+    """Convert seconds to number of samples"""
     return seconds * penne.SAMPLE_RATE
 
+
 def samples_to_frames(samples):
-    return 1 + int(samples / penne.HOP_SIZE)
+    """Convert samples to number of frames"""
+    return samples // penne.HOPSIZE
 
 
 ###############################################################################

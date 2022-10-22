@@ -2,10 +2,6 @@
 
 
 import argparse
-import os
-from pathlib import Path
-import matplotlib
-import time
 
 from tqdm import tqdm
 import penne
@@ -13,10 +9,6 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-import random
-import numpy as np
-
-from penne import data
 
 
 ###############################################################################
@@ -75,13 +67,13 @@ def ex_batch_for_logging(dataset, device='cuda'):
             audio_file = penne.data.stem_to_file(dataset, 'F01_sa1')
             ex_audio, ex_sr = penne.load.audio(audio_file)
             ex_audio = penne.resample(ex_audio, ex_sr)
-            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device=device))
+            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOPSIZE, device=device))
         elif dataset == 'MDB':
             audio_file = penne.data.stem_to_file(dataset, 'MusicDelta_InTheHalloftheMountainKing_STEM_03')
             ex_audio, ex_sr = penne.load.audio(audio_file)
             ex_audio = penne.resample(ex_audio, ex_sr)
             # limit length to avoid memory error
-            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOP_SIZE, device=device))[:1200,:]
+            return next(penne.preprocess_from_audio(ex_audio, penne.SAMPLE_RATE, penne.HOPSIZE, device=device))[:1200,:]
 
 def write_posterior_distribution(probabilities, writer, epoch):
     # plot the posterior distribution for ex_batch
@@ -100,9 +92,6 @@ def main():
 
     # Parse command-line arguments
     args = parse_args()
-
-    # Setup early stopping for 32 epochs (by default according to CREPE) of no val accuracy improvement
-    patience = penne.EARLY_STOP_PATIENCE
 
     num_samples = 100 if args.harmof0 else 1
 
@@ -128,19 +117,15 @@ def main():
     else:
         device = torch.device('cpu')
     model = model.to(device)
-    lr = penne.HARMO_LEARNING_RATE if args.harmof0 else penne.LEARNING_RATE 
+    lr = penne.HARMO_LEARNING_RATE if args.harmof0 else penne.LEARNING_RATE
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     train_loader = datamodule.train_dataloader()
     valid_loader = datamodule.val_dataloader()
-    
-    #If early_stop_count gets above patience, stop early
-    early_stop_count = 0
-    last_val_acc = 0
 
     model.train() #Model in training mode
 
-    
+
 
     train_rmse = penne.metrics.WRMSE()
     train_rpa = penne.metrics.RPA()
@@ -178,7 +163,7 @@ def main():
     if best_checkpoint_file.exists():
         best_checkpoint = torch.load(checkpoint_file, map_location='cpu')
         best_loss = best_checkpoint['val_loss']
-        
+
     num_steps = 0
 
     if args.limit_train_batches == None: args.limit_train_batches = len(train_loader)
@@ -229,7 +214,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-            if num_steps % penne.LOG_STEP_FREQ == 0:
+            if num_steps % penne.LOG_INTERVAL == 0:
                 writer.add_scalar("Loss/Train", train_losses.avg, num_steps)
                 writer.add_scalar("Accuracy/Train", train_accs.avg, num_steps)
                 writer.add_scalar("RMSE/Train", train_rmse(), num_steps)
@@ -238,7 +223,7 @@ def main():
 
 
         print('training loss: %.5f, training accuracy: %.5f' % (train_losses.avg, train_accs.avg))
-        
+
         ###########################################################################
         # Log training metrics to Tensorboard
         ###########################################################################
@@ -248,7 +233,7 @@ def main():
         writer.add_scalar("RMSE/Train", train_rmse(), num_steps)
         writer.add_scalar("RPA/Train", train_rpa(), num_steps)
         writer.add_scalar("RCA/Train", train_rca(), num_steps)
-        
+
         train_rmse.reset()
         train_rpa.reset()
         train_rca.reset()
@@ -271,7 +256,7 @@ def main():
                     voicing = voicing.view(-1)
                 loss = my_loss(output, y, blur=args.blur, harmo=args.harmof0)
                 acc, num_voiced = my_acc(output, y, voicing)
-                
+
                 # update epoch's cumulative rmse, rpa, rca with current batch
                 y_hat = output.argmax(dim=1)
                 np_y_hat_freq = penne.convert.bins_to_frequency(y_hat).cpu().numpy()[None,:]
@@ -284,7 +269,7 @@ def main():
 
                 valid_losses.update(loss.item(), x.size(0))
                 valid_accs.update(acc, num_voiced)
-        
+
         print('validation loss: %.5f, validation accuracy: %.5f' % (valid_losses.avg, valid_accs.avg))
         val_accuracy = valid_accs.avg
         val_loss = valid_losses.avg
@@ -298,19 +283,6 @@ def main():
         writer.add_scalar("RMSE/Val", val_rmse(), num_steps)
         writer.add_scalar("RPA/Val", val_rpa(), num_steps)
         writer.add_scalar("RCA/Val", val_rca(), num_steps)
-
-        ###########################################################################
-        # Early stopping
-        ###########################################################################
-
-        if val_accuracy - last_val_acc <= 0:
-            early_stop_count += 1
-        else:
-            early_stop_count = 0
-            last_val_acc = val_accuracy
-        if early_stop_count >= penne.EARLY_STOP_PATIENCE:
-            print("Validation accuracy has not improved, stopping early")
-            break
 
         ###########################################################################
         # Checkpoint saving
@@ -327,7 +299,7 @@ def main():
             }, checkpoint_path)
             print("Validation loss improved to " + str(val_loss) + ", best model saved")
 
-        if epoch % penne.CHECKPOINT_FREQ == 0:
+        if epoch % penne.CHECKPOINT_INTERVAL == 0:
             checkpoint_path = checkpoint_dir / (str(epoch) + '.ckpt')
             torch.save({
                 'model_state_dict': model.state_dict(),
@@ -367,7 +339,7 @@ def main():
         val_rca.reset()
 
         epoch += 1
-    
+
 
 
 

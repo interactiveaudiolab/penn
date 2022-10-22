@@ -1,21 +1,18 @@
 # Directories for large, project-specific files
-data/*
-!data/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+data/datasets/*
+!data/datasets/.gitkeep
+data/sources/*
+!data/sources/.gitkeep
+eval/*
+!eval/.gitkeep
 runs/*
 !runs/.gitkeep
-cache/*
-!cache/.gitkeep
-penne/checkpoints/*
-logs/*
-notebooks/*
-checkpoints/*
 
-*.egg-info/
-.empty/
-.ipynb_checkpoints/
-.pytest_cache/
-.vscode/
 __pycache__/
-build/
-dist/
-profile.out
+.DS_Store
+._.DS_Store
+.ipynb_checkpoints/
+.vscode/
+*.egg-info/
