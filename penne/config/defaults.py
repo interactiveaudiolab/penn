@@ -23,11 +23,17 @@ CENTS_PER_BIN = 20  # cents
 # Whether to trade quantization error for noise during inference
 DITHER = False
 
+# Minimum representable frequency
+FMIN = 31.  # Hz
+
 # Distance between adjacent frames
 HOPSIZE = 160  # samples
 
-# Maximum representable frequency
-MAX_FMAX = 2006.  # hz
+# Number of spectrogram frequency bins
+NUM_FFT = 1024
+
+# One octave in cents
+OCTAVE = 1200  # cents
 
 # Number of pitch bins to predict
 PITCH_BINS = 360
@@ -72,15 +78,13 @@ SOURCE_DIR = Path(__file__).parent.parent.parent / 'data' / 'sources'
 
 
 # Number of steps between saving checkpoints
-CHECKPOINT_INTERVAL = 10000  # steps
+CHECKPOINT_INTERVAL = 20000  # steps
 
 # Number of steps between logging to Tensorboard
-LOG_INTERVAL = 250  # steps
+EVALUATION_INTERVAL = 2000  # steps
 
-# TODO
-LOG_EXAMPLE = 'PTDB' # plot posterior distribution for example of LOG_EXAMPLE dataset
-LOG_EXAMPLE_FREQUENCY = 2 # plot posterior distribution every LOG_EXAMPLE_FREQENCY epochs
-LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits
+# Number of batches to use for validation
+EVALUATION_STEPS = 16
 
 
 ###############################################################################
@@ -88,30 +92,32 @@ LOG_WITH_SOFTMAX = False # true => softmax on posterior distribution logits
 ###############################################################################
 
 
-# TODO
-VOICE_ONLY = False # toggle training with voice only or not
-
 # Batch size (per gpu)
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
-# TODO
+# Whether to apply Gaussian blur to binary cross-entropy loss targets
+GAUSSIAN_BLUR = True
+
+# Optimizer learning rate
 LEARNING_RATE = 2e-4
-HARMO_LEARNING_RATE = 1e-3
 
-# Per-epoch decay rate of the learning rate
-LEARNING_RATE_DECAY = .999875
+# The name of the model to use for training
+MODEL = 'crepe'
 
 # Number of training steps
 NUM_STEPS = 300000
 
 # Number of frames used during training
-NUM_TRAINING_SAMPLES = WINDOW_SIZE // HOPSIZE
+NUM_TRAINING_FRAMES = 1
 
 # Number of samples used during training
-NUM_TRAINING_SAMPLES = WINDOW_SIZE
+NUM_TRAINING_SAMPLES = 1024
 
 # Number of data loading worker threads
-NUM_WORKERS = 2
+NUM_WORKERS = 4
+
+# Weight applied to positive examples in binary cross-entropy loss
+LOSS_WEIGHT = 1.
 
 # Seed for all random number generators
 RANDOM_SEED = 1234

@@ -10,17 +10,17 @@ import penne
 ###############################################################################
 
 
-def main(config, dataset, gpus=None):
+def main(config, datasets, gpus=None):
     # Create output directory
     directory = penne.RUNS_DIR / config.stem
     directory.mkdir(parents=True, exist_ok=True)
 
     # Save configuration
-    shutil.copyfile(config, directory / config.penne)
+    shutil.copyfile(config, directory / config.name)
 
     # Train
     penne.train.run(
-        dataset,
+        datasets,
         directory,
         directory,
         directory,
@@ -39,9 +39,10 @@ def parse_args():
         default=penne.DEFAULT_CONFIGURATION,
         help='The configuration file')
     parser.add_argument(
-        '--dataset',
-        default='vctk',
-        help='The dataset to train on')
+        '--datasets',
+        nargs='+',
+        default=['mdb', 'ptdb'],
+        help='The datasets to train on')
     parser.add_argument(
         '--gpus',
         type=int,

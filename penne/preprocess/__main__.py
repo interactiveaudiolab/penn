@@ -19,4 +19,4 @@ def parse_args():
     return parser.parse_args()
 
 
-penne.data.preprocess.datasets(**vars(parse_args()))
+penne.preprocess.datasets(**vars(parse_args()))

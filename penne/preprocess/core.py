@@ -15,8 +15,8 @@ import penne
 MDB_HOPSIZE = 128 / 44100  # seconds
 
 # PTDB analysis parameters
-PTDB_HOPSIZE = .01  # seconds
-PTDB_WINDOW_SIZE = .032  # seconds
+PTDB_HOPSIZE = 160  # samples
+PTDB_WINDOW_SIZE = 512  # samples
 
 
 ###############################################################################
@@ -131,21 +131,24 @@ def ptdb():
         # Load and resample audio
         audio = penne.load.audio(audio_file)
 
+        # Simluate the common padding error
+        np.save(
+            output_directory / f'{stem}-misalign.npy',
+            audio.numpy().squeeze())
+
+        # Fix padding error
+        offset = PTDB_WINDOW_SIZE - PTDB_HOPSIZE // 2
+        if (audio.shape[-1] - 2 * offset) % penne.HOPSIZE == 0:
+            offset += PTDB_HOPSIZE // 2
+        audio = audio[:, offset:-offset]
+
         # Save to cache
         np.save(
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
 
-        # Simluate the common padding error
-        audio = torch.nn.functional.pad(
-            audio,
-            (penne.WINDOW_SIZE // 2, penne.WINDOW_SIZE // 2))
-        np.save(
-            output_directory / f'{stem}-misalign.npy',
-            audio[:, :-penne.WINDOW_SIZE])
-
         # Load pitch
-        pitch = np.loadtxt(open(pitch_file), delimiter=' ')[:,0]
+        pitch = np.loadtxt(open(pitch_file), delimiter=' ')[:, 0]
 
         # Fill unvoiced regions via linear interpolation
         pitch, voiced = interpolate_unvoiced(pitch)

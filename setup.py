@@ -13,10 +13,8 @@ setup(
     author_email='maxrmorrison@gmail.com',
     url='https://github.com/interactiveaudiolab/penne',
     install_requires=[
-        'librosa',
         'matplotlib',
         'numpy',
-        'resampy',
         'scipy',
         'tensorboard',
         'torch',

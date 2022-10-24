@@ -6,6 +6,16 @@ from torch.utils.tensorboard import SummaryWriter
 ###############################################################################
 
 
+def audio(directory, step, audio, sample_rate):
+    """Write audio to Tensorboard"""
+    for name, waveform in audio.items():
+        writer(directory).add_audio(
+            name,
+            waveform,
+            step,
+            sample_rate)
+
+
 def figures(directory, step, figures):
     """Write figures to Tensorboard"""
     for name, figure in figures.items():

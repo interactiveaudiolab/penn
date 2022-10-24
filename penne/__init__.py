@@ -1,7 +1,11 @@
-# TODO - train
-# TODO - evaluate
-# TODO - model
-# TODO - F1 metric
+# Trainings
+# - Crepe mdb
+# - Crepe ptdb
+# - Harmof0 mdb
+# - Harmof0 ptdb
+
+# Development
+# - TODO
 
 
 ###############################################################################
@@ -26,7 +30,6 @@ from .config.static import *
 ###############################################################################
 
 
-from . import decode
 from .core import *
 from .model import Model
 from . import checkpoint
@@ -34,7 +37,6 @@ from . import convert
 from . import data
 from . import evaluate
 from . import load
-from . import metrics
 from . import partition
 from . import preprocess
 from . import train

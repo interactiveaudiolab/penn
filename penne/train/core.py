@@ -14,7 +14,7 @@ import penne
 
 
 def run(
-    dataset,
+    datasets,
     checkpoint_directory,
     output_directory,
     log_directory,
@@ -23,7 +23,7 @@ def run(
     # Distributed data parallelism
     if gpus and len(gpus) > 1:
         args = (
-            dataset,
+            datasets,
             checkpoint_directory,
             output_directory,
             log_directory,
@@ -38,7 +38,7 @@ def run(
 
         # Single GPU or CPU training
         train(
-            dataset,
+            datasets,
             checkpoint_directory,
             output_directory,
             log_directory,
@@ -54,7 +54,7 @@ def run(
 
 
 def train(
-    dataset,
+    datasets,
     checkpoint_directory,
     output_directory,
     log_directory,
@@ -74,11 +74,12 @@ def train(
     #######################
 
     torch.manual_seed(penne.RANDOM_SEED)
-    train_loader, valid_loader = penne.data.loaders(dataset, gpu)
+    train_loader = penne.data.loader(datasets, 'train', gpu)
+    valid_loader = penne.data.loader(datasets, 'valid', gpu)
 
-    #################
-    # Create models #
-    #################
+    ################
+    # Create model #
+    ################
 
     model = penne.model.Model().to(device)
 
@@ -95,50 +96,23 @@ def train(
     # Create optimizer #
     ####################
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=2e-4,
-        betas=[.80, .99],
-        eps=1e-9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=penne.LEARNING_RATE)
 
     ##############################
     # Maybe load from checkpoint #
     ##############################
 
-    path = penne.checkpoint.latest_path(
-        checkpoint_directory,
-        '*.pt'),
-
-    # For some reason, returning None from latest_path returns (None,)
-    path = None if path == (None,) else path
+    path = penne.checkpoint.latest_path(checkpoint_directory, '*.pt')
 
     if path is not None:
 
         # Load model
-        (
-            model,
-            optimizer,
-            step
-        ) = penne.checkpoint.load(
-            path[0],
-            model,
-            optimizer
-        )
+        model, optimizer, step = penne.checkpoint.load(path, model, optimizer)
 
     else:
 
         # Train from scratch
         step = 0
-
-    #####################
-    # Create schedulers #
-    #####################
-
-    scheduler_fn = functools.partial(
-        torch.optim.lr_scheduler.ExponentialLR,
-        gamma=penne.LEARNING_RATE_DECAY,
-        last_epoch=step // len(train_loader.dataset) if step else -1)
-    scheduler = scheduler_fn(optimizer)
 
     #########
     # Train #
@@ -163,15 +137,15 @@ def train(
         for batch in train_loader:
 
             # Unpack batch
-            audio, pitch, bins, voicing = batch
+            audio, bins, *_ = batch
 
             with torch.cuda.amp.autocast():
 
                 # Forward pass
-                predicted = model(audio.to(device))
+                logits = model(audio.to(device))
 
-                # TODO - compute losses
-                losses = 0.
+                # Compute losses
+                losses = loss(logits, bins.to(device))
 
             ######################
             # Optimize model #
@@ -194,26 +168,19 @@ def train(
 
             if not rank:
 
-                if step % penne.LOG_INTERVAL == 0:
-
-                    # Log losses
-                    scalars = {
-                        'loss/total': losses,
-                        'learning_rate': optimizer.param_groups[0]['lr']}
-                    penne.write.scalars(log_directory, step, scalars)
-
                 ############
                 # Evaluate #
                 ############
 
                 if step % penne.EVALUATION_INTERVAL == 0:
-
-                    evaluate(
+                    evaluate_fn = functools.partial(
+                        evaluate,
                         log_directory,
                         step,
-                        generator,
-                        valid_loader,
+                        model,
                         gpu)
+                    evaluate_fn('train', train_loader)
+                    evaluate_fn('valid', valid_loader)
 
                 ###################
                 # Save checkpoint #
@@ -235,9 +202,6 @@ def train(
             if not rank:
                 progress.update()
 
-        # Update learning rate every epoch
-        scheduler.step()
-
     # Close progress bar
     if not rank:
         progress.close()
@@ -255,7 +219,7 @@ def train(
 ###############################################################################
 
 
-def evaluate(directory, step, model, valid_loader, gpu):
+def evaluate(directory, step, model, gpu, condition, loader):
     """Perform model evaluation"""
     device = 'cpu' if gpu is None else f'cuda:{gpu}'
 
@@ -265,8 +229,30 @@ def evaluate(directory, step, model, valid_loader, gpu):
     # Turn off gradient computation
     with torch.no_grad():
 
-        # TODO - evaluate
-        pass
+        # Setup evaluation metrics
+        metrics = penne.evaluate.Metrics()
+
+        for i, batch in enumerate(loader):
+
+            # Unpack batch
+            audio, bins, pitch, voiced, *_ = batch
+
+            # Forward pass
+            logits = model(audio.to(device))
+
+            # Update metrics
+            metrics.update(logits, bins.to(device), pitch, voiced)
+
+            # Stop when we exceed some number of batches
+            if i + 1 == penne.EVALUATION_STEPS:
+                break
+
+        # Format results
+        scalars = {
+            f'{key}/{condition}': value for key, value in metrics().items()}
+
+        # Write to tensorboard
+        penne.write.scalars(directory, step, scalars)
 
     # Prepare generator for training
     model.train()
@@ -304,3 +290,49 @@ def ddp_context(rank, world_size):
 
         # Close ddp
         torch.distributed.destroy_process_group()
+
+
+###############################################################################
+# Loss function
+###############################################################################
+
+
+def loss(logits, bins):
+    """Compute loss function"""
+    logits = logits.permute(0, 2, 1).reshape(-1, penne.PITCH_BINS)
+    bins = bins.flatten()
+
+    # Maybe blur target
+    if penne.GAUSSIAN_BLUR:
+
+        # Get cents values to evaluate distributions at
+        cents = penne.convert.bins_to_cents(
+            torch.arange(penne.PITCH_BINS).to(bins.device))[:, None]
+
+        # Create normal distributions
+        distributions = torch.distributions.Normal(
+            penne.convert.bins_to_cents(bins),
+            25)
+
+        # Sample normal distributions
+        bins = torch.exp(distributions.log_prob(cents)).permute(1, 0)
+
+        # Normalize
+        bins = bins / (bins.max(dim=1, keepdims=True).values + 1e-8)
+    else:
+
+        # One-hot encoding
+        bins = torch.nn.functional.one_hot(bins, penne.PITCH_BINS)
+
+    # Positive example weight
+    weight = torch.full(
+        (penne.PITCH_BINS,),
+        penne.LOSS_WEIGHT,
+        dtype=torch.float,
+        device=logits.device)
+
+    # Compute binary cross-entropy loss
+    return torch.nn.functional.binary_cross_entropy_with_logits(
+        logits,
+        bins,
+        pos_weight=weight)
