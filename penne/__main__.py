@@ -12,16 +12,12 @@ from pathlib import Path
 def parse_args():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser()
-
-    # Required arguments
     parser.add_argument(
         '--audio_files',
         nargs='+',
         required=True,
         type=Path,
         help='The audio file to process')
-
-    # Optional arguments
     parser.add_argument(
         '--output_prefixes',
         nargs='+',
@@ -56,7 +52,7 @@ def parse_args():
     parser.add_argument(
         '--gpu',
         type=int,
-        help='The gpu to perform inference on')
+        help='The index of the gpu to perform inference on')
 
     return parser.parse_args()
 

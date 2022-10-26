@@ -1,6 +1,3 @@
-"""core.py - model evaluation"""
-
-
 import json
 
 import torch
@@ -29,10 +26,6 @@ def datasets(datasets, checkpoint=penne.DEFAULT_CHECKPOINT, gpu=None):
     # Aggregate metrics over all datasets
     aggregate_metrics = penne.evaluate.Metrics()
 
-    # Setup model
-    model = penne.checkpoint.load(checkpoint, penne.model.Model())
-    model.eval()
-
     # Turn off gradients
     with torch.no_grad():
 
@@ -51,12 +44,11 @@ def datasets(datasets, checkpoint=penne.DEFAULT_CHECKPOINT, gpu=None):
                 # Reset file metrics
                 file_metrics.reset()
 
-                # Copy to GPU
-                audio, bins = audio.to(device), bins.to(device)
-
-                # Forward pass
-                # TODO - chunking?
-                logits = model(audio)
+                _, _, logits = penne.from_audio(
+                    audio,
+                    penne.SAMPLE_RATE,
+                    checkpoint=checkpoint,
+                    gpu=gpu)
 
                 # Update metrics
                 file_metrics.update(logits, bins, pitch, voiced)

@@ -9,7 +9,7 @@ import penne
 
 
 ###############################################################################
-# Crepe pitch prediction
+# Pitch and periodicity estimation
 ###############################################################################
 
 
@@ -19,10 +19,10 @@ def from_audio(
     hopsize: float = penne.HOPSIZE / penne.SAMPLE_RATE,
     fmin: float = penne.FMIN,
     fmax: Optional[float] = None,
-    model: str = 'crepe',
+    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
-    device: str = 'cpu') -> Tuple[torch.Tensor, torch.Tensor]:
+    gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation
 
     Args:
@@ -34,14 +34,34 @@ def from_audio(
         model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        device: The device used to run inference
+        gpu: The index of the gpu to run inference on
 
     Returns:
         pitch: torch.tensor(shape=(1, int(samples // hopsize)))
         periodicity: torch.tensor(shape=(1, int(samples // hopsize)))
     """
-    # TODO
-    pass
+    pitch, periodicity, logits = [], [], []
+
+    # Postprocessing breaks gradients, so just don't compute them
+    with torch.no_grad():
+
+        # Preprocess audio
+        for frames in preprocess(audio, sample_rate, hopsize, batch_size, gpu):
+
+            # Infer
+            logit = infer(frames, model, checkpoint).detach()
+            logits.append(logit.to(audio.device))
+
+            # Decode
+            with penne.time.timer('decode'):
+                result = decode(logit, fmin, fmax)
+
+            # Place on same device as audio to allow very long inputs
+            pitch.append(result[0].to(audio.device))
+            periodicity.append(result[1].to(audio.device))
+
+    # Concatenate results
+    return torch.cat(pitch, 1), torch.cat(periodicity, 1), torch.cat(logits, 1)
 
 
 def from_file(
@@ -49,10 +69,10 @@ def from_file(
     hopsize: float = penne.HOPSIZE / penne.SAMPLE_RATE,
     fmin: float = penne.FMIN,
     fmax: Optional[float] = None,
-    model: str = 'crepe',
+    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
-    device: str = 'cpu') -> Tuple[torch.Tensor, torch.Tensor]:
+    gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation from audio on disk
 
     Args:
@@ -63,7 +83,7 @@ def from_file(
         model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        device: The device used to run inference
+        gpu: The index of the gpu to run inference on
 
     Returns:
         pitch: torch.tensor(shape=(1, int(samples // hopsize)))
@@ -82,7 +102,7 @@ def from_file(
         model,
         checkpoint,
         batch_size,
-        device)
+        gpu)
 
 
 def from_file_to_file(
@@ -91,10 +111,10 @@ def from_file_to_file(
     hopsize: float = penne.HOPSIZE / penne.SAMPLE_RATE,
     fmin: float = penne.FMIN,
     fmax: Optional[float] = None,
-    model: str = 'crepe',
+    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
-    device: str = 'cpu') -> None:
+    gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from audio on disk and save
 
     Args:
@@ -106,7 +126,7 @@ def from_file_to_file(
         model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        device: The device used to run inference
+        gpu: The index of the gpu to run inference on
 
     Returns:
         pitch: torch.tensor(shape=(1, int(samples // hopsize)))
@@ -121,7 +141,7 @@ def from_file_to_file(
         model,
         checkpoint,
         batch_size,
-        device)
+        gpu)
 
     # Maybe use same filename with new extension
     if output_prefix is None:
@@ -138,10 +158,10 @@ def from_files_to_files(
     hopsize: float = penne.HOPSIZE / penne.SAMPLE_RATE,
     fmin: float = penne.FMIN,
     fmax: Optional[float] = None,
-    model: str = 'crepe',
+    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
-    device: str = 'cpu') -> None:
+    gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
 
     Args:
@@ -153,7 +173,7 @@ def from_files_to_files(
         model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        device: The device used to run inference
+        gpu: The index of the gpu to run inference on
 
     Returns:
         pitch: torch.tensor(shape=(1, int(samples // hopsize)))
@@ -174,12 +194,126 @@ def from_files_to_files(
             model,
             checkpoint,
             batch_size,
-            device)
+            gpu)
 
 
 ###############################################################################
 # Utilities
 ###############################################################################
+
+
+def infer(frames, model=penne.MODEL, checkpoint=penne.DEFAULT_CHECKPOINT):
+    """Forward pass through the model"""
+    # Time model loading
+    with penne.time.timer('model'):
+
+        # Load and cache model
+        if not hasattr(infer, 'model') or infer.checkpoint != checkpoint:
+            infer.model = penne.load.checkpoint(checkpoint, penne.Model(model))
+            infer.checkpoint = checkpoint
+
+            # Move model to correct device (no-op if devices are the same)
+            infer.model = infer.model.to(frames.device)
+
+            # Maybe use torchscript
+            if penne.TORCHSCRIPT:
+                infer.model = torch.jit.trace(infer.model, frames)
+
+        else:
+
+            # Move model to correct device (no-op if devices are the same)
+            infer.model = infer.model.to(frames.device)
+
+    # Time inference
+    with penne.time.timer('infer'):
+
+        # Apply model
+        return infer.model(frames)
+
+
+def decode(logits, fmin=penne.FMIN, fmax=None):
+    """Convert model output to pitch and periodicity"""
+    # Convert frequency range to pitch bin range
+    minidx = penne.convert.frequency_to_bins(torch.tensor(fmin))
+    if fmax is None:
+        maxidx = penne.PITCH_BINS
+    else:
+        maxidx = penne.convert.frequency_to_bins(
+            torch.tensor(fmax),
+            torch.ceil)
+
+    # Remove frequencies outside of allowable range
+    logits[:, :minidx] = -float('inf')
+    logits[:, maxidx:] = -float('inf')
+
+    # Get pitch bins
+    bins = logits.max(dim=1).values
+
+    # Convert to hz
+    pitch = penne.convert.bins_to_frequency(bins)
+
+    # Get periodicity
+    if penne.PERIODICITY == 'entropy':
+        periodicity = penne.periodicity.entropy(logits)
+    elif penne.PERIODICITY == 'max':
+        periodicity = penne.periodicity.max(logits)
+    else:
+        raise ValueError(
+            f'Periodicity method {penne.PERIODICITY} is not defined')
+
+    # Compute periodicity from probabilities and decoded pitch bins
+    return pitch, periodicity
+
+
+def preprocess(audio,
+               sample_rate,
+               hopsize=penne.HOPSIZE / penne.SAMPLE_RATE,
+               batch_size=None,
+               gpu=None):
+    """Convert audio to model input"""
+    with penne.time.timer('preprocess'):
+
+        # Resample
+        if sample_rate != penne.SAMPLE_RATE:
+            audio = resample(audio, sample_rate)
+
+        # Get total number of frames
+        total_frames = int(audio.shape[-1] / (hopsize * penne.SAMPLE_RATE))
+
+        # Pad audio
+        padding = (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
+        audio = torch.nn.functional.pad(audio, (padding, padding))
+
+        # Default to running all frames in a single batch
+        batch_size = total_frames if batch_size is None else batch_size
+
+        # Generate batches
+        for i in range(0, total_frames, batch_size):
+
+            # Batch indices
+            start = max(0, int(i * hopsize * penne.SAMPLE_RATE))
+            end = min(
+                audio.shape[-1],
+                start + \
+                    int((batch_size - 1) * hopsize * penne.SAMPLE_RATE) + \
+                    penne.WINDOW_SIZE)
+
+            # Chunk
+            frames = torch.nn.functional.unfold(
+                audio[:, None, None, start:end],
+                kernel_size=(1, penne.WINDOW_SIZE),
+                stride=(1, int(hopsize * penne.SAMPLE_RATE)))
+
+            # shape=(
+            #     samples // (hopsize * penne.SAMPLE_RATE),
+            #     penne.WINDOW_SIZE)
+            frames = frames.transpose(1, 2).reshape(-1, penne.WINDOW_SIZE)
+
+            # PyTorch device
+            device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
+
+            # Place on device
+            yield frames.to(device)
 
 
 def iterator(iterable, message, length=None):
@@ -199,4 +333,3 @@ def resample(audio, sample_rate, target_rate=penne.SAMPLE_RATE):
     resampler = torchaudio.transforms.Resample(sample_rate, target_rate)
     resampler = resampler.to(audio.device)
     return resampler(audio)
-

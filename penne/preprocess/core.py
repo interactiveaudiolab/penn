@@ -1,7 +1,6 @@
 import itertools
 
 import numpy as np
-import torch
 
 import penne
 

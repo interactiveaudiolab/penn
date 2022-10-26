@@ -73,9 +73,21 @@ SOURCE_DIR = Path(__file__).parent.parent.parent / 'data' / 'sources'
 
 
 ###############################################################################
+# Evaluation parameters
+###############################################################################
+
+
+# Perform inference using torchscript optimization
+TORCHSCRIPT = True
+
+
+###############################################################################
 # Logging parameters
 ###############################################################################
 
+
+# Whether to perform benchmarking
+BENCHMARK = False
 
 # Number of steps between saving checkpoints
 CHECKPOINT_INTERVAL = 25000  # steps

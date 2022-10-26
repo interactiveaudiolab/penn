@@ -8,12 +8,10 @@
 # - Preprocessing?
 
 # Evaluation
+# - Torchscript
 # - Dither
 
 # Development
-# - user API
-# - evaluation timing
-# - torchscript
 # - periodicity methods
 
 
@@ -49,5 +47,6 @@ from . import load
 from . import partition
 from . import plot
 from . import preprocess
+from . import time
 from . import train
 from . import write

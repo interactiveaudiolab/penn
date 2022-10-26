@@ -15,3 +15,12 @@ DEFAULT_CHECKPOINT = penne.ASSETS_DIR / 'checkpoints' / 'default.pt'
 
 # Default configuration file
 DEFAULT_CONFIGURATION = penne.ASSETS_DIR / 'configs' / 'default.py'
+
+
+###############################################################################
+# Evaluation
+###############################################################################
+
+
+# Timer for benchmarking generation
+TIMER = penne.time.Context()

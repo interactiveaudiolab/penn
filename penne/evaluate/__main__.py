@@ -1,6 +1,3 @@
-"""__main__.py - entry point for penne.evaluate"""
-
-
 import argparse
 from pathlib import Path
 
@@ -8,7 +5,7 @@ import penne
 
 
 ###############################################################################
-# Entry point
+# Evaluate pitch and periodicity estimation
 ###############################################################################
 
 

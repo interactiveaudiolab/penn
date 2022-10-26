@@ -22,9 +22,9 @@ def bins_to_frequency(bins):
     return cents_to_frequency(bins_to_cents(bins))
 
 
-def cents_to_bins(cents):
+def cents_to_bins(cents, quantize_fn=torch.floor):
     """Converts cents to pitch bins"""
-    bins = torch.floor(cents / penne.CENTS_PER_BIN).int()
+    bins = quantize_fn(cents / penne.CENTS_PER_BIN).int()
     bins[bins < 0] = 0
     bins[bins >= penne.PITCH_BINS] = penne.PITCH_BINS - 1
     return bins
@@ -35,9 +35,9 @@ def cents_to_frequency(cents):
     return penne.FMIN * 2 ** (cents / penne.OCTAVE)
 
 
-def frequency_to_bins(frequency):
+def frequency_to_bins(frequency, quantize_fn=torch.floor):
     """Convert frequency in Hz to pitch bins"""
-    return cents_to_bins(frequency_to_cents(frequency))
+    return cents_to_bins(frequency_to_cents(frequency), quantize_fn)
 
 
 def frequency_to_cents(frequency):
