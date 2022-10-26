@@ -1,11 +1,20 @@
 # Trainings
-# - Crepe mdb
-# - Crepe ptdb
+# - More bins
+# - Crepe original mdb
+# - Harmof0 both
 # - Harmof0 mdb
 # - Harmof0 ptdb
+# - No blur
+# - Preprocessing?
+
+# Evaluation
+# - Dither
 
 # Development
-# - TODO
+# - user API
+# - evaluation timing
+# - torchscript
+# - periodicity methods
 
 
 ###############################################################################
@@ -38,6 +47,7 @@ from . import data
 from . import evaluate
 from . import load
 from . import partition
+from . import plot
 from . import preprocess
 from . import train
 from . import write

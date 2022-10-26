@@ -27,7 +27,7 @@ def main(config, datasets, gpus=None):
         gpus)
 
     # Evaluate
-    penne.evaluate.datasets([dataset], directory, gpus)
+    penne.evaluate.datasets(datasets, directory, gpus)
 
 
 def parse_args():
@@ -51,5 +51,4 @@ def parse_args():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
-    main(**vars(parse_args()))
+main(**vars(parse_args()))

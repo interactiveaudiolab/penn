@@ -22,6 +22,7 @@ class Metrics:
     def __init__(self):
         self.accuracy = Accuracy()
         self.f1 = F1()
+        self.l1 = L1()
         self.loss = Loss()
         self.rca = RCA()
         self.rmse = RMSE()
@@ -31,6 +32,7 @@ class Metrics:
         return (
             self.accuracy() |
             self.f1() |
+            self.l1() |
             self.loss() |
             self.rca() |
             self.rmse() |
@@ -45,15 +47,15 @@ class Metrics:
         self.loss.update(logits, bins)
 
         # Decode bins, pitch, and periodicity
-        predicted = logits.argmax(dim=1, keepdims=True)
+        periodicity, predicted = logits.max(dim=1)
         pitch = penne.convert.bins_to_frequency(predicted)
-        periodicity = logits.max(dim=1, keepdims=True).values
 
         # Mask unvoiced
         pitch, target = pitch[voiced], target[voiced]
 
         # Update pitch metrics
         self.accuracy.update(predicted[voiced], bins[voiced])
+        self.l1.update(pitch, target)
         self.rca.update(pitch, target)
         self.rmse.update(pitch, target)
         self.rpa.update(pitch, target)
@@ -64,6 +66,7 @@ class Metrics:
     def reset(self):
         self.accuracy.reset()
         self.f1.reset()
+        self.l1.reset()
         self.loss.reset()
         self.rca.reset()
         self.rmse.reset()
@@ -126,6 +129,24 @@ class F1:
         for precision, recall in zip(self.precision, self.recall):
             precision.reset()
             recall.reset()
+
+
+class L1:
+    """L1 pitch distance in cents"""
+
+    def __init__(self):
+        self.reset()
+
+    def __call__(self):
+        return {'l1': (self.sum / self.count).item()}
+
+    def update(self, predicted, target):
+        self.sum += torch.abs(cents(predicted, target)).sum()
+        self.count += predicted.shape[-1]
+
+    def reset(self):
+        self.count = 0
+        self.sum = 0.
 
 
 class Loss():
@@ -225,9 +246,8 @@ class RMSE:
         self.count += predicted.shape[-1]
 
     def reset(self):
-        """Reset the WRMSE score"""
         self.count = 0
-        self.sum = 0
+        self.sum = 0.
 
 
 class RPA:

@@ -34,14 +34,11 @@ def load(checkpoint_path, model, optimizer=None):
     # Restore training state
     step = checkpoint_dict['step']
 
-    print("Loaded checkpoint '{}' (step {})" .format(checkpoint_path, step))
-
     return model, optimizer, step
 
 
 def save(model, optimizer, step, file):
     """Save training checkpoint to disk"""
-    print(f'Saving model and optimizer at step {step} to {file}')
     checkpoint = {
         'step': step,
         'model': model.state_dict(),

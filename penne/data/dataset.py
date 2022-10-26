@@ -34,7 +34,7 @@ class Dataset(torch.utils.data.Dataset):
         i = 0
         dataset = self.datasets[i]
         upper_bound = dataset.total
-        while index > upper_bound:
+        while index >= upper_bound:
             i += 1
             dataset = self.datasets[i]
             upper_bound += dataset.total
@@ -52,20 +52,36 @@ class Dataset(torch.utils.data.Dataset):
         end = start + penne.NUM_TRAINING_FRAMES
 
         # Get start and end samples
-        start_sample = start * penne.HOPSIZE
+        start_sample = \
+            start * penne.HOPSIZE - (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
         end_sample = start_sample + penne.NUM_TRAINING_SAMPLES
 
         # Load from cache
         directory = penne.CACHE_DIR / dataset.name
-        audio = np.load(directory / f'{stem}-audio.npy', mmap_mode='r')
+        waveform = np.load(directory / f'{stem}-audio.npy', mmap_mode='r')
         pitch = np.load(directory / f'{stem}-pitch.npy', mmap_mode='r')
         voiced = np.load(directory / f'{stem}-voiced.npy', mmap_mode='r')
 
-        # Slice and convert to torch
-        audio = torch.from_numpy(
-            audio[start_sample:end_sample].copy())[None]
-        pitch = torch.from_numpy(pitch[start:end].copy())[None]
-        voiced = torch.from_numpy(voiced[start:end].copy())[None]
+        # Slice audio
+        if start_sample < 0:
+            audio = torch.zeros(
+                (penne.NUM_TRAINING_SAMPLES,),
+                dtype=torch.float)
+            audio[-start_sample:] = torch.from_numpy(
+                waveform[:end_sample].copy())
+        elif end_sample > len(waveform):
+            audio = torch.zeros(
+                (penne.NUM_TRAINING_SAMPLES,),
+                dtype=torch.float)
+            audio[:len(waveform) - end_sample] = torch.from_numpy(
+                waveform[start_sample:].copy())
+        else:
+            audio = torch.from_numpy(
+                waveform[start_sample:end_sample].copy())
+
+        # Slice pitch and voicing
+        pitch = torch.from_numpy(pitch[start:end].copy())
+        voiced = torch.from_numpy(voiced[start:end].copy())
 
         # Convert to pitch bin categories
         bins = penne.convert.frequency_to_bins(pitch)
@@ -76,7 +92,7 @@ class Dataset(torch.utils.data.Dataset):
             torch.randint(0, penne.PITCH_BINS, bins.shape, dtype=torch.long),
             bins)
 
-        return audio, bins, pitch, voiced, stem
+        return audio[None], bins, pitch, voiced, stem
 
     def __len__(self):
         """Length of the dataset"""
@@ -103,13 +119,11 @@ class Metadata:
             for file in self.files]
 
         # We require all files to be at least as large as the analysis window
-        num_frames = max(
-            penne.NUM_TRAINING_FRAMES,
-            1 + penne.NUM_TRAINING_SAMPLES // penne.HOPSIZE)
-        assert all(frame >= num_frames for frame in self.frames)
+        assert all(frame >= penne.NUM_TRAINING_FRAMES for frame in self.frames)
 
-        # Remove invalid start points
-        self.frames = [frame - (num_frames - 1) for frame in self.frames]
+        # Remove invalid center points
+        self.frames = [
+            frame - (penne.NUM_TRAINING_FRAMES - 1) for frame in self.frames]
 
         # Save frame offsets
         self.offsets = np.cumsum(self.frames)

@@ -67,11 +67,6 @@ def mdb():
         # Load and resample audio
         audio = penne.load.audio(audio_file)
 
-        # Pad half windows on end of each file for precise alignment
-        audio = torch.nn.functional.pad(
-            audio,
-            (penne.WINDOW_SIZE // 2, penne.WINDOW_SIZE // 2))
-
         # Save to cache
         np.save(
             output_directory / f'{stem}-audio.npy',
@@ -79,21 +74,27 @@ def mdb():
 
         # Load pitch
         annotations = np.loadtxt(open(pitch_file), delimiter=',')
-        times, pitch = annotations[:,0], annotations[:,1]
+        times, pitch = annotations[:, 0], annotations[:, 1]
 
         # Fill unvoiced regions via linear interpolation
         pitch, voiced = interpolate_unvoiced(pitch)
 
         # Get target number of frames
-        frames = penne.convert.seconds_to_frames(
-            audio.shape[-1] / penne.SAMPLE_RATE)
+        frames = penne.convert.samples_to_frames(audio.shape[-1])
 
         # Linearly interpolate to target number of frames
         new_times = (penne.HOPSIZE / penne.SAMPLE_RATE) * np.arange(0, frames)
+        new_times += penne.HOPSIZE / (2 * penne.SAMPLE_RATE)
         pitch = 2 ** np.interp(new_times, times, np.log2(pitch))
 
         # Linearly interpolate voiced/unvoiced tokens
         voiced = np.interp(new_times, times, voiced) > .5
+
+        # Check shapes
+        assert (
+            audio.shape[-1] // penne.HOPSIZE ==
+            pitch.shape[-1] ==
+            voiced.shape[-1])
 
         # Save to cache
         np.save(output_directory / f'{stem}-pitch.npy', pitch)
@@ -153,6 +154,12 @@ def ptdb():
         # Fill unvoiced regions via linear interpolation
         pitch, voiced = interpolate_unvoiced(pitch)
 
+        # Check shapes
+        assert (
+            audio.shape[-1] // penne.HOPSIZE ==
+            pitch.shape[-1] ==
+            voiced.shape[-1])
+
         # Save to cache
         np.save(output_directory / f'{stem}-pitch.npy', pitch)
         np.save(output_directory / f'{stem}-voiced.npy', voiced)
@@ -165,10 +172,10 @@ def ptdb():
 
 def interpolate_unvoiced(pitch):
     """Fill unvoiced regions via linear interpolation"""
-    voiced = pitch != 0
+    unvoiced = pitch == 0
     pitch = np.log2(pitch)
-    pitch[~voiced] = 2 ** np.interp(
-        np.where(~voiced)[0],
-        np.where(voiced)[0],
-        pitch[voiced])
-    return pitch, voiced
+    pitch[unvoiced] = np.interp(
+        np.where(unvoiced)[0],
+        np.where(~unvoiced)[0],
+        pitch[~unvoiced])
+    return 2 ** pitch, ~unvoiced

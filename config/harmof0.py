@@ -25,7 +25,7 @@ MODEL = 'harmof0'
 NUM_TRAINING_FRAMES = 200
 
 # Number of samples used during training
-NUM_TRAINING_SAMPLES = 32000
+NUM_TRAINING_SAMPLES = 32000 + 1024 - 160
 
 # Number of pitch bins to predict
 PITCH_BINS = 352

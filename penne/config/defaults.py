@@ -78,13 +78,13 @@ SOURCE_DIR = Path(__file__).parent.parent.parent / 'data' / 'sources'
 
 
 # Number of steps between saving checkpoints
-CHECKPOINT_INTERVAL = 20000  # steps
+CHECKPOINT_INTERVAL = 25000  # steps
 
 # Number of steps between logging to Tensorboard
-EVALUATION_INTERVAL = 2000  # steps
+EVALUATION_INTERVAL = 2500  # steps
 
 # Number of batches to use for validation
-EVALUATION_STEPS = 16
+EVALUATION_STEPS = 64
 
 
 ###############################################################################
@@ -93,7 +93,7 @@ EVALUATION_STEPS = 16
 
 
 # Batch size (per gpu)
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
 # Whether to apply Gaussian blur to binary cross-entropy loss targets
 GAUSSIAN_BLUR = True
@@ -105,7 +105,7 @@ LEARNING_RATE = 2e-4
 MODEL = 'crepe'
 
 # Number of training steps
-NUM_STEPS = 300000
+NUM_STEPS = 250000
 
 # Number of frames used during training
 NUM_TRAINING_FRAMES = 1
