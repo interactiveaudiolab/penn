@@ -17,6 +17,8 @@ class Crepe(torch.nn.Module):
         out_channels = [1024, 128, 128, 128, 256, 512]
         kernel_sizes = [512] + 5 * [64]
         strides = [4] + 5 * [1]
+        if penne.MAX_POOL is None:
+            strides = [4 * stride for stride in strides]
         padding = [(254, 254)] + 5 * [(31, 32)]
         self.blocks = torch.nn.Sequential(*(
             Block(i, o, k, s, p) for i, o, k, s, p in
@@ -26,6 +28,13 @@ class Crepe(torch.nn.Module):
             out_features=penne.PITCH_BINS)
 
     def forward(self, audio):
+        # Maybe normalize audio
+        if penne.CREPE_NORMALIZE:
+            audio /= audio.max(dim=2, keepdim=True).values
+
+        # Infer
+        # shape=(batch, 1, penne.WINDOW_SIZE) =>
+        # shape=(batch, penne.PITCH_BINS)
         return self.classifier(
             self.blocks(audio).reshape(audio.shape[0], 2048))[:, :, None]
 
@@ -45,14 +54,25 @@ class Block(torch.nn.Sequential):
         kernel_size,
         stride,
         padding):
-        super().__init__(
+        layers = (
             torch.nn.ConstantPad1d(padding, 0),
             torch.nn.Conv1d(
                 in_channels,
                 out_channels,
                 kernel_size,
                 stride),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm1d(out_channels, momentum=.01),
-            torch.nn.MaxPool1d(2, 2),
-            torch.nn.Dropout(.25))
+            torch.nn.ReLU())
+
+        # Maybe add batch normalization
+        if penne.NORMALIZATION == 'batch':
+            layers += (torch.nn.BatchNorm1d(out_channels, momentum=.01),)
+
+        # Maybe add max pooling
+        if penne.MAX_POOL is not None:
+            layers += (torch.nn.MaxPool1d(*penne.MAX_POOL),)
+
+        # Maybe add dropout
+        if penne.DROPOUT is not None:
+            layers += (torch.nn.Dropout(penne.DROPOUT),)
+
+        super().__init__(*layers)

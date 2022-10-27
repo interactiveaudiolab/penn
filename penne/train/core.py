@@ -114,6 +114,22 @@ def train(
         # Train from scratch
         step = 0
 
+    ##########################################
+    # Maybe setup adaptive gradient clipping #
+    ##########################################
+
+    if penne.ADAPTIVE_CLIPPING:
+
+        # Don't apply gradient clipping to the linear layer of CREPE
+        parameters = [
+            list(module.parameters()) for name, module in model.named_modules()
+            if name != 'classifier']
+
+        #
+        optimizer = penne.train.clip.AdaptiveGradientClipping(
+            parameters,
+            optimizer)
+
     #########
     # Train #
     #########
@@ -155,6 +171,10 @@ def train(
 
             # Backward pass
             scaler.scale(losses).backward()
+
+            # Maybe unscale for gradient clipping
+            if penne.ADAPTIVE_CLIPPING:
+                scaler.unscale_(optimizer)
 
             # Update weights
             scaler.step(optimizer)
@@ -241,7 +261,11 @@ def evaluate(directory, step, model, gpu, condition, loader):
             logits = model(audio.to(device))
 
             # Update metrics
-            metrics.update(logits, bins.to(device), pitch, voiced)
+            metrics.update(
+                logits,
+                bins.to(device),
+                pitch.to(device),
+                voiced.to(device))
 
             # Stop when we exceed some number of batches
             if i + 1 == penne.EVALUATION_STEPS:
@@ -299,15 +323,20 @@ def ddp_context(rank, world_size):
 
 def loss(logits, bins):
     """Compute loss function"""
+    # Reshape inputs
     logits = logits.permute(0, 2, 1).reshape(-1, penne.PITCH_BINS)
     bins = bins.flatten()
 
     # Maybe blur target
     if penne.GAUSSIAN_BLUR:
 
-        # Get cents values to evaluate distributions at
-        cents = penne.convert.bins_to_cents(
-            torch.arange(penne.PITCH_BINS).to(bins.device))[:, None]
+        # Cache cents values to evaluate distributions at
+        if not hasattr(loss, 'cents'):
+            loss.cents = penne.convert.bins_to_cents(
+                torch.arange(penne.PITCH_BINS))[:, None]
+
+        # Ensure values are on correct device (no-op if devices are the same)
+        loss.cents = loss.cents.to(bins.device)
 
         # Create normal distributions
         distributions = torch.distributions.Normal(
@@ -315,24 +344,35 @@ def loss(logits, bins):
             25)
 
         # Sample normal distributions
-        bins = torch.exp(distributions.log_prob(cents)).permute(1, 0)
+        bins = torch.exp(distributions.log_prob(loss.cents)).permute(1, 0)
 
         # Normalize
         bins = bins / (bins.max(dim=1, keepdims=True).values + 1e-8)
     else:
 
         # One-hot encoding
-        bins = torch.nn.functional.one_hot(bins, penne.PITCH_BINS)
+        bins = torch.nn.functional.one_hot(bins, penne.PITCH_BINS).float()
 
-    # Positive example weight
-    weight = torch.full(
-        (penne.PITCH_BINS,),
-        penne.LOSS_WEIGHT,
-        dtype=torch.float,
-        device=logits.device)
+    if penne.LOSS == 'binary_cross_entropy':
 
-    # Compute binary cross-entropy loss
-    return torch.nn.functional.binary_cross_entropy_with_logits(
-        logits,
-        bins,
-        pos_weight=weight)
+        # Positive example weight
+        weight = torch.full(
+            (penne.PITCH_BINS,),
+            penne.BCE_POSITIVE_WEIGHT,
+            dtype=torch.float,
+            device=logits.device)
+
+        # Compute binary cross-entropy loss
+        return torch.nn.functional.binary_cross_entropy_with_logits(
+            logits,
+            bins,
+            pos_weight=weight)
+
+    elif penne.LOSS == 'categorical_cross_entropy':
+
+        # Compute categorical cross-entropy loss
+        return torch.nn.functional.cross_entropy(logits, bins)
+
+    else:
+
+        raise ValueError(f'Loss {penne.LOSS} is not implemented')

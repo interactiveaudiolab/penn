@@ -14,7 +14,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--datasets',
-        help='The datasets to evaluate')
+        nargs='+',
+        default=['mdb', 'ptdb'],
+        help='The datasets to evaluate on')
     parser.add_argument(
         '--checkpoint',
         type=Path,
@@ -25,7 +27,7 @@ def parse_args():
         type=int,
         help='The index of the GPU to use for evaluation')
 
-    return parser.parse_args()
+    return parser.parse_known_args()[0]
 
 
 penne.evaluate.datasets(**vars(parse_args()))

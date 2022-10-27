@@ -22,10 +22,61 @@ class Dataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, names, partition):
+        self.partition = partition
         self.datasets = [Metadata(name, partition) for name in names]
 
     def __getitem__(self, index):
-        """Retrieve the indexth item"""
+        if self.partition == 'test':
+            return self.load_inference(index)
+        return self.load_training(index)
+
+    def __len__(self):
+        """Length of the dataset"""
+        if self.partition == 'test':
+            return sum(len(dataset.files) for dataset in self.datasets)
+        return sum(dataset.total for dataset in self.datasets)
+
+    def load_inference(self, index):
+        """Load item for inference"""
+        # Get dataset to query
+        i = 0
+        dataset = self.datasets[i]
+        upper_bound = len(dataset.files)
+        while index >= upper_bound:
+            i += 1
+            dataset = self.datasets[i]
+            upper_bound += len(dataset.files)
+
+        # Get index into dataset
+        index -= (upper_bound - len(dataset.files))
+
+        # Get stem
+        stem = dataset.stems[index]
+
+        # Load from cache
+        directory = penne.CACHE_DIR / dataset.name
+        audio = np.load(directory / f'{stem}-audio.npy')
+        pitch = np.load(directory / f'{stem}-pitch.npy')
+        voiced = np.load(directory / f'{stem}-voiced.npy')
+
+        # Convert to torch
+        audio = torch.from_numpy(audio)[None]
+        pitch = torch.from_numpy(pitch)
+        voiced = torch.from_numpy(voiced)
+
+        # Convert to pitch bin categories
+        bins = penne.convert.frequency_to_bins(pitch)
+
+        # Set unvoiced bins to random values
+        bins = torch.where(
+            ~voiced,
+            torch.randint(0, penne.PITCH_BINS, bins.shape, dtype=torch.long),
+            bins)
+
+        return audio, bins, pitch, voiced, stem
+
+    def load_training(self, index):
+        """Load item for training"""
         # Get dataset to query
         i = 0
         dataset = self.datasets[i]
@@ -49,7 +100,8 @@ class Dataset(torch.utils.data.Dataset):
 
         # Get start and end samples
         start_sample = \
-            start * penne.HOPSIZE - (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
+            penne.convert.frames_to_samples(start) - \
+            (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
         end_sample = start_sample + penne.NUM_TRAINING_SAMPLES
 
         # Load from cache
@@ -89,10 +141,6 @@ class Dataset(torch.utils.data.Dataset):
             bins)
 
         return audio[None], bins, pitch, voiced, stem
-
-    def __len__(self):
-        """Length of the dataset"""
-        return sum(dataset.total for dataset in self.datasets)
 
 
 ###############################################################################

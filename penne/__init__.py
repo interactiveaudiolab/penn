@@ -1,18 +1,17 @@
 # Trainings
-# - More bins
-# - Crepe original mdb
-# - Harmof0 both
-# - Harmof0 mdb
-# - Harmof0 ptdb
-# - No blur
-# - Preprocessing?
 
 # Evaluation
 # - Torchscript
 # - Dither
+# - time delay figure
+# - torchcrepe
 
 # Development
+# - debug harmof0**
+# - Local linear weighting**
 # - periodicity methods
+#    - autocorrelation
+#    - cnmdf
 
 
 ###############################################################################
@@ -29,6 +28,7 @@ yapecs.configure(defaults)
 
 # Import configuration parameters
 from .config.defaults import *
+from . import time
 from .config.static import *
 
 
@@ -45,8 +45,8 @@ from . import data
 from . import evaluate
 from . import load
 from . import partition
+from . import periodicity
 from . import plot
 from . import preprocess
-from . import time
 from . import train
 from . import write

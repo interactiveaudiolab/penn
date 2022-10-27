@@ -40,15 +40,15 @@ class Metrics:
 
     def update(self, logits, bins, target, voiced):
         # Detach from graph
-        logits = logits.detach().cpu()
-        bins = bins.cpu()
+        logits = logits.detach()
 
         # Update loss
         self.loss.update(logits, bins)
 
         # Decode bins, pitch, and periodicity
-        periodicity, predicted = logits.max(dim=1)
-        pitch = penne.convert.bins_to_frequency(predicted)
+        with penne.time.timer('decode'):
+            periodicity, predicted = penne.decode(logits)
+            pitch = penne.convert.bins_to_frequency(predicted)
 
         # Mask unvoiced
         pitch, target = pitch[voiced], target[voiced]
@@ -99,7 +99,7 @@ class F1:
 
     def __init__(self, thresholds=None):
         self.thresholds = \
-            [2 ** -i for i in range(1, 9)] if thresholds is None \
+            [2 ** -i for i in range(1, 17)] if thresholds is None \
             else thresholds
         self.precision = [Precision() for _ in range(len(self.thresholds))]
         self.recall = [Recall() for _ in range(len(self.thresholds))]
@@ -239,7 +239,7 @@ class RMSE:
         self.reset()
 
     def __call__(self):
-        return {'rmse': (torch.sqrt(self.sum / self.count)).item()}
+        return {'rmse': torch.sqrt(self.sum / self.count).item()}
 
     def update(self, predicted, target):
         self.sum += (cents(predicted, target) ** 2).sum()

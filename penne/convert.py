@@ -5,7 +5,7 @@ import penne
 
 
 ###############################################################################
-# Pitch unit conversions
+# Pitch conversions
 ###############################################################################
 
 
@@ -45,6 +45,21 @@ def frequency_to_cents(frequency):
     return penne.OCTAVE * torch.log2(frequency / penne.FMIN)
 
 
+###############################################################################
+# Time conversions
+###############################################################################
+
+
+def frames_to_samples(frames):
+    """Convert number of frames to samples"""
+    return frames * penne.HOPSIZE
+
+
+def frames_to_seconds(frames):
+    """Convert number of frames to seconds"""
+    return frames * penne.HOPSIZE_SECONDS
+
+
 def seconds_to_frames(seconds):
     """Convert seconds to number of frames"""
     return samples_to_frames(seconds_to_samples(seconds))
@@ -52,12 +67,17 @@ def seconds_to_frames(seconds):
 
 def seconds_to_samples(seconds):
     """Convert seconds to number of samples"""
-    return seconds * penne.SAMPLE_RATE
+    return int(seconds * penne.SAMPLE_RATE)
 
 
 def samples_to_frames(samples):
     """Convert samples to number of frames"""
     return samples // penne.HOPSIZE
+
+
+def samples_to_seconds(samples):
+    """Convert number of samples to seconds"""
+    return samples / penne.SAMPLE_RATE
 
 
 ###############################################################################
@@ -67,8 +87,9 @@ def samples_to_frames(samples):
 
 def dither(cents):
     """Dither the predicted pitch in cents to remove quantization error"""
-    noise = scipy.stats.triang.rvs(c=0.5,
-                                   loc=-penne.CENTS_PER_BIN,
-                                   scale=2 * penne.CENTS_PER_BIN,
-                                   size=cents.size())
+    noise = scipy.stats.triang.rvs(
+        c=0.5,
+        loc=-penne.CENTS_PER_BIN,
+        scale=2 * penne.CENTS_PER_BIN,
+        size=cents.size())
     return cents + cents.new_tensor(noise)

@@ -1,3 +1,4 @@
+import math
 import torch
 import torchaudio
 
@@ -12,7 +13,6 @@ import penne
 class Harmof0(torch.nn.Sequential):
 
     def __init__(self, channels=[32, 64, 128, 128]):
-        bins = bins_per_octave
         super().__init__(
             LogHarmonicSpectrogram(),
             Block(1, channels[0], dilation_mode='harmonic'),
@@ -21,7 +21,8 @@ class Harmof0(torch.nn.Sequential):
             Block(channels[2], channels[3]),
             torch.nn.Conv2d(channels[3], channels[3] // 2, kernel_size=1),
             torch.nn.ReLU(),
-            torch.nn.Conv2d(channels[3] // 2, 1, kernel_size=1))
+            torch.nn.Conv2d(channels[3] // 2, 1, kernel_size=1),
+            Squeeze())
 
 
 ###############################################################################
@@ -29,18 +30,38 @@ class Harmof0(torch.nn.Sequential):
 ###############################################################################
 
 
+class Block(torch.nn.Sequential):
+
+    def __init__(self, in_channels, out_channels, dilation_mode='fixed'):
+        super().__init__(
+            torch.nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                padding=(1, 1)),
+            torch.nn.ReLU(),
+            HarmonicDilatedConvolution(out_channels) \
+                if dilation_mode == 'harmonic' else torch.nn.Conv2d(
+                    out_channels,
+                    out_channels,
+                    kernel_size=(1, 3),
+                    padding='same',
+                    dilation=[1, 60]),
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(out_channels))
+
+
 class HarmonicDilatedConvolution(torch.nn.Sequential):
 
-    def __init__(self, channels, dilations_per_octave=12):
-        bins_per_octave = penne.OCTAVE / penne.CENTS_PER_BIN
+    def __init__(self, channels):
         dilations = \
             torch.log(torch.arange(1, 13)) / \
-            torch.log(2 ** (1.0 / bins_per_octave))
-        super.__init__(
+            math.log(2 ** (1.0 / (penne.OCTAVE / penne.CENTS_PER_BIN)))
+        super().__init__(
             MultiRateDilatedConvolution(
                 channels,
                 channels,
-                dilations.round().to(torch.int)))
+                dilations=dilations.round().to(torch.int)))
 
 
 class MultiRateDilatedConvolution(torch.nn.Module):
@@ -108,33 +129,32 @@ class LogHarmonicSpectrogram(torch.nn.Module):
         # Create amplitude scaling
         self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(top_db=80)
 
-    def forward(self, waveforms):
-        # TODO - unfold
-        specgram =  torch.fft.fft(waveforms * self.window)
-        specgram = torch.abs(specgram[:, :, :self.n_fft // 2 + 1])
-        specgram = specgram * specgram
-        specgram = \
-            specgram[:,:, self.log_idxs_floor] * self.log_idxs_floor_w + \
-            specgram[:, :, self.log_idxs_ceiling] * self.log_idxs_ceiling_w
-        return self.amplitude_to_db(specgram)
+    def forward(self, audio):
+        # Chunk audio
+        frames = torch.nn.functional.unfold(
+            audio[:, None],
+            kernel_size=(1, penne.WINDOW_SIZE),
+            stride=(1, penne.HOPSIZE)).permute(0, 2, 1)
+
+        # Compute short-time fourier transform
+        stft =  torch.fft.fft(frames * self.window)
+
+        # Take the real components
+        real = torch.abs(stft[:, :, :penne.NUM_FFT // 2 + 1])
+
+        # Compute magnitude spectrogram
+        magnitude = real * real
+
+        # Apply harmonic bin spacing
+        harmonic = \
+            magnitude[:, :, self.log_idxs_floor] * self.log_idxs_floor_w + \
+            magnitude[:, :, self.log_idxs_ceiling] * self.log_idxs_ceiling_w
+
+        # Apply log-based amplitude scaling
+        return self.amplitude_to_db(harmonic.permute(0, 2, 1))[:, None]
 
 
-class Block(torch.nn.Sequential):
+class Squeeze(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, dilation_mode='fixed'):
-        super().__init__(
-            torch.nn.Conv2d(
-                in_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                padding=(1, 1)),
-            torch.nn.ReLU(),
-            HarmonicDilatedConvolution(out_channels) \
-                if dilation_mode == 'harmonic' else torch.nn.Conv2d(
-                    out_channels,
-                    out_channels,
-                    kernel_size=(1, 3),
-                    padding='same',
-                    dilation=[1, 60]),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm2d(out_channels))
+    def forward(self, x):
+        return x.squeeze()

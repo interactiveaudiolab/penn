@@ -19,7 +19,7 @@ def main(config, datasets, gpus=None):
     shutil.copyfile(config, directory / config.name)
 
     # Train
-    penne.train.run(
+    checkpoint = penne.train.run(
         datasets,
         directory,
         directory,
@@ -27,7 +27,7 @@ def main(config, datasets, gpus=None):
         gpus)
 
     # Evaluate
-    penne.evaluate.datasets(datasets, directory, gpus)
+    penne.evaluate.datasets(datasets, checkpoint, gpus[0])
 
 
 def parse_args():

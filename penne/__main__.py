@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument(
         '--hopsize',
         type=int,
-        default=penne.HOPSIZE / penne.SAMPLE_RATE,
+        default=penne.HOPSIZE_SECONDS,
         help='The hopsize in seconds')
     parser.add_argument(
         '--fmin',

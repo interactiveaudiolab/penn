@@ -1,4 +1,4 @@
-CONFIG = 'harmof0'
+CONFIG = 'harmof0-mdb'
 
 # Batch size (per gpu)
 BATCH_SIZE = 24

@@ -1,6 +1,7 @@
 import itertools
 
 import numpy as np
+import torchaudio
 
 import penne
 
@@ -71,6 +72,12 @@ def mdb():
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
 
+        # TEMPORARY - save audio for listening and debugging
+        torchaudio.save(
+            output_directory / f'{stem}.wav',
+            audio,
+            penne.SAMPLE_RATE)
+
         # Load pitch
         annotations = np.loadtxt(open(pitch_file), delimiter=',')
         times, pitch = annotations[:, 0], annotations[:, 1]
@@ -82,16 +89,16 @@ def mdb():
         frames = penne.convert.samples_to_frames(audio.shape[-1])
 
         # Linearly interpolate to target number of frames
-        new_times = (penne.HOPSIZE / penne.SAMPLE_RATE) * np.arange(0, frames)
-        new_times += penne.HOPSIZE / (2 * penne.SAMPLE_RATE)
-        pitch = 2 ** np.interp(new_times, times, np.log2(pitch))
+        new_times = penne.HOPSIZE_SECONDS * np.arange(0, frames)
+        new_times += penne.HOPSIZE_SECONDS / 2.
+        pitch = 2. ** np.interp(new_times, times, np.log2(pitch))
 
         # Linearly interpolate voiced/unvoiced tokens
         voiced = np.interp(new_times, times, voiced) > .5
 
         # Check shapes
         assert (
-            audio.shape[-1] // penne.HOPSIZE ==
+            penne.convert.samples_to_frames(audio.shape[-1]) ==
             pitch.shape[-1] ==
             voiced.shape[-1])
 
@@ -147,6 +154,12 @@ def ptdb():
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
 
+        # TEMPORARY - save audio for listening and debugging
+        torchaudio.save(
+            output_directory / f'{stem}.wav',
+            audio,
+            penne.SAMPLE_RATE)
+
         # Load pitch
         pitch = np.loadtxt(open(pitch_file), delimiter=' ')[:, 0]
 
@@ -155,7 +168,7 @@ def ptdb():
 
         # Check shapes
         assert (
-            audio.shape[-1] // penne.HOPSIZE ==
+            penne.convert.samples_to_frames(audio.shape[-1]) ==
             pitch.shape[-1] ==
             voiced.shape[-1])
 

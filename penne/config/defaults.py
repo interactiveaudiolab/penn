@@ -20,6 +20,9 @@ CONFIG = 'penne'
 # Width of a pitch bin
 CENTS_PER_BIN = 20  # cents
 
+# Whether to peak-normalize CREPE input audio
+CREPE_NORMALIZE = False
+
 # Whether to trade quantization error for noise during inference
 DITHER = False
 
@@ -77,8 +80,11 @@ SOURCE_DIR = Path(__file__).parent.parent.parent / 'data' / 'sources'
 ###############################################################################
 
 
+# Method to use for periodicity extraction
+PERIODICITY = 'max'
+
 # Perform inference using torchscript optimization
-TORCHSCRIPT = True
+TORCHSCRIPT = False
 
 
 ###############################################################################
@@ -100,12 +106,36 @@ EVALUATION_STEPS = 64
 
 
 ###############################################################################
+# Model parameters
+###############################################################################
+
+
+# The dropout rate. Set to None to turn off dropout.
+DROPOUT = .25
+
+# The max pooling kernel and stride. Set to None to turn off max pooling.
+MAX_POOL = (2, 2)
+
+# The name of the model to use for training
+MODEL = 'crepe'
+
+# Type of model normalization
+NORMALIZATION = 'batch'
+
+
+###############################################################################
 # Training parameters
 ###############################################################################
 
 
+# Whether to use adaptive gradient clipping
+ADAPTIVE_CLIPPING = False
+
 # Batch size (per gpu)
 BATCH_SIZE = 64
+
+# Weight applied to positive examples in binary cross-entropy loss
+BCE_POSITIVE_WEIGHT = 1.
 
 # Whether to apply Gaussian blur to binary cross-entropy loss targets
 GAUSSIAN_BLUR = True
@@ -113,8 +143,8 @@ GAUSSIAN_BLUR = True
 # Optimizer learning rate
 LEARNING_RATE = 2e-4
 
-# The name of the model to use for training
-MODEL = 'crepe'
+# Loss function
+LOSS = 'binary_cross_entropy'
 
 # Number of training steps
 NUM_STEPS = 250000
@@ -122,14 +152,8 @@ NUM_STEPS = 250000
 # Number of frames used during training
 NUM_TRAINING_FRAMES = 1
 
-# Number of samples used during training
-NUM_TRAINING_SAMPLES = 1024
-
 # Number of data loading worker threads
 NUM_WORKERS = 4
-
-# Weight applied to positive examples in binary cross-entropy loss
-LOSS_WEIGHT = 1.
 
 # Seed for all random number generators
 RANDOM_SEED = 1234
