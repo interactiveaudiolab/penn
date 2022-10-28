@@ -18,7 +18,7 @@ class Crepe(torch.nn.Module):
         kernel_sizes = [512] + 5 * [64]
         strides = [4] + 5 * [1]
         if penne.MAX_POOL is None:
-            strides = [4 * stride for stride in strides]
+            strides = [2 * stride for stride in strides]
         padding = [(254, 254)] + 5 * [(31, 32)]
         self.blocks = torch.nn.Sequential(*(
             Block(i, o, k, s, p) for i, o, k, s, p in
@@ -28,6 +28,7 @@ class Crepe(torch.nn.Module):
             out_features=penne.PITCH_BINS)
 
     def forward(self, audio):
+        audio
         # Maybe normalize audio
         if penne.CREPE_NORMALIZE:
 

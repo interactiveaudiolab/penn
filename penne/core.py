@@ -59,8 +59,8 @@ def from_audio(
 
         # Decode
         result = decode(logits, fmin, fmax)
-        pitch.append(result[0])
-        periodicity.append(result[1])
+        pitch.append(result[1])
+        periodicity.append(result[2])
 
     # Concatenate results
     return torch.cat(pitch, 1), torch.cat(periodicity, 1)
@@ -143,7 +143,7 @@ def from_file_to_file(
         model,
         checkpoint,
         batch_size,
-        gpu)
+        gpu).cpu()
 
     # Maybe use same filename with new extension
     if output_prefix is None:
@@ -280,7 +280,7 @@ def decode(logits, fmin=penne.FMIN, fmax=None):
         raise ValueError(
             f'Periodicity method {penne.PERIODICITY} is not defined')
 
-    return pitch, periodicity
+    return bins, pitch, periodicity
 
 
 def preprocess(audio,

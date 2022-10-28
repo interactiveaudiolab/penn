@@ -1,6 +1,8 @@
 import json
 import time
 
+import torch
+
 import penne
 
 
@@ -11,10 +13,12 @@ import penne
 
 def datasets(datasets, checkpoint=penne.DEFAULT_CHECKPOINT, gpu=None):
     """Perform evaluation"""
+    device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
+
     # Start benchmarking
     penne.BENCHMARK = True
     penne.TIMER.reset()
-    start = time.time()
+    start_time = time.time()
 
     # Containers for results
     overall, granular = {}, {}
@@ -45,39 +49,38 @@ def datasets(datasets, checkpoint=penne.DEFAULT_CHECKPOINT, gpu=None):
             # Reset file metrics
             file_metrics.reset()
 
-            # Infer
-            _, _, logits = penne.from_audio(
+            # Preprocess audio
+            iterator = penne.preprocess(
                 audio[0],
                 penne.SAMPLE_RATE,
                 model=penne.MODEL,
-                checkpoint=checkpoint,
-                batch_size=2048,
-                gpu=gpu)
-
-            logits = []
-
-            # Preprocess audio
-            iterator = penne.preprocess(
-                audio,
-                penne.SAMPLE_RATE,
-                model=penne.MODEL,
-                batch_size=2048)
-            for frames in iterator:
+                batch_size=penne.EVALUATION_BATCH_SIZE)
+            for i, frames in enumerate(iterator):
 
                 # Copy to device
                 with penne.time.timer('copy-to'):
-                    frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
+                    frames = frames.to(device)
+
+                # Slice features and copy to GPU
+                with penne.time.timer('copy-eval'):
+                    start = i * penne.EVALUATION_BATCH_SIZE
+                    end = start + frames.shape[0]
+                    batch_bins = bins[:, start:end].to(device)
+                    batch_pitch = pitch[:, start:end].to(device)
+                    batch_voiced = voiced[:, start:end].to(device)
 
                 # Infer
-                logits.append(infer(frames, model, checkpoint).detach())
+                logits = penne.infer(
+                    frames,
+                    penne.MODEL,
+                    checkpoint).detach()
 
-            # Concatenate results
-            logits = torch.cat(logits, 2)
-
-            # Update metrics
-            file_metrics.update(logits, bins, pitch, voiced)
-            dataset_metrics.update(logits, bins, pitch, voiced)
-            aggregate_metrics.update(logits, bins, pitch, voiced)
+                # Update metrics
+                with penne.time.timer('eval'):
+                    args = logits, batch_bins, batch_pitch, batch_voiced
+                    file_metrics.update(*args)
+                    dataset_metrics.update(*args)
+                    aggregate_metrics.update(*args)
 
             # Copy results
             granular[f'{dataset}/{stem[0]}'] = file_metrics()
@@ -99,7 +102,7 @@ def datasets(datasets, checkpoint=penne.DEFAULT_CHECKPOINT, gpu=None):
 
     # Get benchmarking information
     benchmark = penne.TIMER()
-    benchmark['elapsed'] = time.time() - start
+    benchmark['elapsed'] = time.time() - start_time
 
     # Get total number of frames, samples, and seconds in test data
     frames = aggregate_metrics.loss.count

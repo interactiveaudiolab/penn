@@ -1,4 +1,5 @@
 # Trainings
+# - harmof0
 
 # Evaluation
 # - Torchscript
@@ -9,6 +10,7 @@
 # Development
 # - debug harmof0**
 # - Local linear weighting**
+# - Separate timing evaluation**
 # - periodicity methods
 #    - autocorrelation
 #    - cnmdf

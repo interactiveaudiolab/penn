@@ -125,7 +125,7 @@ def train(
             list(module.parameters()) for name, module in model.named_modules()
             if name != 'classifier']
 
-        #
+        # Wrap optimizer
         optimizer = penne.train.clip.AdaptiveGradientClipping(
             parameters,
             optimizer)
@@ -192,7 +192,7 @@ def train(
                 # Evaluate #
                 ############
 
-                if step % penne.EVALUATION_INTERVAL == 0:
+                if step % penne.LOG_INTERVAL == 0:
                     evaluate_fn = functools.partial(
                         evaluate,
                         log_directory,
@@ -268,7 +268,7 @@ def evaluate(directory, step, model, gpu, condition, loader):
                 voiced.to(device))
 
             # Stop when we exceed some number of batches
-            if i + 1 == penne.EVALUATION_STEPS:
+            if i + 1 == penne.LOG_STEPS:
                 break
 
         # Format results
@@ -348,6 +348,7 @@ def loss(logits, bins):
 
         # Normalize
         bins = bins / (bins.max(dim=1, keepdims=True).values + 1e-8)
+
     else:
 
         # One-hot encoding

@@ -80,29 +80,26 @@ SOURCE_DIR = Path(__file__).parent.parent.parent / 'data' / 'sources'
 ###############################################################################
 
 
-# Method to use for periodicity extraction
-PERIODICITY = 'max'
-
-# Perform inference using torchscript optimization
-TORCHSCRIPT = False
-
-
-###############################################################################
-# Logging parameters
-###############################################################################
-
-
 # Whether to perform benchmarking
 BENCHMARK = False
 
 # Number of steps between saving checkpoints
 CHECKPOINT_INTERVAL = 25000  # steps
 
+# Batch size to use for evaluation
+EVALUATION_BATCH_SIZE = 2048
+
 # Number of steps between logging to Tensorboard
-EVALUATION_INTERVAL = 2500  # steps
+LOG_INTERVAL = 2500  # steps
 
 # Number of batches to use for validation
-EVALUATION_STEPS = 64
+LOG_STEPS = 64
+
+# Method to use for periodicity extraction
+PERIODICITY = 'max'
+
+# Perform inference using torchscript optimization
+TORCHSCRIPT = False
 
 
 ###############################################################################

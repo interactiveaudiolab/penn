@@ -1,0 +1,3 @@
+CONFIG = 'test'
+
+EVALUATION_INTERVAL = 100
