@@ -30,7 +30,14 @@ class Crepe(torch.nn.Module):
     def forward(self, audio):
         # Maybe normalize audio
         if penne.CREPE_NORMALIZE:
-            audio /= audio.max(dim=2, keepdim=True).values
+
+            # Mean-center
+            audio -= audio.mean(dim=2, keepdim=True)
+
+            # Scale
+            audio /= torch.max(
+                torch.tensor(1e-10, device=audio.device),
+                audio.std(dim=2, keepdim=True))
 
         # Infer
         # shape=(batch, 1, penne.WINDOW_SIZE) =>
