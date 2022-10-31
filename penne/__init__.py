@@ -1,16 +1,21 @@
 # Trainings
-# - harmof0
+# - Misalignments
 
 # Evaluation
 # - Torchscript
 # - Dither
-# - time delay figure
 # - torchcrepe
+# - original harmof0
+
+# Figures
+# - time delay
 
 # Development
+# - sgconv**
+# - test ddp
+# - instance norm**
 # - debug harmof0**
 # - Local linear weighting**
-# - Separate timing evaluation**
 # - periodicity methods
 #    - autocorrelation
 #    - cnmdf
@@ -44,6 +49,7 @@ from .model import Model
 from . import checkpoint
 from . import convert
 from . import data
+from . import dsp
 from . import evaluate
 from . import load
 from . import partition
@@ -52,3 +58,6 @@ from . import plot
 from . import preprocess
 from . import train
 from . import write
+
+# TEMPORARY
+from . import temp

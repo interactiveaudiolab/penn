@@ -7,6 +7,10 @@ import penne
 ###############################################################################
 
 
+# Maximum representable frequency
+FMAX = \
+    penne.FMIN * 2 ** (penne.PITCH_BINS * penne.CENTS_PER_BIN / penne.OCTAVE)
+
 # Hopsize in seconds
 HOPSIZE_SECONDS = penne.HOPSIZE / penne.SAMPLE_RATE
 

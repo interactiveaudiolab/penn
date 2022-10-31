@@ -1,4 +1,4 @@
-CONFIG = 'crepe-original-mdb'
+CONFIG = 'crepe-original-ptdb'
 
 # Batch size (per gpu)
 BATCH_SIZE = 32

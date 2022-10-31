@@ -1,4 +1,5 @@
 from .crepe import Crepe
+from .deepf0 import Deepf0
 from .harmof0 import Harmof0
 
 import penne

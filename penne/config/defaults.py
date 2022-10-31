@@ -134,6 +134,9 @@ BATCH_SIZE = 64
 # Weight applied to positive examples in binary cross-entropy loss
 BCE_POSITIVE_WEIGHT = 1.
 
+# Whether to stop training when validation loss stops improving
+EARLY_STOPPING = False
+
 # Whether to apply Gaussian blur to binary cross-entropy loss targets
 GAUSSIAN_BLUR = True
 
@@ -154,3 +157,6 @@ NUM_WORKERS = 4
 
 # Seed for all random number generators
 RANDOM_SEED = 1234
+
+# Whether to only use voiced start frames
+VOICED_ONLY = False

@@ -7,16 +7,15 @@ import torch
 
 
 class AdaptiveGradientClipping(torch.optim.Optimizer):
-    """Adaptive Gradient Clipping"""
 
     def __init__(
         self,
-        params,
+        parameters,
         optim: torch.optim.Optimizer,
         clipping: float = 1e-2,
         eps: float = 1e-3):
         self.optim = optim
-        self.clipping_parameters = params
+        self.parameters = parameters
         self.eps = eps
         self.clipping = clipping
         self.param_groups = optim.param_groups
@@ -25,22 +24,40 @@ class AdaptiveGradientClipping(torch.optim.Optimizer):
     @torch.no_grad()
     def step(self):
         """Performs a single optimization step"""
-        for p in self.clipping_parameters:
-            if p.grad is None:
-                print('None gradient')
-                continue
-            param_norm = torch.max(
-                unitwise_norm(p.detach()),
-                torch.tensor(self.eps).to(p.device))
-            grad_norm = unitwise_norm(p.grad.detach())
-            max_norm = param_norm * self.clipping
-            trigger = grad_norm > max_norm
-            clipped_grad = p.grad * (max_norm / torch.max(
-                grad_norm,
-                torch.tensor(1e-6).to(grad_norm.device)))
-            p.grad.detach().data.copy_(
-                torch.where(trigger, clipped_grad, p.grad))
+        for p in self.parameters:
+            for param in p:
+                if param.grad is None:
+                    continue
+
+                # Get threshold
+                param_norm = torch.max(
+                    unitwise_norm(param.detach()),
+                    torch.tensor(self.eps).to(param.device))
+                max_norm = param_norm * self.clipping
+
+                # Determine which gradients are above threshold
+                grad_norm = unitwise_norm(param.grad.detach())
+                trigger = grad_norm > max_norm
+
+                # Clip gradients above threshold
+                clipped_grad = param.grad * \
+                    (max_norm / torch.max(
+                        grad_norm,
+                        torch.tensor(1e-6).to(grad_norm.device)))
+                param.grad.detach().data.copy_(
+                    torch.where(trigger, clipped_grad, param.grad))
+
         return self.optim.step()
+
+    def zero_grad(self):
+        for p in self.parameters:
+            for param in p:
+                if param.grad is not None:
+                    if param.grad.grad_fn is not None:
+                        param.grad.detach_()
+                    else:
+                        param.grad.requires_grad_(False)
+                    param.grad.zero_()
 
 
 ###############################################################################

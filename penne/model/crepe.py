@@ -9,7 +9,6 @@ import penne
 
 
 class Crepe(torch.nn.Module):
-    """Crepe model definition"""
 
     def __init__(self):
         super().__init__()
@@ -28,21 +27,8 @@ class Crepe(torch.nn.Module):
             out_features=penne.PITCH_BINS)
 
     def forward(self, audio):
-        audio
-        # Maybe normalize audio
-        if penne.CREPE_NORMALIZE:
-
-            # Mean-center
-            audio -= audio.mean(dim=2, keepdim=True)
-
-            # Scale
-            audio /= torch.max(
-                torch.tensor(1e-10, device=audio.device),
-                audio.std(dim=2, keepdim=True))
-
-        # Infer
         # shape=(batch, 1, penne.WINDOW_SIZE) =>
-        # shape=(batch, penne.PITCH_BINS)
+        # shape=(batch, penne.PITCH_BINS, penne.NUM_TRAINING_FRAMES)
         return self.classifier(
             self.blocks(audio).reshape(audio.shape[0], 2048))[:, :, None]
 
@@ -53,7 +39,6 @@ class Crepe(torch.nn.Module):
 
 
 class Block(torch.nn.Sequential):
-    """Crepe block definition"""
 
     def __init__(
         self,

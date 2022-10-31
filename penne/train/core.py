@@ -130,6 +130,14 @@ def train(
             parameters,
             optimizer)
 
+    ##############################
+    # Maybe setup early stopping #
+    ##############################
+
+    if penne.EARLY_STOPPING:
+        best_loss = float('inf')
+    stop = False
+
     #########
     # Train #
     #########
@@ -149,7 +157,10 @@ def train(
             desc=f'Training {penne.CONFIG}')
     while step < steps:
 
-        model.train()
+        # Seed sampler
+        epoch = step // len(train_loader.dataset)
+        train_loader.sampler.set_epoch(epoch)
+
         for batch in train_loader:
 
             # Unpack batch
@@ -163,9 +174,9 @@ def train(
                 # Compute losses
                 losses = loss(logits, bins.to(device))
 
-            ######################
+            ##################
             # Optimize model #
-            ######################
+            ##################
 
             optimizer.zero_grad()
 
@@ -182,16 +193,21 @@ def train(
             # Update gradient scaler
             scaler.update()
 
-            ###########
-            # Logging #
-            ###########
+            ##############
+            # Evaluation #
+            ##############
 
             if not rank:
 
-                ############
-                # Evaluate #
-                ############
+                # Save checkpoint
+                if step and step % penne.CHECKPOINT_INTERVAL == 0:
+                    penne.checkpoint.save(
+                        model,
+                        optimizer,
+                        step,
+                        output_directory / f'{step:08d}.pt')
 
+                # Evaluate
                 if step % penne.LOG_INTERVAL == 0:
                     evaluate_fn = functools.partial(
                         evaluate,
@@ -200,21 +216,21 @@ def train(
                         model,
                         gpu)
                     evaluate_fn('train', train_loader)
-                    evaluate_fn('valid', valid_loader)
+                    valid_loss = evaluate_fn('valid', valid_loader)
 
-                ###################
-                # Save checkpoint #
-                ###################
+                    # Maybe stop training
+                    if penne.EARLY_STOPPING:
 
-                if step and step % penne.CHECKPOINT_INTERVAL == 0:
-                    penne.checkpoint.save(
-                        model,
-                        optimizer,
-                        step,
-                        output_directory / f'{step:08d}.pt')
+                        # Update best validation loss
+                        if valid_loss < best_loss:
+                            best_loss = valid_loss
+
+                        # Stop training
+                        else:
+                            stop = True
 
             # Update training step count
-            if step >= steps:
+            if step >= steps or stop:
                 break
             step += 1
 
@@ -280,6 +296,8 @@ def evaluate(directory, step, model, gpu, condition, loader):
 
     # Prepare generator for training
     model.train()
+
+    return scalars[f'loss/{condition}']
 
 
 ###############################################################################

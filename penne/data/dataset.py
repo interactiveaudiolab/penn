@@ -142,6 +142,15 @@ class Dataset(torch.utils.data.Dataset):
 
         return audio[None], bins, pitch, voiced, stem
 
+    def voiced_indices(self):
+        """Retrieve the indices with voiced start frames"""
+        offset = 0
+        indices = []
+        for dataset in self.datasets:
+            indices += [index + offset for index in dataset.voiced_indices()]
+            offset += dataset.total
+        return indices
+
 
 ###############################################################################
 # Metadata
@@ -174,3 +183,27 @@ class Metadata:
 
         # Total number of valid start points
         self.total = self.offsets[-1]
+
+    def voiced_indices(self):
+        """Retrieve the indices with voiced start frames"""
+        # Get voicing files
+        files = [
+            penne.CACHE_DIR / self.name / f'{stem}-voiced.npy'
+            for stem in self.stems]
+
+        offset = 0
+        indices = []
+        for file in files:
+
+            # Load
+            voiced = np.load(file)
+
+            # Remove invalid center points
+            if penne.NUM_TRAINING_FRAMES > 1:
+                voiced = voiced[:-(penne.NUM_TRAINING_FRAMES - 1)]
+
+            # Update
+            indices.extend(list(voiced.nonzero()[0] + offset))
+            offset += len(voiced)
+
+        return indices

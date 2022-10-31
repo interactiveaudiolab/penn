@@ -49,7 +49,7 @@ def from_audio(
         hopsize,
         model,
         batch_size)
-    for frames in iterator:
+    for frames, _ in iterator:
 
         # Copy to device
         frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
@@ -143,7 +143,10 @@ def from_file_to_file(
         model,
         checkpoint,
         batch_size,
-        gpu).cpu()
+        gpu)
+
+    # Maybe move to cpu
+    pitch, periodicity = pitch.cpu(), periodicity.cpu()
 
     # Maybe use same filename with new extension
     if output_prefix is None:
@@ -185,8 +188,13 @@ def from_files_to_files(
     if output_prefixes is None:
         output_prefixes = len(files) * [None]
 
-    # Inference
-    for file, output_prefix in zip(files, output_prefixes):
+    # Iterate over files
+    for file, output_prefix in iterator(
+        zip(files, output_prefixes),
+        f'{penne.CONFIG}',
+        len(files)):
+
+        # Infer
         from_file_to_file(
             file,
             output_prefix,
@@ -319,15 +327,28 @@ def preprocess(audio,
         if model == 'crepe':
 
             # Slice and chunk audio
-            yield torch.nn.functional.unfold(
+            frames = torch.nn.functional.unfold(
                 audio[:, None, None, start:end],
                 kernel_size=(1, penne.WINDOW_SIZE),
                 stride=(1, hopsize)).permute(2, 0, 1)
 
+            # Maybe normalize audio
+            if penne.CREPE_NORMALIZE:
+
+                # Mean-center
+                frames -= frames.mean(dim=2, keepdim=True)
+
+                # Scale
+                frames /= torch.max(
+                    torch.tensor(1e-10, device=frames.device),
+                    frames.std(dim=2, keepdim=True))
+
+            yield frames, batch
+
         elif model == 'harmof0':
 
             # Slice audio
-            yield audio[:, None, start:end]
+            yield audio[:, None, start:end], batch
 
 
 def iterator(iterable, message, length=None):

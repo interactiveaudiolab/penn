@@ -21,8 +21,12 @@ class Harmof0(torch.nn.Sequential):
             Block(channels[2], channels[3]),
             torch.nn.Conv2d(channels[3], channels[3] // 2, kernel_size=1),
             torch.nn.ReLU(),
-            torch.nn.Conv2d(channels[3] // 2, 1, kernel_size=1),
-            Squeeze())
+            torch.nn.Conv2d(channels[3] // 2, 1, kernel_size=1))
+
+    def forward(self, audio):
+        # shape=(batch, 1, penne.NUM_TRAINING_SAMPLES) =>
+        # shape=(batch, penne.PITCH_BINS, penne.NUM_TRAINING_FRAMES)
+        return super().forward(audio).squeeze(1)
 
 
 ###############################################################################
@@ -46,7 +50,7 @@ class Block(torch.nn.Sequential):
                     out_channels,
                     kernel_size=(1, 3),
                     padding='same',
-                    dilation=[1, 60]),
+                    dilation=[1, penne.OCTAVE // penne.CENTS_PER_BIN]),
             torch.nn.ReLU(),
             torch.nn.BatchNorm2d(out_channels))
 
@@ -152,9 +156,3 @@ class LogHarmonicSpectrogram(torch.nn.Module):
 
         # Apply log-based amplitude scaling
         return self.amplitude_to_db(harmonic.permute(0, 2, 1))[:, None]
-
-
-class Squeeze(torch.nn.Module):
-
-    def forward(self, x):
-        return x.squeeze()

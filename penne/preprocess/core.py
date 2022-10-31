@@ -72,7 +72,7 @@ def mdb():
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
 
-        # TEMPORARY - save audio for listening and debugging
+        # Save audio for listening and evaluation
         torchaudio.save(
             output_directory / f'{stem}.wav',
             audio,
@@ -154,7 +154,7 @@ def ptdb():
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
 
-        # TEMPORARY - save audio for listening and debugging
+        # Save audio for listening and evaluation
         torchaudio.save(
             output_directory / f'{stem}.wav',
             audio,
