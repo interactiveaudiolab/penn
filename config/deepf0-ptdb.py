@@ -1,4 +1,4 @@
-CONFIG = 'crepe-original-ptdb'
+CONFIG = 'deepf0-ptdb'
 
 # Batch size (per gpu)
 BATCH_SIZE = 32
@@ -14,6 +14,9 @@ LOG_INTERVAL = 500  # steps
 
 # Number of batches to use for validation
 LOG_STEPS = 1
+
+# The name of the model to use for training
+MODEL = 'deepf0'
 
 # Whether to only use voiced start frames
 VOICED_ONLY = True

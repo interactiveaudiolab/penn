@@ -27,7 +27,10 @@ def main(config, datasets, gpus=None):
         gpus)
 
     # Evaluate
-    penne.evaluate.datasets(datasets, checkpoint, gpus[0])
+    penne.evaluate.datasets(
+        datasets,
+        checkpoint=checkpoint,
+        gpu=gpus[0])
 
 
 def parse_args():

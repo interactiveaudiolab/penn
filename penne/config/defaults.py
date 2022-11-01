@@ -137,6 +137,9 @@ BCE_POSITIVE_WEIGHT = 1.
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = False
 
+# Stop after this number of log intervals without validation improvements
+EARLY_STOPPING_STEPS = 32
+
 # Whether to apply Gaussian blur to binary cross-entropy loss targets
 GAUSSIAN_BLUR = True
 
@@ -147,7 +150,7 @@ LEARNING_RATE = 2e-4
 LOSS = 'binary_cross_entropy'
 
 # Number of training steps
-NUM_STEPS = 250000
+STEPS = 250000
 
 # Number of frames used during training
 NUM_TRAINING_FRAMES = 1

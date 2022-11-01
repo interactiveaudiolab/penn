@@ -135,8 +135,9 @@ def train(
     ##############################
 
     if penne.EARLY_STOPPING:
+        counter = penne.EARLY_STOPPING_STEPS
         best_loss = float('inf')
-    stop = False
+        stop = False
 
     #########
     # Train #
@@ -146,7 +147,7 @@ def train(
     scaler = torch.cuda.amp.GradScaler()
 
     # Get total number of steps
-    steps = penne.NUM_STEPS
+    steps = penne.STEPS
 
     # Setup progress bar
     if not rank:
@@ -155,7 +156,7 @@ def train(
             total=steps,
             dynamic_ncols=True,
             desc=f'Training {penne.CONFIG}')
-    while step < steps:
+    while step < steps and (not penne.EARLY_STOPPING or not stop):
 
         # Seed sampler
         epoch = step // len(train_loader.dataset)
@@ -166,7 +167,7 @@ def train(
             # Unpack batch
             audio, bins, *_ = batch
 
-            with torch.cuda.amp.autocast():
+            with torch.autocast(device.type):
 
                 # Forward pass
                 logits = model(audio.to(device))
@@ -220,17 +221,19 @@ def train(
 
                     # Maybe stop training
                     if penne.EARLY_STOPPING:
+                        counter -= 1
 
                         # Update best validation loss
                         if valid_loss < best_loss:
                             best_loss = valid_loss
+                            counter = penne.EARLY_STOPPING_STEPS
 
                         # Stop training
-                        else:
+                        elif counter == 0:
                             stop = True
 
             # Update training step count
-            if step >= steps or stop:
+            if step >= steps or (penne.EARLY_STOPPING and stop):
                 break
             step += 1
 

@@ -62,7 +62,7 @@ def benchmark(
         start_time = time.time()
 
         # Infer to temporary storage
-        if method == 'penne':
+        if method == 'cd-crepe':
             penne.from_files_to_files(
                 files,
                 output_prefixes,

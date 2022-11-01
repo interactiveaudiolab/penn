@@ -2,23 +2,27 @@
 # - Misalignments
 
 # Evaluation
+# - microbenchmark using synchronize**
+# - entropy in automated eval**
 # - Torchscript
-# - Dither
-# - torchcrepe
+# - pyin
 # - original harmof0
+# - torchcrepe
+# - Dither
 
 # Figures
 # - time delay
+# - posteriorgram
 
 # Development
-# - sgconv**
-# - test ddp
-# - instance norm**
 # - debug harmof0**
 # - Local linear weighting**
+# - quantization
+# - s4
 # - periodicity methods
 #    - autocorrelation
 #    - cnmdf
+# - test ddp
 
 
 ###############################################################################

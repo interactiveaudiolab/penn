@@ -37,11 +37,11 @@ def sampler(dataset, partition):
 ###############################################################################
 
 
-class Sampler(torch.utils.data.SubsetRandomSampler):
+class Sampler:
 
-    def __init__(self, indices, epoch=0):
-        super().__init__(indices)
-        self.epoch = epoch
+    def __init__(self, indices):
+        self.indices = indices
+        self.epoch = 0
 
     def __iter__(self):
         generator = torch.Generator()
@@ -49,14 +49,16 @@ class Sampler(torch.utils.data.SubsetRandomSampler):
         for i in torch.randperm(len(self.indices), generator=generator):
             yield self.indices[i]
 
+    def __len__(self):
+        return len(self.indices)
+
     def set_epoch(self, epoch):
         self.epoch = epoch
 
 
-class DistributedSampler(torch.utils.data.Sampler):
+class DistributedSampler:
 
     def __init__(self, indices):
-        super().__init__()
         self.indices = indices
         self.rank = torch.distributed.get_rank()
         self.num_replicas = torch.distributed.get_world_size()

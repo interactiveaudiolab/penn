@@ -248,11 +248,14 @@ def infer(
         # Turn off gradients
         with torch.no_grad():
 
-            # Apply model
-            logits = infer.model(frames)
+            # Automatic mixed precision
+            with torch.autocast(frames.device.type):
+
+                # Apply model
+                logits = infer.model(frames)
 
         # Maybe reshape
-        if model == 'crepe':
+        if model in ['crepe', 'deepf0']:
             logits = logits.permute(2, 1, 0)
 
         return logits
@@ -324,7 +327,7 @@ def preprocess(audio,
         start = i * hopsize
         end = start + int((batch - 1) * hopsize) + penne.WINDOW_SIZE
 
-        if model == 'crepe':
+        if model in ['crepe', 'deepf0']:
 
             # Slice and chunk audio
             frames = torch.nn.functional.unfold(

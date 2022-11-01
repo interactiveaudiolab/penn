@@ -10,7 +10,10 @@ CREPE_NORMALIZE = True
 EARLY_STOPPING = True
 
 # Number of steps between logging to Tensorboard
-LOG_INTERVAL = 32 * 500  # steps
+LOG_INTERVAL = 500  # steps
+
+# Number of batches to use for validation
+LOG_STEPS = 1
 
 # Whether to only use voiced start frames
 VOICED_ONLY = True
