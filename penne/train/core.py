@@ -3,7 +3,6 @@ import functools
 import os
 
 import torch
-import tqdm
 
 import penne
 
@@ -136,7 +135,7 @@ def train(
 
     if penne.EARLY_STOPPING:
         counter = penne.EARLY_STOPPING_STEPS
-        best_loss = float('inf')
+        best_accuracy = 0.
         stop = False
 
     #########
@@ -151,11 +150,10 @@ def train(
 
     # Setup progress bar
     if not rank:
-        progress = tqdm.tqdm(
-            initial=step,
-            total=steps,
-            dynamic_ncols=True,
-            desc=f'Training {penne.CONFIG}')
+        progress = penne.iterator(
+            range(step, steps),
+            f'Training {penne.CONFIG}',
+            steps)
     while step < steps and (not penne.EARLY_STOPPING or not stop):
 
         # Seed sampler
@@ -217,15 +215,15 @@ def train(
                         model,
                         gpu)
                     evaluate_fn('train', train_loader)
-                    valid_loss = evaluate_fn('valid', valid_loader)
+                    valid_accuracy = evaluate_fn('valid', valid_loader)
 
                     # Maybe stop training
                     if penne.EARLY_STOPPING:
                         counter -= 1
 
                         # Update best validation loss
-                        if valid_loss < best_loss:
-                            best_loss = valid_loss
+                        if valid_accuracy > best_accuracy:
+                            best_accuracy = valid_accuracy
                             counter = penne.EARLY_STOPPING_STEPS
 
                         # Stop training
@@ -260,21 +258,16 @@ def train(
 
 def evaluate(directory, step, model, gpu, condition, loader):
     """Perform model evaluation"""
-    device = 'cpu' if gpu is None else f'cuda:{gpu}'
+    device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
 
-    # Prepare model for evaluation
-    model.eval()
+    # Setup evaluation metrics
+    metrics = penne.evaluate.Metrics()
 
-    # Turn off gradient computation
-    with torch.no_grad():
+    # Prepare model for inference
+    with penne.inference_context(model, device.type) as model:
 
-        # Setup evaluation metrics
-        metrics = penne.evaluate.Metrics()
-
-        for i, batch in enumerate(loader):
-
-            # Unpack batch
-            audio, bins, pitch, voiced, *_ = batch
+        # Unpack batch
+        for i, (audio, bins, pitch, voiced, *_) in enumerate(loader):
 
             # Forward pass
             logits = model(audio.to(device))
@@ -290,17 +283,14 @@ def evaluate(directory, step, model, gpu, condition, loader):
             if i + 1 == penne.LOG_STEPS:
                 break
 
-        # Format results
-        scalars = {
-            f'{key}/{condition}': value for key, value in metrics().items()}
+    # Format results
+    scalars = {
+        f'{key}/{condition}': value for key, value in metrics().items()}
 
-        # Write to tensorboard
-        penne.write.scalars(directory, step, scalars)
+    # Write to tensorboard
+    penne.write.scalars(directory, step, scalars)
 
-    # Prepare generator for training
-    model.train()
-
-    return scalars[f'loss/{condition}']
+    return scalars[f'accuracy/{condition}']
 
 
 ###############################################################################

@@ -96,10 +96,9 @@ class Accuracy:
 
 class F1:
 
-    def __init__(self, thresholds=None):
-        self.thresholds = \
-            [2 ** -i for i in range(1, 17)] if thresholds is None \
-            else thresholds
+    def __init__(self):
+        self.thresholds = sorted(list(set(
+            [2 ** -i for i in range(1, 10)] + [.1 * i for i in range(10)])))
         self.precision = [Precision() for _ in range(len(self.thresholds))]
         self.recall = [Recall() for _ in range(len(self.thresholds))]
 
@@ -109,7 +108,10 @@ class F1:
         for threshold, precision, recall in iterator:
             precision = precision()['precision']
             recall = recall()['recall']
-            f1 = 2 * precision * recall / (precision + recall)
+            try:
+                f1 = 2 * precision * recall / (precision + recall)
+            except ZeroDivisionError:
+                f1 = 0.
             result |= {
                 f'f1-{threshold:.6f}': f1,
                 f'precision-{threshold:.6f}': precision,

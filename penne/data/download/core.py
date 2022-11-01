@@ -33,7 +33,7 @@ def mdb():
     file = penne.SOURCE_DIR / 'mdb.tar.gz'
     download_file(url, file)
 
-    with penne.data.chdir(penne.DATA_DIR):
+    with penne.chdir(penne.DATA_DIR):
 
         # Unzip
         with tarfile.open(file, 'r:gz') as tfile:
@@ -50,7 +50,7 @@ def ptdb():
     file = penne.SOURCE_DIR / 'ptdb.zip'
     download_file(url, file)
 
-    with penne.data.chdir(penne.DATA_DIR):
+    with penne.chdir(penne.DATA_DIR):
 
         # Unzip
         with zipfile.ZipFile(file, 'r') as zfile:

@@ -1,3 +1,5 @@
+import contextlib
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -52,15 +54,17 @@ def from_audio(
     for frames, _ in iterator:
 
         # Copy to device
-        frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
+        with penne.time.timer('copy-to'):
+            frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
 
         # Infer
         logits = infer(frames, model, checkpoint).detach()
 
-        # Decode
-        result = decode(logits, fmin, fmax)
-        pitch.append(result[1])
-        periodicity.append(result[2])
+        # Postprocess
+        with penne.time.timer('postprocess'):
+            result = postprocess(logits, fmin, fmax)
+            pitch.append(result[1])
+            periodicity.append(result[2])
 
     # Concatenate results
     return torch.cat(pitch, 1), torch.cat(periodicity, 1)
@@ -92,7 +96,8 @@ def from_file(
         periodicity: torch.tensor(shape=(1, int(samples // hopsize)))
     """
     # Load audio
-    audio = penne.load.audio(file)
+    with penne.time.timer('load'):
+        audio = penne.load.audio(file)
 
     # Inference
     return from_audio(
@@ -129,10 +134,6 @@ def from_file_to_file(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
-
-    Returns:
-        pitch: torch.tensor(shape=(1, int(samples // hopsize)))
-        periodicity: torch.tensor(shape=(1, int(samples // hopsize)))
     """
     # Inference
     pitch, periodicity = from_file(
@@ -145,16 +146,20 @@ def from_file_to_file(
         batch_size,
         gpu)
 
-    # Maybe move to cpu
-    pitch, periodicity = pitch.cpu(), periodicity.cpu()
-
-    # Maybe use same filename with new extension
-    if output_prefix is None:
-        output_prefix = file.parent / file.stem
+    # Move to cpu
+    with penne.time.timer('copy-from'):
+        pitch, periodicity = pitch.cpu(), periodicity.cpu()
 
     # Save to disk
-    torch.save(pitch, f'{output_prefix}-pitch.pt')
-    torch.save(periodicity, f'{output_prefix}-periodicity.pt')
+    with penne.time.timer('save'):
+
+        # Maybe use same filename with new extension
+        if output_prefix is None:
+            output_prefix = file.parent / file.stem
+
+        # Save
+        torch.save(pitch, f'{output_prefix}-pitch.pt')
+        torch.save(periodicity, f'{output_prefix}-periodicity.pt')
 
 
 def from_files_to_files(
@@ -179,10 +184,6 @@ def from_files_to_files(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
-
-    Returns:
-        pitch: torch.tensor(shape=(1, int(samples // hopsize)))
-        periodicity: torch.tensor(shape=(1, int(samples // hopsize)))
     """
     # Maybe use default output filenames
     if output_prefixes is None:
@@ -208,7 +209,7 @@ def from_files_to_files(
 
 
 ###############################################################################
-# Utilities
+# Inference pipeline stages
 ###############################################################################
 
 
@@ -230,9 +231,6 @@ def infer(
             # Move model to correct device (no-op if devices are the same)
             infer.model = infer.model.to(frames.device)
 
-            # Evaluation mode
-            infer.model.eval()
-
             # Maybe use torchscript
             if penne.TORCHSCRIPT:
                 infer.model = torch.jit.trace(infer.model, frames)
@@ -245,42 +243,42 @@ def infer(
     # Time inference
     with penne.time.timer('infer'):
 
-        # Turn off gradients
-        with torch.no_grad():
+        # Prepare model for inference
+        with inference_context(infer.model, frames.device.type) as model:
 
-            # Automatic mixed precision
-            with torch.autocast(frames.device.type):
-
-                # Apply model
-                logits = infer.model(frames)
+            # Apply model
+            logits = model(frames)
 
         # Maybe reshape
         if model in ['crepe', 'deepf0']:
             logits = logits.permute(2, 1, 0)
 
+        # If we're benchmarking, make sure inference finishes within timer
+        if penne.BENCHMARK and logits.device.type == 'cuda':
+            torch.cuda.synchronize(logits.device)
+
         return logits
 
 
-def decode(logits, fmin=penne.FMIN, fmax=None):
+def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
     """Convert model output to pitch and periodicity"""
     # Convert frequency range to pitch bin range
     minidx = penne.convert.frequency_to_bins(torch.tensor(fmin))
-    if fmax is None:
-        maxidx = penne.PITCH_BINS
-    else:
-        maxidx = penne.convert.frequency_to_bins(
-            torch.tensor(fmax),
-            torch.ceil)
+    maxidx = penne.convert.frequency_to_bins(
+        torch.tensor(fmax),
+        torch.ceil)
 
     # Remove frequencies outside of allowable range
     logits[:, :minidx] = -float('inf')
     logits[:, maxidx:] = -float('inf')
 
-    # Get pitch bins
-    bins = logits.argmax(dim=1)
-
-    # Convert to hz
-    pitch = penne.convert.bins_to_frequency(bins)
+    # Decode pitch from logits
+    if penne.DECODER == 'argmax':
+        bins, pitch = penne.decode.argmax(logits)
+    elif penne.DECODER == 'weighted':
+        bins, pitch = penne.decode.weighted(logits)
+    else:
+        raise ValueError(f'Decoder method {penne.DECODER} is not defined')
 
     # Get periodicity
     if penne.PERIODICITY == 'entropy':
@@ -352,6 +350,39 @@ def preprocess(audio,
 
             # Slice audio
             yield audio[:, None, start:end], batch
+
+
+###############################################################################
+# Utilities
+###############################################################################
+
+
+@contextlib.contextmanager
+def chdir(directory):
+    """Context manager for changing the current working directory"""
+    curr_dir = os.getcwd()
+    try:
+        os.chdir(directory)
+        yield
+    finally:
+        os.chdir(curr_dir)
+
+
+@contextlib.contextmanager
+def inference_context(model, device_type):
+    # Prepare model for evaluation
+    model.eval()
+
+    # Turn off gradient computation
+    with torch.no_grad():
+
+        # Automatic mixed precision
+        with torch.autocast(device_type):
+
+            yield model
+
+    # Prepare model for training
+    model.train()
 
 
 def iterator(iterable, message, length=None):

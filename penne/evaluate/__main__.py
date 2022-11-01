@@ -15,11 +15,11 @@ def parse_args():
     parser.add_argument(
         '--datasets',
         nargs='+',
-        default=['mdb', 'ptdb'],
+        default=penne.EVALUATION_DATASETS,
         help='The datasets to evaluate on')
     parser.add_argument(
         '--method',
-        default='cd-crepe',
+        default=penne.DEFAULT_METHOD,
         help='The method to use for evaluation')
     parser.add_argument(
         '--checkpoint',

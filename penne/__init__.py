@@ -1,9 +1,10 @@
 # Trainings
+# - combine improvements**
+# - ablations**
 # - Misalignments
 
 # Evaluation
-# - microbenchmark using synchronize**
-# - entropy in automated eval**
+# - average + entropy periodicity in automated eval**
 # - Torchscript
 # - pyin
 # - original harmof0
@@ -11,8 +12,8 @@
 # - Dither
 
 # Figures
-# - time delay
-# - posteriorgram
+# - delay
+# - logits
 
 # Development
 # - debug harmof0**
@@ -27,7 +28,7 @@
 
 ###############################################################################
 # Configuration
-###############################################################################
+##########################################################F#####################
 
 
 # Default configuration parameters to be modified

@@ -86,8 +86,18 @@ BENCHMARK = False
 # Number of steps between saving checkpoints
 CHECKPOINT_INTERVAL = 25000  # steps
 
+# List of all datasets
+DATASETS = ['mdb', 'ptdb']
+
+# Default method to use for evaluation
+# TODO - name
+DEFAULT_METHOD = 'NAME'
+
 # Batch size to use for evaluation
 EVALUATION_BATCH_SIZE = 2048
+
+# Datsets to use for evaluation
+EVALUATION_DATASETS = DATASETS
 
 # Number of steps between logging to Tensorboard
 LOG_INTERVAL = 2500  # steps
@@ -106,6 +116,9 @@ TORCHSCRIPT = False
 # Model parameters
 ###############################################################################
 
+
+# The decoder to use for postprocessing
+DECODER = 'argmax'
 
 # The dropout rate. Set to None to turn off dropout.
 DROPOUT = .25

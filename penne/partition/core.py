@@ -29,9 +29,9 @@ def dataset(name):
 
     # Perform partition
     partition = {
-        'train': stems[:left],
-        'valid': stems[left:right],
-        'test': stems[right:]}
+        'train': sorted(stems[:left]),
+        'valid': sorted(stems[left:right]),
+        'test': sorted(stems[right:])}
 
     # Write partition file
     with open(penne.PARTITION_DIR / f'{name}.json', 'w') as file:

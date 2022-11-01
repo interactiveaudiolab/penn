@@ -15,8 +15,8 @@ import penne
 
 
 def datasets(
-    datasets,
-    method='cd-crepe',
+    datasets=penne.EVALUATION_DATASETS,
+    method=penne.DEFAULT_METHOD,
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
     """Perform evaluation"""
@@ -33,8 +33,8 @@ def datasets(
 
 
 def benchmark(
-    datasets,
-    method='cd-crepe',
+    datasets=penne.EVALUATION_DATASETS,
+    method=penne.DEFAULT_METHOD,
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
     """Perform benchmarking"""
@@ -59,10 +59,12 @@ def benchmark(
             directory / file.parent.name / file.stem for file in files]
 
         # Start benchmarking
+        penne.BENCHMARK = True
+        penne.TIMER.reset()
         start_time = time.time()
 
         # Infer to temporary storage
-        if method == 'cd-crepe':
+        if method == 'NAME':
             penne.from_files_to_files(
                 files,
                 output_prefixes,
@@ -99,8 +101,12 @@ def benchmark(
                 # TODO
             )
 
-        # Stop benchmarking
-        elapsed = time.time() - start_time
+        # Turn off benchmarking
+        penne.BENCHMARK = False
+
+        # Get benchmarking information
+        benchmark = penne.TIMER()
+        benchmark['elapsed'] = time.time() - start_time
 
     # Make output directory
     directory = penne.EVAL_DIR / penne.CONFIG
@@ -114,10 +120,12 @@ def benchmark(
 
     # Format benchmarking results
     results = {
-        'real-time-factor': seconds / elapsed,
-        'samples': samples,
-        'samples-per-second': samples / elapsed,
-        'total': elapsed}
+        key: {
+            'real-time-factor': seconds / value,
+            'samples': samples,
+            'samples-per-second': samples / value,
+            'seconds': value
+        } for key, value in benchmark.items()}
 
     # Write benchmarking information
     with open(directory / 'time.json', 'w') as file:
@@ -125,8 +133,8 @@ def benchmark(
 
 
 def quality(
-    datasets,
-    method='cd-crepe',
+    datasets=penne.EVALUATION_DATASETS,
+    method=penne.DEFAULT_METHOD,
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
     """Evaluate pitch and periodicity estimation quality"""
@@ -161,7 +169,7 @@ def quality(
             # Reset file metrics
             file_metrics.reset()
 
-            if method == 'cd-crepe':
+            if method == 'NAME':
 
                 # Preprocess audio
                 iterator = penne.preprocess(
