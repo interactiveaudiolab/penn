@@ -47,7 +47,7 @@ class Metrics:
 
         # Decode bins, pitch, and periodicity
         with penne.time.timer('decode'):
-            predicted, pitch, periodicity = penne.decode(logits)
+            predicted, pitch, periodicity = penne.postprocess(logits)
 
         # Mask unvoiced
         pitch, target = pitch[voiced], target[voiced]

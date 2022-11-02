@@ -22,8 +22,8 @@ def entropy(logits):
     """Entropy-based periodicity"""
     distribution = torch.nn.functional.softmax(logits, dim=1)
     return (
-        1 - (1 / torch.log2(penne.PITCH_BINS)) * \
-        ((distribution * torch.log2(distribution)).sum(dim=1)))
+        1 - (1 / torch.log(penne.PITCH_BINS)) * \
+        ((distribution * torch.log(distribution)).sum(dim=1)))
 
 
 def max(logits):

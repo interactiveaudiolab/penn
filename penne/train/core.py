@@ -153,6 +153,7 @@ def train(
         progress = penne.iterator(
             range(step, steps),
             f'Training {penne.CONFIG}',
+            step,
             steps)
     while step < steps and (not penne.EARLY_STOPPING or not stop):
 
@@ -272,6 +273,9 @@ def evaluate(directory, step, model, gpu, condition, loader):
             # Forward pass
             logits = model(audio.to(device))
 
+            if penne.MODEL in ['crepe', 'deepf0']:
+                logits = logits.permute(2, 1, 0)
+
             # Update metrics
             metrics.update(
                 logits,
@@ -298,10 +302,21 @@ def evaluate(directory, step, model, gpu, condition, loader):
 ###############################################################################
 
 
-def train_ddp(rank, dataset, directory, gpus):
+def train_ddp(
+    rank,
+    dataset,
+    checkpoint_directory,
+    output_directory,
+    log_directory,
+    gpus):
     """Train with distributed data parallelism"""
     with ddp_context(rank, len(gpus)):
-        train(dataset, directory, gpus)
+        train(
+            dataset,
+            checkpoint_directory,
+            output_directory,
+            log_directory,
+            gpus[rank])
 
 
 @contextlib.contextmanager

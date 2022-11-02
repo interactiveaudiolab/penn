@@ -60,18 +60,19 @@ class DistributedSampler:
 
     def __init__(self, indices):
         self.indices = indices
+        self.epoch = 0
         self.rank = torch.distributed.get_rank()
         self.num_replicas = torch.distributed.get_world_size()
         self.num_samples = math.ceil(len(self.indices) / self.num_replicas)
         self.total_size = self.num_samples * self.num_replicas
 
     def __iter__(self):
-        indices = self.indices.copy()
-
         # Deterministic shuffling based on epoch
         generator = torch.Generator()
         generator.manual_seed(penne.RANDOM_SEED + self.epoch)
-        indices = torch.randperm(indices, generator=self.generator).tolist()
+        indices = [
+            self.indices[i] for i in
+            torch.randperm(len(self.indices), generator=generator)]
 
         # Add extra samples to make it evenly divisible
         padding = self.total_size - len(indices)
@@ -80,13 +81,9 @@ class DistributedSampler:
         else:
             indices += (
                 indices * math.ceil(padding / len(indices)))[:padding]
-        assert len(indices) == self.total_size
 
         # Subsample
-        indices = indices[self.rank:self.total_size:self.num_replicas]
-        assert len(indices) == self.num_samples
-
-        return iter(indices)
+        return iter(indices[self.rank:self.total_size:self.num_replicas])
 
     def __len__(self):
         return self.num_samples

@@ -20,7 +20,7 @@ def from_audio(
     sample_rate: int,
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
-    fmax: Optional[float] = None,
+    fmax: float = penne.FMAX,
     model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
@@ -74,7 +74,7 @@ def from_file(
     file: Path,
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
-    fmax: Optional[float] = None,
+    fmax: float = penne.FMAX,
     model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
@@ -117,7 +117,7 @@ def from_file_to_file(
     output_prefix: Optional[Path] = None,
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
-    fmax: Optional[float] = None,
+    fmax: float = penne.FMAX,
     model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
@@ -167,7 +167,7 @@ def from_files_to_files(
     output_prefixes: Optional[list] = None,
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
-    fmax: Optional[float] = None,
+    fmax: float = penne.FMAX,
     model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
@@ -193,7 +193,7 @@ def from_files_to_files(
     for file, output_prefix in iterator(
         zip(files, output_prefixes),
         f'{penne.CONFIG}',
-        len(files)):
+        total=len(files)):
 
         # Infer
         from_file_to_file(
@@ -262,34 +262,41 @@ def infer(
 
 def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
     """Convert model output to pitch and periodicity"""
-    # Convert frequency range to pitch bin range
-    minidx = penne.convert.frequency_to_bins(torch.tensor(fmin))
-    maxidx = penne.convert.frequency_to_bins(
-        torch.tensor(fmax),
-        torch.ceil)
+    # Turn off gradients
+    with torch.no_grad():
 
-    # Remove frequencies outside of allowable range
-    logits[:, :minidx] = -float('inf')
-    logits[:, maxidx:] = -float('inf')
+        # Maybe reshape
+        if penne.MODEL in ['crepe', 'deepf0']:
+            logits = logits.permute(2, 1, 0)
 
-    # Decode pitch from logits
-    if penne.DECODER == 'argmax':
-        bins, pitch = penne.decode.argmax(logits)
-    elif penne.DECODER == 'weighted':
-        bins, pitch = penne.decode.weighted(logits)
-    else:
-        raise ValueError(f'Decoder method {penne.DECODER} is not defined')
+        # Convert frequency range to pitch bin range
+        minidx = penne.convert.frequency_to_bins(torch.tensor(fmin))
+        maxidx = penne.convert.frequency_to_bins(
+            torch.tensor(fmax),
+            torch.ceil)
 
-    # Get periodicity
-    if penne.PERIODICITY == 'entropy':
-        periodicity = penne.periodicity.entropy(logits)
-    elif penne.PERIODICITY == 'max':
-        periodicity = penne.periodicity.max(logits)
-    else:
-        raise ValueError(
-            f'Periodicity method {penne.PERIODICITY} is not defined')
+        # Remove frequencies outside of allowable range
+        logits[:, :minidx] = -float('inf')
+        logits[:, maxidx:] = -float('inf')
 
-    return bins, pitch, periodicity
+        # Decode pitch from logits
+        if penne.DECODER == 'argmax':
+            bins, pitch = penne.decode.argmax(logits)
+        elif penne.DECODER == 'weighted':
+            bins, pitch = penne.decode.weighted(logits)
+        else:
+            raise ValueError(f'Decoder method {penne.DECODER} is not defined')
+
+        # Decode periodicity from logits
+        if penne.PERIODICITY == 'entropy':
+            periodicity = penne.periodicity.entropy(logits)
+        elif penne.PERIODICITY == 'max':
+            periodicity = penne.periodicity.max(logits)
+        else:
+            raise ValueError(
+                f'Periodicity method {penne.PERIODICITY} is not defined')
+
+        return bins, pitch, periodicity
 
 
 def preprocess(audio,
@@ -385,14 +392,15 @@ def inference_context(model, device_type):
     model.train()
 
 
-def iterator(iterable, message, length=None):
+def iterator(iterable, message, initial=0, total=None):
     """Create a tqdm iterator"""
-    length = len(iterable) if length is None else length
+    total = len(iterable) if total is None else total
     return tqdm.tqdm(
         iterable,
         desc=message,
         dynamic_ncols=True,
-        total=length)
+        initial=initial,
+        total=total)
 
 
 def resample(audio, sample_rate, target_rate=penne.SAMPLE_RATE):

@@ -60,7 +60,7 @@ def mdb():
     iterator = penne.iterator(
         enumerate(zip(audio_files, pitch_files)),
         'Preprocessing mdb',
-        len(audio_files))
+        total=len(audio_files))
     for i, (audio_file, pitch_file) in iterator:
         stem = f'{i:06d}'
 
@@ -131,7 +131,7 @@ def ptdb():
     iterator = penne.iterator(
         enumerate(zip(audio_files, pitch_files)),
         'Preprocessing ptdb',
-        len(audio_files))
+        total=len(audio_files))
     for i, (audio_file, pitch_file) in iterator:
         stem = f'{i:06d}'
 

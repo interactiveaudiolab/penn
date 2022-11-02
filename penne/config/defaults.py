@@ -18,7 +18,7 @@ CONFIG = 'penne'
 
 
 # Width of a pitch bin
-CENTS_PER_BIN = 20  # cents
+CENTS_PER_BIN = 20.  # cents
 
 # Whether to peak-normalize CREPE input audio
 CREPE_NORMALIZE = False

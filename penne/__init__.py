@@ -1,34 +1,37 @@
 # Trainings
-# - combine improvements**
-# - ablations**
+# - ablations
 # - Misalignments
+# - deepf0 misalign
 
 # Evaluation
 # - average + entropy periodicity in automated eval**
-# - Torchscript
 # - pyin
 # - original harmof0
 # - torchcrepe
-# - Dither
+# - torchscript
 
 # Figures
 # - delay
 # - logits
+# - dataset density + true positive density
 
 # Development
 # - debug harmof0**
-# - Local linear weighting**
-# - quantization
-# - s4
+# - quantization**
+# - s4**
 # - periodicity methods
 #    - autocorrelation
 #    - cnmdf
-# - test ddp
 
+# Paper
+# - dither
+# - voiced
+# - results should not be taken as judgments of speech vs music data being
+#   easier or harder
 
 ###############################################################################
 # Configuration
-##########################################################F#####################
+###############################################################################
 
 
 # Default configuration parameters to be modified
@@ -54,6 +57,7 @@ from .model import Model
 from . import checkpoint
 from . import convert
 from . import data
+from . import decode
 from . import dsp
 from . import evaluate
 from . import load
