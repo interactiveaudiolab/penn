@@ -1,4 +1,4 @@
-CONFIG = 'crepe-1440-cce-layer-nodropout-normalize'
+CONFIG = 'fcnf0-1440-cce-layer-nodropout-normalize'
 
 # Width of a pitch bin
 CENTS_PER_BIN = 5  # cents
@@ -11,6 +11,9 @@ DROPOUT = None
 
 # Loss function
 LOSS = 'categorical_cross_entropy'
+
+# The name of the model to use for training
+MODEL = 'fcnf0'
 
 # Type of model normalization
 NORMALIZATION = 'layer'

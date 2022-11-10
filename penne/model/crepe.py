@@ -16,8 +16,6 @@ class Crepe(torch.nn.Sequential):
         out_channels = [1024, 128, 128, 128, 256, 512]
         kernels = [512] + 5 * [64]
         strides = [4] + 5 * [1]
-        if penne.MAX_POOL is None:
-            strides = [2 * stride for stride in strides]
         padding = [(254, 254)] + 5 * [(31, 32)]
         lengths = [256, 128, 64, 32, 16, 8]
         super().__init__(*(
@@ -77,10 +75,12 @@ class Block(torch.nn.Sequential):
             layers += (torch.nn.InstanceNorm1d(out_channels),)
         elif penne.NORMALIZATION == 'layer':
             layers += (torch.nn.LayerNorm((out_channels, length)),)
+        else:
+            raise ValueError(
+                f'Normalization method {penne.NORMALIZATION} is not defined')
 
-        # Maybe add max pooling
-        if penne.MAX_POOL is not None:
-            layers += (torch.nn.MaxPool1d(*penne.MAX_POOL),)
+        # Add max pooling
+        layers += (torch.nn.MaxPool1d(2, 2),)
 
         # Maybe add dropout
         if penne.DROPOUT is not None:
@@ -93,9 +93,3 @@ class Flatten(torch.nn.Module):
 
     def forward(self, x):
         return x.reshape(x.shape[0], -1)
-
-
-class LayerNorm(torch.nn.Module):
-
-    def __init__():
-        pass

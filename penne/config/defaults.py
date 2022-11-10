@@ -68,6 +68,9 @@ DATA_DIR = Path(__file__).parent.parent.parent / 'data' / 'datasets'
 # Location to save evaluation artifacts
 EVAL_DIR = Path(__file__).parent.parent.parent / 'eval'
 
+# Location to save results tables
+EVAL_DIR = Path(__file__).parent.parent.parent / 'results'
+
 # Location to save training and adaptation artifacts
 RUNS_DIR = Path(__file__).parent.parent.parent / 'runs'
 
@@ -123,14 +126,14 @@ DECODER = 'argmax'
 # The dropout rate. Set to None to turn off dropout.
 DROPOUT = .25
 
-# The max pooling kernel and stride. Set to None to turn off max pooling.
-MAX_POOL = (2, 2)
-
 # The name of the model to use for training
 MODEL = 'crepe'
 
 # Type of model normalization
 NORMALIZATION = 'batch'
+
+# Number of channels in S4f0 model
+S4F0_CHANNELS = 64
 
 
 ###############################################################################

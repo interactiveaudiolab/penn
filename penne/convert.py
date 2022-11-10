@@ -45,6 +45,11 @@ def frequency_to_cents(frequency):
     return penne.OCTAVE * torch.log2(frequency / penne.FMIN)
 
 
+def frequency_to_samples(frequency, sample_rate=penne.SAMPLE_RATE):
+    """Convert frequency in Hz to number of samples per period"""
+    return int(sample_rate / frequency)
+
+
 ###############################################################################
 # Time conversions
 ###############################################################################

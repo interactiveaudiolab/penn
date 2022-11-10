@@ -250,7 +250,7 @@ def infer(
             logits = model(frames)
 
         # Maybe reshape
-        if model in ['crepe', 'deepf0']:
+        if model != 'harmof0':
             logits = logits.permute(2, 1, 0)
 
         # If we're benchmarking, make sure inference finishes within timer
@@ -266,7 +266,7 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
     with torch.no_grad():
 
         # Maybe reshape
-        if penne.MODEL in ['crepe', 'deepf0']:
+        if penne.MODEL != 'harmof0':
             logits = logits.permute(2, 1, 0)
 
         # Convert frequency range to pitch bin range
@@ -332,7 +332,7 @@ def preprocess(audio,
         start = i * hopsize
         end = start + int((batch - 1) * hopsize) + penne.WINDOW_SIZE
 
-        if model in ['crepe', 'deepf0']:
+        if model != 'harmof0':
 
             # Slice and chunk audio
             frames = torch.nn.functional.unfold(

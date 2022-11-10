@@ -17,7 +17,7 @@ def from_audio(audio, sample_rate, gpu=None):
     figure, axes = plt.subplots(3, 1, figsize=(18, 6))
 
     # Plot waveform
-    axes[0].plot(waveform.squeeze(), color='black', linewidth=.5)
+    axes[0].plot(audio.squeeze(), color='black', linewidth=.5)
     axes[0].set_axis_off()
     axes[0].set_ylim([-1., 1.])
 

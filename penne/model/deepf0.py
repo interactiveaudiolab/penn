@@ -34,24 +34,41 @@ class Deepf0(torch.nn.Sequential):
 
 class Block(torch.nn.Sequential):
 
-    def __init__(self, input_channels, output_channels, kernel_size, dilation):
-        super().__init__(
-            CausalConv1d(
-                input_channels,
-                output_channels,
-                kernel_size,
-                dilation=dilation),
-            torch.nn.ReLU(),
-            torch.nn.utils.weight_norm(torch.nn.Conv1d(
-                output_channels,
-                output_channels,
-                1)))
+    def __init__(
+        self,
+        input_channels,
+        output_channels,
+        kernel_size,
+        dilation):
+        if penne.NORMALIZATION == 'weight':
+            norm_conv = [
+                torch.nn.utils.weight_norm(
+                    torch.nn.Conv1d(output_channels, output_channels, 1))]
+        elif penne.NORMALIZATION == 'layer':
+            norm_conv = [
+                torch.nn.LayerNorm(
+                    (output_channels, penne.NUM_TRAINING_SAMPLES)),
+                torch.nn.Conv1d(output_channels, output_channels, 1)]
+        else:
+            raise ValueError(
+                f'Normalization method {penne.NORMALIZATION} is not defined')
+
+        super().__init__(*(
+            [
+                CausalConv1d(
+                    input_channels,
+                    output_channels,
+                    kernel_size,
+                    dilation=dilation),
+                torch.nn.ReLU()
+            ] + norm_conv))
 
     def forward(self, x):
         return torch.nn.functional.relu(super().forward(x) + x)
 
 
 class CausalConv1d(torch.nn.Conv1d):
+
     def __init__(
         self,
         in_channels,

@@ -1,3 +1,5 @@
+import collections
+
 import torch
 
 
@@ -24,8 +26,16 @@ def load(checkpoint_path, model, optimizer=None):
     """Load model checkpoint from file"""
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
 
+    # Maybe load distributed model for inference
+    if all(key.startswith('module') for key in checkpoint_dict['model'].keys()):
+        model_dict = collections.OrderedDict()
+        for key in checkpoint_dict['model'].keys():
+            model_dict[key[7:]] = checkpoint_dict['model'][key]
+    else:
+        model_dict = checkpoint_dict['model']
+
     # Restore model
-    model.load_state_dict(checkpoint_dict['model'])
+    model.load_state_dict(model_dict)
 
     # Restore optimizer
     if optimizer is not None:

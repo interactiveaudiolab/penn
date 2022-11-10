@@ -10,7 +10,7 @@ import penne
 
 def parse_args():
     """Parse command-line arguments"""
-    parser = argparse.ArgumentParser(description='Create delay figure')
+    parser = argparse.ArgumentParser(description='Create density figure')
     # TODO - other args
     parser.add_argument(
         '--gpu',
@@ -18,4 +18,4 @@ def parse_args():
         help='The index of the GPU to use for inference')
 
 
-penne.plot.delay.from_file_to_file(**vars(parse_args()))
+penne.plot.density.from_file_to_file(**vars(parse_args()))

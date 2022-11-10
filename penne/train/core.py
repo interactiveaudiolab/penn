@@ -273,7 +273,7 @@ def evaluate(directory, step, model, gpu, condition, loader):
             # Forward pass
             logits = model(audio.to(device))
 
-            if penne.MODEL in ['crepe', 'deepf0']:
+            if penne.MODEL != 'harmof0':
                 logits = logits.permute(2, 1, 0)
 
             # Update metrics

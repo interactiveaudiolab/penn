@@ -24,6 +24,7 @@ def datasets(
 
     # Benchmarking after the quality evaluation ensure model loading time is
     # not included in benchmarking
+    # TODO - cpu + gpu timing
     benchmark(datasets, method, checkpoint, gpu)
 
 
@@ -65,15 +66,19 @@ def benchmark(
 
         # Infer to temporary storage
         if method == 'NAME':
+            batch_size = \
+                    None if gpu is None else penne.EVALUATION_BATCH_SIZE
             penne.from_files_to_files(
                 files,
                 output_prefixes,
                 checkpoint=checkpoint,
-                batch_size=penne.EVALUATION_BATCH_SIZE,
+                batch_size=batch_size,
                 gpu=gpu)
 
-        # TEMPORARY - include torchcrepe depdenecy
+        # TODO - padding and timing
         elif method == 'torchcrepe':
+
+            import torchcrepe
 
             # Get output file paths
             pitch_files = [file.parent / f'{file.stem}-pitch.pt' for file in files]
@@ -83,13 +88,15 @@ def benchmark(
             # Infer
             # Note - this does not correctly handle padding, but suffices for
             #        benchmarking purposes
+            batch_size = \
+                    None if gpu is None else penne.EVALUATION_BATCH_SIZE
             torchcrepe.from_files_to_files(
                 files,
                 pitch_files,
                 output_periodicity_files=periodicity_files,
                 hop_length=penne.HOPSIZE,
                 decoder=torchcrepe.decoder.argmax,
-                batch_size=penne.EVALUATION_BATCH_SIZE,
+                batch_size=batch_size,
                 device='cpu' if gpu is None else f'cuda:{gpu}')
 
         elif method == 'harmof0':
@@ -97,9 +104,7 @@ def benchmark(
                 # TODO
             )
         elif method == 'pyin':
-            penne.dsp.pyin.from_files_to_files(
-                # TODO
-            )
+            penne.dsp.pyin.from_files_to_files(files, output_prefixes)
 
         # Turn off benchmarking
         penne.BENCHMARK = False
@@ -121,7 +126,7 @@ def benchmark(
     # Format benchmarking results
     results = {
         key: {
-            'real-time-factor': seconds / value,
+            'real-time-factor': value / seconds,
             'samples': samples,
             'samples-per-second': samples / value,
             'seconds': value
@@ -172,11 +177,13 @@ def quality(
             if method == 'NAME':
 
                 # Preprocess audio
+                batch_size = \
+                    None if gpu is None else penne.EVALUATION_BATCH_SIZE
                 iterator = penne.preprocess(
                     audio[0],
                     penne.SAMPLE_RATE,
                     model=penne.MODEL,
-                    batch_size=penne.EVALUATION_BATCH_SIZE)
+                    batch_size=batch_size)
                 for i, (frames, size) in enumerate(iterator):
 
                     # Copy to device
@@ -203,6 +210,8 @@ def quality(
 
             elif method == 'torchcrepe':
 
+                import torchcrepe
+
                 # TODO
                 pass
 
@@ -213,8 +222,14 @@ def quality(
 
             elif method == 'pyin':
 
-                # TODO
-                pass
+                # Infer
+                logits = penne.dsp.pyin.infer(audio[0])
+
+                # Update metrics
+                args = logits, bins, pitch, voiced
+                file_metrics.update(*args)
+                dataset_metrics.update(*args)
+                aggregate_metrics.update(*args)
 
             # Copy results
             granular[f'{dataset}/{stem[0]}'] = file_metrics()
