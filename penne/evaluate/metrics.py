@@ -43,7 +43,7 @@ class Metrics:
         logits = logits.detach()
 
         # Update loss
-        self.loss.update(logits, bins)
+        self.loss.update(logits[:, :penne.PITCH_BINS], bins)
 
         # Decode bins, pitch, and periodicity
         with penne.time.timer('decode'):
@@ -96,11 +96,12 @@ class Accuracy:
 
 class F1:
 
-    def __init__(self):
-        self.thresholds = sorted(list(set(
-            [2 ** -i for i in range(1, 10)] + [.1 * i for i in range(10)])))
-        self.precision = [Precision() for _ in range(len(self.thresholds))]
-        self.recall = [Recall() for _ in range(len(self.thresholds))]
+    def __init__(self, thresholds=None):
+        if thresholds is None:
+            thresholds = [.1 * i for i in range(10)]
+        self.thresholds = thresholds
+        self.precision = [Precision() for _ in range(len(thresholds))]
+        self.recall = [Recall() for _ in range(len(thresholds))]
 
     def __call__(self):
         result = {}

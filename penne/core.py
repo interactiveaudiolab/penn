@@ -247,11 +247,7 @@ def infer(
         with inference_context(infer.model, frames.device.type) as model:
 
             # Apply model
-            logits = model(frames)
-
-        # Maybe reshape
-        if model != 'harmof0':
-            logits = logits.permute(2, 1, 0)
+            logits = model(frames).permute(2, 1, 0)
 
         # If we're benchmarking, make sure inference finishes within timer
         if penne.BENCHMARK and logits.device.type == 'cuda':
@@ -264,10 +260,6 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
     """Convert model output to pitch and periodicity"""
     # Turn off gradients
     with torch.no_grad():
-
-        # Maybe reshape
-        if penne.MODEL != 'harmof0':
-            logits = logits.permute(2, 1, 0)
 
         # Convert frequency range to pitch bin range
         minidx = penne.convert.frequency_to_bins(torch.tensor(fmin))
@@ -282,16 +274,22 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
         # Decode pitch from logits
         if penne.DECODER == 'argmax':
             bins, pitch = penne.decode.argmax(logits)
+        elif penne.DECODER == 'viterbi':
+            bins, pitch = penne.decode.viterbi(logits)
         elif penne.DECODER == 'weighted':
             bins, pitch = penne.decode.weighted(logits)
         else:
             raise ValueError(f'Decoder method {penne.DECODER} is not defined')
 
         # Decode periodicity from logits
-        if penne.PERIODICITY == 'entropy':
+        if penne.PERIODICITY == 'average':
+            periodicity = penne.periodicity.average(logits)
+        elif penne.PERIODICITY == 'entropy':
             periodicity = penne.periodicity.entropy(logits)
         elif penne.PERIODICITY == 'max':
             periodicity = penne.periodicity.max(logits)
+        elif penne.PERIODICITY == 'sum':
+            periodicity = penne.periodicity.sum(logits)
         else:
             raise ValueError(
                 f'Periodicity method {penne.PERIODICITY} is not defined')

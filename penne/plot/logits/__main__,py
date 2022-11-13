@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 import penne
 
@@ -11,7 +12,25 @@ import penne
 def parse_args():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description='Create logits figure')
-    # TODO - other args
+    parser.add_argument(
+        '--audio_file',
+        required=True,
+        type=Path,
+        help='The audio file to plot the logits of')
+    parser.add_argument(
+        '--output_file',
+        required=True,
+        type=Path,
+        help='The jpg file to save the plot')
+    parser.add_argument(
+        '--pitch_file',
+        type=Path,
+        help='An optional numpy file with a pitch contour to overlay')
+    parser.add_argument(
+        '--checkpoint',
+        type=Path,
+        default=penne.DEFAULT_CHECKPOINT,
+        help='The checkpoint file to evaluate')
     parser.add_argument(
         '--gpu',
         type=int,

@@ -17,7 +17,9 @@ class Fcnf0(torch.nn.Sequential):
             torch.nn.Conv1d(512, penne.PITCH_BINS, 4))
 
     def forward(self, frames):
-        return super().forward(frames[:, :, 16:-15]).permute(2, 1, 0)
+        # shape=(batch, 1, penne.WINDOW_SIZE) =>
+        # shape=(batch, penne.PITCH_BINS, penne.NUM_TRAINING_FRAMES)
+        return super().forward(frames[:, :, 16:-15])
 
 
 class Block(torch.nn.Sequential):

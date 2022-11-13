@@ -16,11 +16,6 @@ def parse_args():
         '--runs',
         nargs='+',
         help='The runs to analyze. Defaults to all in eval directory.')
-    parser.add_argument(
-        '--output_directory',
-        default=penne.RESULTS_DIR,
-        type=Path,
-        help='The directory to save results tables')
     return parser.parse_args()
 
 

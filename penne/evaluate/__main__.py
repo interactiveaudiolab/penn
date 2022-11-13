@@ -18,10 +18,6 @@ def parse_args():
         default=penne.EVALUATION_DATASETS,
         help='The datasets to evaluate on')
     parser.add_argument(
-        '--method',
-        default=penne.DEFAULT_METHOD,
-        help='The method to use for evaluation')
-    parser.add_argument(
         '--checkpoint',
         type=Path,
         default=penne.DEFAULT_CHECKPOINT,

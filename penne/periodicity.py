@@ -34,3 +34,12 @@ def max(logits):
         return torch.nn.functional.softmax(
             logits, dim=1).max(dim=1).values
     raise ValueError(f'Loss function {penne.LOSS} is not implemented')
+
+
+def sum(logits):
+    """Periodicity as the sum of the distribution
+
+    This is really just for PYIN, which performs a masking of the distribution
+    probabilities so that it does not always add to one.
+    """
+    return torch.clip(torch.exp(logits).sum(dim=1), 0, 1)

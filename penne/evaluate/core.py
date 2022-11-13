@@ -16,16 +16,48 @@ import penne
 
 def datasets(
     datasets=penne.EVALUATION_DATASETS,
-    method=penne.DEFAULT_METHOD,
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
     """Perform evaluation"""
-    quality(datasets, method, checkpoint, gpu)
+    with tempfile.TemporaryDirectory() as directory:
+        directory = Path(directory)
 
-    # Benchmarking after the quality evaluation ensure model loading time is
-    # not included in benchmarking
-    # TODO - cpu + gpu timing
-    benchmark(datasets, method, checkpoint, gpu)
+        # Evaluate pitch estimation quality and save logits
+        pitch_quality(directory, datasets, checkpoint, gpu)
+
+        # Get periodicity methods
+        if penne.METHOD == 'pyin':
+            periodicity_fns = {'sum': penne.periodicity.sum}
+        else:
+            periodicity_fns = {
+                'average': penne.periodicity.average,
+                'entropy': penne.periodicity.entropy,
+                'max': penne.periodicity.max}
+
+        # Use saved logits to further evaluate periodicity
+        periodicity_results = {}
+        for key, val in periodicity_fns.items():
+            periodicity_results[key] = periodicity_quality(
+                directory,
+                datasets,
+                val)
+
+        # Write periodicity results
+        file = penne.EVAL_DIR / penne.CONFIG / 'periodicity.json'
+        with open(file, 'w') as file:
+            json.dump(periodicity_results, file, indent=4)
+
+    # Perform benchmarking on CPU
+    benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
+
+    # PYIN is not on GPU
+    if penne.METHOD != 'pyin':
+        benchmark_results ['gpu'] = benchmark(datasets, checkpoint, gpu)
+
+    # Write benchmarking information
+    with open(penne.EVAL_DIR / penne.CONFIG / 'time.json', 'w') as file:
+        json.dump(benchmark_results, file, indent=4)
+
 
 
 ###############################################################################
@@ -35,7 +67,6 @@ def datasets(
 
 def benchmark(
     datasets=penne.EVALUATION_DATASETS,
-    method=penne.DEFAULT_METHOD,
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
     """Perform benchmarking"""
@@ -65,7 +96,7 @@ def benchmark(
         start_time = time.time()
 
         # Infer to temporary storage
-        if method == 'NAME':
+        if penne.METHOD == 'penne':
             batch_size = \
                     None if gpu is None else penne.EVALUATION_BATCH_SIZE
             penne.from_files_to_files(
@@ -76,7 +107,7 @@ def benchmark(
                 gpu=gpu)
 
         # TODO - padding and timing
-        elif method == 'torchcrepe':
+        elif penne.METHOD == 'torchcrepe':
 
             import torchcrepe
 
@@ -99,11 +130,11 @@ def benchmark(
                 batch_size=batch_size,
                 device='cpu' if gpu is None else f'cuda:{gpu}')
 
-        elif method == 'harmof0':
+        elif penne.METHOD == 'harmof0':
             penne.temp.harmof0.from_files_to_files(
                 # TODO
             )
-        elif method == 'pyin':
+        elif penne.METHOD == 'pyin':
             penne.dsp.pyin.from_files_to_files(files, output_prefixes)
 
         # Turn off benchmarking
@@ -113,10 +144,6 @@ def benchmark(
         benchmark = penne.TIMER()
         benchmark['elapsed'] = time.time() - start_time
 
-    # Make output directory
-    directory = penne.EVAL_DIR / penne.CONFIG
-    directory.mkdir(exist_ok=True, parents=True)
-
     # Get total number of samples and seconds in test data
     samples = sum([
         len(np.load(file.parent / f'{file.stem}-audio.npy', mmap_mode='r'))
@@ -124,7 +151,7 @@ def benchmark(
     seconds = penne.convert.samples_to_seconds(samples)
 
     # Format benchmarking results
-    results = {
+    return {
         key: {
             'real-time-factor': value / seconds,
             'samples': samples,
@@ -132,17 +159,69 @@ def benchmark(
             'seconds': value
         } for key, value in benchmark.items()}
 
-    # Write benchmarking information
-    with open(directory / 'time.json', 'w') as file:
-        json.dump(results, file, indent=4)
 
-
-def quality(
+def periodicity_quality(
+    directory,
     datasets=penne.EVALUATION_DATASETS,
-    method=penne.DEFAULT_METHOD,
+    periodicity_fn=penne.periodicity.max,
+    steps=8):
+    """Fine-grained periodicity estimation quality evaluation"""
+    # Default values
+    best_threshold = .5
+    best_value = 0.
+    stepsize = .05
+
+    # Setup metrics
+    metrics = penne.evaluate.metrics.F1()
+
+    step = 0
+    while step < steps:
+
+        for dataset in datasets:
+
+            # Setup test dataset
+            iterator = penne.iterator(
+                penne.data.loader([dataset], 'test'),
+                f'Evaluating {penne.CONFIG} on {dataset}')
+
+            # Iterate over test set
+            for _, _, _, voiced, stem in iterator:
+
+                # Load logits
+                logits = torch.load(directory / dataset / f'{stem}-logits.pt')
+
+                # Decode periodicity
+                periodicity = periodicity_fn(logits)
+
+                # Update metrics
+                metrics.update(periodicity, voiced)
+
+        # Get best performing threshold
+        results = {key: val for key, val in metrics() if key.startswith('f1')}
+        key = max(results, key=results.get)
+        threshold = float(key[3:])
+        value = results[key]
+        if value > best_value:
+            best_value = value
+            best_threshold = threshold
+
+        # Reinitialize metrics with new thresholds
+        metrics = penne.evaluate.metrics.F1(
+            [best_threshold - stepsize, best_threshold + stepsize])
+
+        # Binary search for optimal threshold
+        stepsize /= 2
+
+    # Return threshold and corresponding F1 score
+    return {'threshold': best_threshold, 'f1': best_value}
+
+
+def pitch_quality(
+    directory,
+    datasets=penne.EVALUATION_DATASETS,
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
-    """Evaluate pitch and periodicity estimation quality"""
+    """Evaluate pitch estimation quality"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
 
     # Containers for results
@@ -160,6 +239,9 @@ def quality(
     # Evaluate each dataset
     for dataset in datasets:
 
+        # Create output directory
+        (directory / dataset).mkdir(exist_ok=True, parents=True)
+
         # Reset dataset metrics
         dataset_metrics.reset()
 
@@ -174,7 +256,10 @@ def quality(
             # Reset file metrics
             file_metrics.reset()
 
-            if method == 'NAME':
+            if penne.METHOD == 'penne':
+
+                # Accumulate logits
+                logits = []
 
                 # Preprocess audio
                 batch_size = \
@@ -197,30 +282,42 @@ def quality(
                     batch_voiced = voiced[:, start:end].to(device)
 
                     # Infer
-                    logits = penne.infer(
+                    batch_logits = penne.infer(
                         frames,
                         penne.MODEL,
                         checkpoint).detach()
 
                     # Update metrics
-                    args = logits, batch_bins, batch_pitch, batch_voiced
+                    args = (
+                        batch_logits,
+                        batch_bins,
+                        batch_pitch,
+                        batch_voiced)
                     file_metrics.update(*args)
                     dataset_metrics.update(*args)
                     aggregate_metrics.update(*args)
 
-            elif method == 'torchcrepe':
+                    # Accumulate logits
+                    logits.append(batch_logits)
+                logits = torch.cat(logits, dim=2)
+
+            elif penne.METHOD == 'torchcrepe':
 
                 import torchcrepe
 
                 # TODO
                 pass
 
-            elif method == 'harmof0':
+            elif penne.METHOD == 'harmof0':
 
                 # TODO
                 pass
 
-            elif method == 'pyin':
+            elif penne.METHOD == 'pyin':
+
+                # Pad
+                pad = (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
+                audio = torch.nn.functional.pad(audio, (pad, pad))
 
                 # Infer
                 logits = penne.dsp.pyin.infer(audio[0])
@@ -230,6 +327,10 @@ def quality(
                 file_metrics.update(*args)
                 dataset_metrics.update(*args)
                 aggregate_metrics.update(*args)
+
+            # Save logits for periodicity evaluation
+            file = directory / dataset / f'{stem}-logits.pt'
+            torch.save(file, logits.cpu())
 
             # Copy results
             granular[f'{dataset}/{stem[0]}'] = file_metrics()

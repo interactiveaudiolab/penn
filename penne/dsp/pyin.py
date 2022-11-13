@@ -21,10 +21,10 @@ def from_audio(
     fmin=penne.FMIN,
     fmax=penne.FMAX):
     """Estimate pitch and periodicity with pyin"""
-    # Copy to device
-    with penne.time.timer('copy-to'):
-        # TODO - move to device
-        pass
+    # Pad
+    pad = (
+        penne.WINDOW_SIZE - penne.convert.seconds_to_samples(hopsize)) // 2
+    audio = torch.nn.functional.pad(audio, (pad, pad))
 
     # Infer pitch bin probabilities
     with penne.time.timer('infer'):
@@ -59,10 +59,6 @@ def from_file_to_file(
     # Infer
     pitch, periodicity = from_file(file, hopsize, fmin, fmax)
 
-    with penne.time.timer('copy-from'):
-        # TODO - move device
-        pass
-
     # Save to disk
     with penne.time.timer('save'):
 
@@ -91,6 +87,10 @@ def from_files_to_files(
 
     # Turn off multiprocessing for benchmarking
     if penne.BENCHMARK:
+        iterator = penne.iterator(
+            iterator,
+            f'{penne.CONFIG}',
+            total=len(files))
         for item in iterator:
             pitch_fn(*item)
     else:
@@ -147,10 +147,9 @@ def infer(
     fmin=penne.FMIN,
     fmax=penne.FMAX):
     hopsize = penne.convert.seconds_to_samples(hopsize)
-
-    # Pad audio to center-align frames
-    pad = (2 * penne.WINDOW_SIZE - hopsize) // 2
-    padded = torch.nn.functional.pad(audio, (pad, pad))
+    # # Pad audio to center-align frames
+    pad = penne.WINDOW_SIZE // 2
+    padded = torch.nn.functional.pad(audio, (0, 2 * pad))
 
     # Slice and chunk audio
     frames = torch.nn.functional.unfold(
@@ -195,13 +194,10 @@ def infer(
             min_period,
             n_bins_per_semitone)
 
-    helper = np.vectorize(_helper, signature="(f,t),(k,t)->(1,d,t),(j,t)")
-    logits, _ = helper(yin_frames, parabolic_shifts)
-    logits = torch.from_numpy(logits[:, :penne.PITCH_BINS])
-    logits = logits.permute(2, 1, 0)
-    logits[torch.isinf(logits)] = 0
-
-    return logits
+    helper = np.vectorize(_helper, signature="(f,t),(k,t)->(1,d,t)")
+    probs = helper(yin_frames, parabolic_shifts)
+    probs = torch.from_numpy(probs)
+    return torch.log(probs)
 
 
 def parabolic_interpolation(frames):
@@ -281,18 +277,14 @@ def pyin_helper(
 
     # Find pitch bin corresponding to each f0 candidate.
     bin_index = 12 * n_bins_per_semitone * np.log2(f0_candidates / penne.FMIN)
-    bin_index = np.clip(np.round(bin_index), 0, penne.PITCH_BINS).astype(int)
+    bin_index = np.clip(
+        np.round(bin_index),
+        0,
+        penne.PITCH_BINS - 1).astype(int)
 
     # Observation probabilities.
-    observation_probs = np.zeros((2 * penne.PITCH_BINS, frames.shape[1]))
+    observation_probs = np.zeros((penne.PITCH_BINS, frames.shape[1]))
     observation_probs[bin_index, frame_index] = \
         yin_probs[yin_period, frame_index]
 
-    voiced_prob = np.clip(
-        np.sum(observation_probs[:penne.PITCH_BINS, :], axis=0, keepdims=True),
-        0,
-        1)
-    observation_probs[penne.PITCH_BINS:, :] = \
-        (1 - voiced_prob) / penne.PITCH_BINS
-
-    return observation_probs[np.newaxis], voiced_prob
+    return observation_probs[np.newaxis]

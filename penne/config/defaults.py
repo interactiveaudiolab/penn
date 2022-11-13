@@ -32,6 +32,9 @@ FMIN = 31.  # Hz
 # Distance between adjacent frames
 HOPSIZE = 160  # samples
 
+# Pitch velocity constraint for viterbi decoding
+MAX_OCTAVES_PER_SECOND = 35.92
+
 # Number of spectrogram frequency bins
 NUM_FFT = 1024
 
@@ -69,7 +72,7 @@ DATA_DIR = Path(__file__).parent.parent.parent / 'data' / 'datasets'
 EVAL_DIR = Path(__file__).parent.parent.parent / 'eval'
 
 # Location to save results tables
-EVAL_DIR = Path(__file__).parent.parent.parent / 'results'
+RESULTS_DIR = Path(__file__).parent.parent.parent / 'results'
 
 # Location to save training and adaptation artifacts
 RUNS_DIR = Path(__file__).parent.parent.parent / 'runs'
@@ -92,9 +95,9 @@ CHECKPOINT_INTERVAL = 25000  # steps
 # List of all datasets
 DATASETS = ['mdb', 'ptdb']
 
-# Default method to use for evaluation
+# Method to use for evaluation
 # TODO - name
-DEFAULT_METHOD = 'NAME'
+METHOD = 'penne'
 
 # Batch size to use for evaluation
 EVALUATION_BATCH_SIZE = 2048

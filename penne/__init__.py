@@ -1,30 +1,39 @@
 # Trainings
-# - fcnf0-1440-cce-layer-nodropout-normalize**
-# - ablations
-
-# Evaluation
-# - analysis module**
-# - pyin**
-# - fcnf0 eval issues
-# - average + entropy periodicity in automated eval**
-# - binary entropy search
-# - original harmof0
-# - torchcrepe
-# - torchscript
+# - crepe
+# - crepe++
+# - crepe++-mdb
+# - crepe++-ptdb
+# - crepe-1440-cce-layer-nodropout-unvoiced-noearly
+# - crepe-128-cce-layer-nodropout-unvoiced-noearly
+# - crepe-128-1440-layer-nodropout-unvoiced-noearly
+# - crepe-128-1440-cce-nodropout-unvoiced-noearly
+# - crepe-128-1440-cce-layer-unvoiced-noearly
+# - crepe-128-1440-cce-layer-nodropout-unvoiced
+# - deepf0
+# - deepf0++
+# - fcnf0
+# - fcnf0++
+# - harmof0++
+# - harmof0
 
 # Figures
-# - dataset density + true positive density
+# - dataset density + true positive density*
 # - threshold landscapes
 
 # Development
-# - pyin gpu
-# - valid convolutions**
-# - quantization**
+# - fcnf0 layer norm
+# - fcnf0 modular pitch bins
+# - debug harmof0
+# - original harmof0
+# - torchcrepe eval
+
+# - torchscript
+# - valid convolutions
+# - quantization
 # - ONNX?
-# - debug harmof0**
 
 # Paper
-# - weighted**
+# - weighted
 # - results should not be taken as judgments of speech vs music data being
 #   easier or harder
 # - unvoiced training causes the landscape of viable thresholds to expand
@@ -65,7 +74,6 @@ from . import load
 from . import partition
 from . import periodicity
 from . import plot
-from . import preprocess
 from . import train
 from . import write
 

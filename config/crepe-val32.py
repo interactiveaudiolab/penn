@@ -1,4 +1,4 @@
-CONFIG = 'crepe-original-mdb'
+CONFIG = 'crepe-val32'
 
 # Batch size (per gpu)
 BATCH_SIZE = 32
@@ -13,7 +13,7 @@ EARLY_STOPPING = True
 LOG_INTERVAL = 500  # steps
 
 # Number of batches to use for validation
-LOG_STEPS = 1
+LOG_STEPS = 32
 
 # Whether to only use voiced start frames
 VOICED_ONLY = True

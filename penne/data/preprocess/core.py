@@ -185,9 +185,21 @@ def ptdb():
 def interpolate_unvoiced(pitch):
     """Fill unvoiced regions via linear interpolation"""
     unvoiced = pitch == 0
+
+    # Pitch is linear in base-2 log-space
     pitch = np.log2(pitch)
-    pitch[unvoiced] = np.interp(
-        np.where(unvoiced)[0],
-        np.where(~unvoiced)[0],
-        pitch[~unvoiced])
+
+    try:
+
+        # Interpolate
+        pitch[unvoiced] = np.interp(
+            np.where(unvoiced)[0],
+            np.where(~unvoiced)[0],
+            pitch[~unvoiced])
+
+    except ValueError:
+
+        # Allow all unvoiced
+        pass
+
     return 2 ** pitch, ~unvoiced

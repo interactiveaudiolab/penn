@@ -22,7 +22,7 @@ EARLY_STOPPING = True
 LOG_INTERVAL = 500  # steps
 
 # Number of batches to use for validation
-LOG_STEPS = 1
+LOG_STEPS = 4
 
 # The name of the model to use for training
 MODEL = 'fcnf0'

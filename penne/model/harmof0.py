@@ -26,7 +26,11 @@ class Harmof0(torch.nn.Sequential):
     def forward(self, audio):
         # shape=(batch, 1, penne.NUM_TRAINING_SAMPLES) =>
         # shape=(batch, penne.PITCH_BINS, penne.NUM_TRAINING_FRAMES)
-        return super().forward(audio).squeeze(1)
+        logits = super().forward(audio).squeeze(1)
+
+        # shape=(batch, penne.PITCH_BINS, penne.NUM_TRAINING_FRAMES) =>
+        # shape=(batch * penne.NUM_TRAINING_FRAMES, penne.PITCH_BINS, 1)
+        return logits.permute(0, 2, 1).reshape(-1, penne.PITCH_BINS, 1)
 
 
 ###############################################################################
