@@ -98,7 +98,7 @@ class F1:
 
     def __init__(self, thresholds=None):
         if thresholds is None:
-            thresholds = [.1 * i for i in range(10)]
+            thresholds = [2 ** -i for i in range(1, 11)]
         self.thresholds = thresholds
         self.precision = [Precision() for _ in range(len(thresholds))]
         self.recall = [Recall() for _ in range(len(thresholds))]

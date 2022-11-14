@@ -1,6 +1,6 @@
 CONFIG = 'fcnf0'
 
-# Batch size (per gpu)
+# Batch size
 BATCH_SIZE = 32
 
 # Width of a pitch bin

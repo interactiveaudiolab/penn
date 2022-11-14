@@ -1,6 +1,13 @@
 # Trainings
 # - crepe
 # - crepe++
+# - deepf0
+# - deepf0++
+# - fcnf0
+# - fcnf0++
+# - harmof0++
+# - harmof0
+
 # - crepe++-mdb
 # - crepe++-ptdb
 # - crepe-1440-cce-layer-nodropout-unvoiced-noearly
@@ -9,26 +16,17 @@
 # - crepe-128-1440-cce-nodropout-unvoiced-noearly
 # - crepe-128-1440-cce-layer-unvoiced-noearly
 # - crepe-128-1440-cce-layer-nodropout-unvoiced
-# - deepf0
-# - deepf0++
-# - fcnf0
-# - fcnf0++
-# - harmof0++
-# - harmof0
 
 # Figures
 # - dataset density + true positive density*
 # - threshold landscapes
 
 # Development
-# - fcnf0 layer norm
-# - fcnf0 modular pitch bins
+# - torchcrepe eval**
 # - debug harmof0
 # - original harmof0
-# - torchcrepe eval
 
 # - torchscript
-# - valid convolutions
 # - quantization
 # - ONNX?
 

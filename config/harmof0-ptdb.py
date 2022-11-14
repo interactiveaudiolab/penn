@@ -1,6 +1,6 @@
 CONFIG = 'harmof0-ptdb'
 
-# Batch size (per gpu)
+# Batch size
 BATCH_SIZE = 24
 
 # Weight applied to positive examples in binary cross-entropy loss

@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 import penne
@@ -8,22 +10,12 @@ import penne
 ###############################################################################
 
 
-def average(logits):
-    """Periodicity as the average of the logits over pitch bins"""
-    averages = logits.mean(dim=1)
-    if penne.LOSS == 'binary_cross_entropy':
-        return torch.sigmoid(averages)
-    elif penne.LOSS == 'categorical_cross_entropy':
-        return torch.exp(averages) / torch.exp(logits).sum(dim=1)
-    raise ValueError(f'Loss function {penne.LOSS} is not implemented')
-
-
 def entropy(logits):
     """Entropy-based periodicity"""
     distribution = torch.nn.functional.softmax(logits, dim=1)
     return (
-        1 - (1 / torch.log(penne.PITCH_BINS)) * \
-        ((distribution * torch.log(distribution)).sum(dim=1)))
+        1 + 1 / math.log(penne.PITCH_BINS) * \
+        (distribution * torch.log(distribution + 1e-7)).sum(dim=1))
 
 
 def max(logits):

@@ -30,7 +30,6 @@ def datasets(
             periodicity_fns = {'sum': penne.periodicity.sum}
         else:
             periodicity_fns = {
-                'average': penne.periodicity.average,
                 'entropy': penne.periodicity.entropy,
                 'max': penne.periodicity.max}
 
@@ -39,8 +38,9 @@ def datasets(
         for key, val in periodicity_fns.items():
             periodicity_results[key] = periodicity_quality(
                 directory,
+                val,
                 datasets,
-                val)
+                gpu=gpu)
 
         # Write periodicity results
         file = penne.EVAL_DIR / penne.CONFIG / 'periodicity.json'
@@ -142,7 +142,7 @@ def benchmark(
 
         # Get benchmarking information
         benchmark = penne.TIMER()
-        benchmark['elapsed'] = time.time() - start_time
+        benchmark['total'] = time.time() - start_time
 
     # Get total number of samples and seconds in test data
     samples = sum([
@@ -162,10 +162,13 @@ def benchmark(
 
 def periodicity_quality(
     directory,
+    periodicity_fn,
     datasets=penne.EVALUATION_DATASETS,
-    periodicity_fn=penne.periodicity.max,
-    steps=8):
+    steps=8,
+    gpu=None):
     """Fine-grained periodicity estimation quality evaluation"""
+    device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
+
     # Default values
     best_threshold = .5
     best_value = 0.
@@ -179,25 +182,21 @@ def periodicity_quality(
 
         for dataset in datasets:
 
-            # Setup test dataset
-            iterator = penne.iterator(
-                penne.data.loader([dataset], 'test'),
-                f'Evaluating {penne.CONFIG} on {dataset}')
-
             # Iterate over test set
-            for _, _, _, voiced, stem in iterator:
+            for _, _, _, voiced, stem in penne.data.loader([dataset], 'test'):
 
                 # Load logits
                 logits = torch.load(directory / dataset / f'{stem}-logits.pt')
 
                 # Decode periodicity
-                periodicity = periodicity_fn(logits)
+                periodicity = periodicity_fn(logits.to(device))
 
                 # Update metrics
-                metrics.update(periodicity, voiced)
+                metrics.update(periodicity, voiced.to(device))
 
         # Get best performing threshold
-        results = {key: val for key, val in metrics() if key.startswith('f1')}
+        results = {
+            key: val for key, val in metrics().items() if key.startswith('f1')}
         key = max(results, key=results.get)
         threshold = float(key[3:])
         value = results[key]
@@ -211,6 +210,7 @@ def periodicity_quality(
 
         # Binary search for optimal threshold
         stepsize /= 2
+        step += 1
 
     # Return threshold and corresponding F1 score
     return {'threshold': best_threshold, 'f1': best_value}
@@ -330,7 +330,7 @@ def pitch_quality(
 
             # Save logits for periodicity evaluation
             file = directory / dataset / f'{stem}-logits.pt'
-            torch.save(file, logits.cpu())
+            torch.save(logits.cpu(), file)
 
             # Copy results
             granular[f'{dataset}/{stem[0]}'] = file_metrics()

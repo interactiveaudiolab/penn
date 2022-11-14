@@ -6,7 +6,7 @@ import penne
 class Fcnf0(torch.nn.Sequential):
 
     def __init__(self):
-        # TODO - layer norm
+        # Original fcnf0 configuration
         super().__init__(
             Block(1, 256, 481, (2, 2)),
             Block(256, 32, 225, (2, 2)),
@@ -23,7 +23,6 @@ class Fcnf0(torch.nn.Sequential):
 
 
 class Block(torch.nn.Sequential):
-    # TODO - lengths
 
     def __init__(
         self,

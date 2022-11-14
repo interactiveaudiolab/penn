@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument(
         '--datasets',
         nargs='+',
-        default=['mdb', 'ptdb'],
+        default=penne.DATASETS,
         help='The datasets to train on')
     parser.add_argument(
         '--gpus',

@@ -1,6 +1,6 @@
 CONFIG = 'crepe-val16'
 
-# Batch size (per gpu)
+# Batch size
 BATCH_SIZE = 32
 
 # Whether to peak-normalize CREPE input audio

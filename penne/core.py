@@ -282,9 +282,7 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
             raise ValueError(f'Decoder method {penne.DECODER} is not defined')
 
         # Decode periodicity from logits
-        if penne.PERIODICITY == 'average':
-            periodicity = penne.periodicity.average(logits)
-        elif penne.PERIODICITY == 'entropy':
+        if penne.PERIODICITY == 'entropy':
             periodicity = penne.periodicity.entropy(logits)
         elif penne.PERIODICITY == 'max':
             periodicity = penne.periodicity.max(logits)
@@ -381,9 +379,12 @@ def inference_context(model, device_type):
     # Turn off gradient computation
     with torch.no_grad():
 
-        # Automatic mixed precision
-        with torch.autocast(device_type):
+        # Automatic mixed precision on GPU
+        if device_type == 'cuda':
+            with torch.autocast(device_type):
+                yield model
 
+        else:
             yield model
 
     # Prepare model for training

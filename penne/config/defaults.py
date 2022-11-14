@@ -96,7 +96,6 @@ CHECKPOINT_INTERVAL = 25000  # steps
 DATASETS = ['mdb', 'ptdb']
 
 # Method to use for evaluation
-# TODO - name
 METHOD = 'penne'
 
 # Batch size to use for evaluation
@@ -147,7 +146,7 @@ S4F0_CHANNELS = 64
 # Whether to use adaptive gradient clipping
 ADAPTIVE_CLIPPING = False
 
-# Batch size (per gpu)
+# Batch size
 BATCH_SIZE = 64
 
 # Weight applied to positive examples in binary cross-entropy loss
