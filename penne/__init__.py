@@ -5,8 +5,8 @@
 # - deepf0++
 # - fcnf0
 # - fcnf0++
-# - harmof0++
 # - harmof0
+# - harmof0++
 
 # - crepe++-mdb
 # - crepe++-ptdb
@@ -17,13 +17,10 @@
 # - crepe-128-1440-cce-layer-unvoiced-noearly
 # - crepe-128-1440-cce-layer-nodropout-unvoiced
 
-# Figures
-# - dataset density + true positive density*
-# - threshold landscapes
-
 # Development
-# - torchcrepe eval**
-# - debug harmof0
+# - torchcrepe eval***
+# - pyin one thread**
+# - debug harmof0*
 # - original harmof0
 
 # - torchscript

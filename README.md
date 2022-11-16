@@ -1,5 +1,9 @@
 # Pitch Estimating Neural NEtworks (PENNE)
 
+**TODO** - API
+**TODO** - Figures
+**TODO** - Analysis
+
 
 ## Installation
 

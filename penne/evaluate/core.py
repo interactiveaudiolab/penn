@@ -1,4 +1,6 @@
+import contextlib
 import json
+import math
 import tempfile
 import time
 from pathlib import Path
@@ -48,7 +50,8 @@ def datasets(
             json.dump(periodicity_results, file, indent=4)
 
     # Perform benchmarking on CPU
-    benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
+    with set_num_threads(1):
+        benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
 
     # PYIN is not on GPU
     if penne.METHOD != 'pyin':
@@ -61,7 +64,7 @@ def datasets(
 
 
 ###############################################################################
-# Utilities
+# Individual evaluations
 ###############################################################################
 
 
@@ -196,7 +199,8 @@ def periodicity_quality(
 
         # Get best performing threshold
         results = {
-            key: val for key, val in metrics().items() if key.startswith('f1')}
+            key: val for key, val in metrics().items() if key.startswith('f1')
+            and not math.isnan(val)}
         key = max(results, key=results.get)
         threshold = float(key[3:])
         value = results[key]
@@ -275,7 +279,7 @@ def pitch_quality(
                     frames = frames.to(device)
 
                     # Slice features and copy to GPU
-                    start = i * penne.EVALUATION_BATCH_SIZE
+                    start = i * batch_size
                     end = start + size
                     batch_bins = bins[:, start:end].to(device)
                     batch_pitch = pitch[:, start:end].to(device)
@@ -346,3 +350,25 @@ def pitch_quality(
         json.dump(overall, file, indent=4)
     with open(directory / 'granular.json', 'w') as file:
         json.dump(granular, file, indent=4)
+
+
+###############################################################################
+# Utilities
+###############################################################################
+
+
+@contextlib.contextmanager
+def set_num_threads(threads):
+    """Set the number of threads used for PyTorch inference"""
+    # Cache current thread count
+    prev_threads = torch.get_num_threads()
+
+    # Change count
+    torch.set_num_threads(threads)
+
+    # Execute user code
+    yield
+
+    # Change back
+    torch.set_num_threads(prev_threads)
+

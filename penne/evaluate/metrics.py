@@ -98,7 +98,9 @@ class F1:
 
     def __init__(self, thresholds=None):
         if thresholds is None:
-            thresholds = [2 ** -i for i in range(1, 11)]
+            thresholds = sorted(list(set(
+                [2 ** -i for i in range(1, 11)] +
+                [.1 * i for i in range(10)])))
         self.thresholds = thresholds
         self.precision = [Precision() for _ in range(len(thresholds))]
         self.recall = [Recall() for _ in range(len(thresholds))]

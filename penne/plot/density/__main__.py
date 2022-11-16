@@ -23,6 +23,11 @@ def parse_args():
         required=True,
         help='Datasets to use for inference density')
     parser.add_argument(
+        '--output_file',
+        required=True,
+        type=Path,
+        help='The jpg file to save the plot')
+    parser.add_argument(
         '--checkpoint',
         type=Path,
         default=penne.DEFAULT_CHECKPOINT,
