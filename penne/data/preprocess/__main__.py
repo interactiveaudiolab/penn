@@ -16,7 +16,7 @@ def parse_args():
         nargs='+',
         default=['mdb', 'ptdb'],
         help='The datasets to preprocess')
-    return parser.parse_args()
+    return parser.parse_known_args()[0]
 
 
-penne.preprocess.datasets(**vars(parse_args()))
+penne.data.preprocess.datasets(**vars(parse_args()))

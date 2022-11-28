@@ -23,9 +23,12 @@ def sampler(dataset, partition):
             DistributedSampler(indices) if torch.distributed.is_initialized()
             else Sampler(indices))
 
-    # Always use (deterministic) random sampler for validation
+    # Possibly deterministic random sampler for validation
     elif partition == 'valid':
-        return Sampler(indices)
+        if penne.RANDOM_VALID:
+            return torch.utils.data.RandomSampler(dataset)
+        else:
+            return Sampler(indices)
 
     # Sample test data sequentially
     elif partition == 'test':

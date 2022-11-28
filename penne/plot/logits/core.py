@@ -31,16 +31,16 @@ def from_audio(
         frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
 
         # Infer
-        logits.append(penne.infer(frames, checkpoint).detach())
+        logits.append(penne.infer(frames, checkpoint=checkpoint).detach())
 
     # Concatenate results
-    logits = torch.cat(logits, 2)
+    logits = torch.cat(logits)
 
     # Setup figure
     figure = plt.figure(figsize=(18, 6))
 
     # Plot logits
-    plt.imshow(logits)
+    plt.imshow(logits.cpu()[0])
 
     # Maybe plot pitch overlay
     if pitch is not None:
@@ -73,7 +73,10 @@ def from_file(
     audio = penne.load.audio(audio_file)
 
     # Maybe load pitch
-    pitch = np.load(pitch_file)
+    if pitch_file is not None:
+        pitch = np.load(pitch_file)
+    else:
+        pitch = None
 
     # Plot
     return from_audio(audio, penne.SAMPLE_RATE, pitch, checkpoint, gpu)
@@ -90,4 +93,4 @@ def from_file_to_file(
     figure = from_file(audio_file, pitch_file, checkpoint, gpu)
 
     # Save to disk
-    figure.save(output_file, bbox_inches='tight', pad_inches=0)
+    figure.savefig(output_file, bbox_inches='tight', pad_inches=0)

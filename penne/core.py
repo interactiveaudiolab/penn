@@ -223,17 +223,19 @@ def infer(
 
         # Load and cache model
         if not hasattr(infer, 'model') or infer.checkpoint != checkpoint:
-            infer.model, *_ = penne.checkpoint.load(
-                checkpoint,
-                penne.Model(model))
+
+            # Maybe initialize model
+            if penne.ONNX or frames.device.type == 'cuda':
+                model = None
+            else:
+                penne.Model(model)
+
+            # Load from disk
+            infer.model, *_ = penne.checkpoint.load(checkpoint, model)
             infer.checkpoint = checkpoint
 
             # Move model to correct device (no-op if devices are the same)
             infer.model = infer.model.to(frames.device)
-
-            # Maybe use torchscript
-            if penne.TORCHSCRIPT:
-                infer.model = torch.jit.trace(infer.model, frames)
 
         else:
 
@@ -243,11 +245,20 @@ def infer(
     # Time inference
     with penne.time.timer('infer'):
 
-        # Prepare model for inference
-        with inference_context(infer.model, frames.device.type) as model:
+        if penne.ONNX:
 
-            # Apply model
-            logits = model(frames).permute(2, 1, 0)
+            # Infer
+            logits = infer.model(
+                None,
+                {infer.model.get_inputs()[0].name: frames.numpy()})
+
+        else:
+
+            # Prepare model for inference
+            with inference_context(infer.model, frames.device.type) as model:
+
+                # Infer
+                logits = model(frames)
 
         # If we're benchmarking, make sure inference finishes within timer
         if penne.BENCHMARK and logits.device.type == 'cuda':
@@ -274,7 +285,9 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
         # Decode pitch from logits
         if penne.DECODER == 'argmax':
             bins, pitch = penne.decode.argmax(logits)
-        elif penne.DECODER == 'viterbi':
+        elif penne.DECODER == 'average':
+            bins, pitch = penne.decode.average(logits)
+        elif penne.DECODER.startswith('viterbi'):
             bins, pitch = penne.decode.viterbi(logits)
         elif penne.DECODER == 'weighted':
             bins, pitch = penne.decode.weighted(logits)
@@ -292,7 +305,7 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
             raise ValueError(
                 f'Periodicity method {penne.PERIODICITY} is not defined')
 
-        return bins, pitch, periodicity
+        return bins.T, pitch.T, periodicity.T
 
 
 def preprocess(audio,
@@ -335,17 +348,6 @@ def preprocess(audio,
                 audio[:, None, None, start:end],
                 kernel_size=(1, penne.WINDOW_SIZE),
                 stride=(1, hopsize)).permute(2, 0, 1)
-
-            # Maybe normalize audio
-            if penne.CREPE_NORMALIZE:
-
-                # Mean-center
-                frames -= frames.mean(dim=2, keepdim=True)
-
-                # Scale
-                frames /= torch.max(
-                    torch.tensor(1e-10, device=frames.device),
-                    frames.std(dim=2, keepdim=True))
 
             yield frames, batch
 
@@ -400,6 +402,19 @@ def iterator(iterable, message, initial=0, total=None):
         dynamic_ncols=True,
         initial=initial,
         total=total)
+
+
+def normalize(frames):
+    """Normalize audio frames to have mean zero and std dev one"""
+    # Mean-center
+    frames -= frames.mean(dim=2, keepdim=True)
+
+    # Scale
+    frames /= torch.max(
+        torch.tensor(1e-10, device=frames.device),
+        frames.std(dim=2, keepdim=True))
+
+    return frames
 
 
 def resample(audio, sample_rate, target_rate=penne.SAMPLE_RATE):

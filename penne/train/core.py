@@ -82,15 +82,6 @@ def train(
 
     model = penne.model.Model().to(device)
 
-    ##################################################
-    # Maybe setup distributed data parallelism (DDP) #
-    ##################################################
-
-    if rank is not None:
-        model = torch.nn.parallel.DistributedDataParallel(
-            model,
-            device_ids=[rank])
-
     ####################
     # Create optimizer #
     ####################
@@ -113,21 +104,14 @@ def train(
         # Train from scratch
         step = 0
 
-    ##########################################
-    # Maybe setup adaptive gradient clipping #
-    ##########################################
+    ##################################################
+    # Maybe setup distributed data parallelism (DDP) #
+    ##################################################
 
-    if penne.ADAPTIVE_CLIPPING:
-
-        # Don't apply gradient clipping to the linear layer of CREPE
-        parameters = [
-            list(module.parameters()) for name, module in model.named_modules()
-            if name != 'classifier']
-
-        # Wrap optimizer
-        optimizer = penne.train.clip.AdaptiveGradientClipping(
-            parameters,
-            optimizer)
+    if rank is not None:
+        model = torch.nn.parallel.DistributedDataParallel(
+            model,
+            device_ids=[rank])
 
     ##############################
     # Maybe setup early stopping #
@@ -182,10 +166,6 @@ def train(
 
             # Backward pass
             scaler.scale(losses).backward()
-
-            # Maybe unscale for gradient clipping
-            if penne.ADAPTIVE_CLIPPING:
-                scaler.unscale_(optimizer)
 
             # Update weights
             scaler.step(optimizer)
@@ -276,9 +256,9 @@ def evaluate(directory, step, model, gpu, condition, loader):
             # Update metrics
             metrics.update(
                 logits,
-                bins.to(device),
-                pitch.to(device),
-                voiced.to(device))
+                bins.to(device).T,
+                pitch.to(device).T,
+                voiced.to(device).T)
 
             # Stop when we exceed some number of batches
             if i + 1 == penne.LOG_STEPS:

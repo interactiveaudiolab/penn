@@ -35,7 +35,7 @@ def from_audio(output_file, checkpoint=None, gpu=None):
             frames = frames.to(device)
 
             # Slice features and copy to GPU
-            start = i * batch_size
+            start = i * penne.EVALUATION_BATCH_SIZE
             end = start + size
             batch_voiced = voiced[:, start:end].to(device)
 

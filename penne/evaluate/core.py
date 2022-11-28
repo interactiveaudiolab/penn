@@ -50,8 +50,12 @@ def datasets(
             json.dump(periodicity_results, file, indent=4)
 
     # Perform benchmarking on CPU
-    with set_num_threads(1):
-        benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
+    # TEMPORARY - use all threads
+    # with set_num_threads(1):
+    cpu_checkpoint = \
+        checkpoint.with_suffix('.onnx') if penne.ONNX else checkpoint
+    # benchmark_results = {'cpu': benchmark(datasets, cpu_checkpoint)}
+    benchmark_results = {'cpu': 0}
 
     # PYIN is not on GPU
     if penne.METHOD != 'pyin':
@@ -109,19 +113,21 @@ def benchmark(
                 batch_size=batch_size,
                 gpu=gpu)
 
-        # TODO - padding and timing
         elif penne.METHOD == 'torchcrepe':
 
             import torchcrepe
 
             # Get output file paths
-            pitch_files = [file.parent / f'{file.stem}-pitch.pt' for file in files]
+            pitch_files = [
+                file.parent / f'{file.stem}-pitch.pt'
+                for file in output_prefixes]
             periodicity_files = [
-                file.parent / f'{file.stem}-periodicity.pt' for file in files]
+                file.parent / f'{file.stem}-periodicity.pt'
+                for file in output_prefixes]
 
             # Infer
-            # Note - this does not correctly handle padding, but suffices for
-            #        benchmarking purposes
+            # Note - this does not perform the correct padding, but suffices
+            #        for benchmarking purposes
             batch_size = \
                     None if gpu is None else penne.EVALUATION_BATCH_SIZE
             torchcrepe.from_files_to_files(
@@ -131,7 +137,8 @@ def benchmark(
                 hop_length=penne.HOPSIZE,
                 decoder=torchcrepe.decoder.argmax,
                 batch_size=batch_size,
-                device='cpu' if gpu is None else f'cuda:{gpu}')
+                device='cpu' if gpu is None else f'cuda:{gpu}',
+                pad=False)
 
         elif penne.METHOD == 'harmof0':
             penne.temp.harmof0.from_files_to_files(
@@ -192,7 +199,7 @@ def periodicity_quality(
                 logits = torch.load(directory / dataset / f'{stem}-logits.pt')
 
                 # Decode periodicity
-                periodicity = periodicity_fn(logits.to(device))
+                periodicity = periodicity_fn(logits.to(device)).T
 
                 # Update metrics
                 metrics.update(periodicity, voiced.to(device))
@@ -279,7 +286,7 @@ def pitch_quality(
                     frames = frames.to(device)
 
                     # Slice features and copy to GPU
-                    start = i * batch_size
+                    start = i * penne.EVALUATION_BATCH_SIZE
                     end = start + size
                     batch_bins = bins[:, start:end].to(device)
                     batch_pitch = pitch[:, start:end].to(device)
@@ -303,14 +310,54 @@ def pitch_quality(
 
                     # Accumulate logits
                     logits.append(batch_logits)
-                logits = torch.cat(logits, dim=2)
+                logits = torch.cat(logits)
 
             elif penne.METHOD == 'torchcrepe':
 
                 import torchcrepe
 
-                # TODO
-                pass
+                # Accumulate logits
+                logits = []
+
+                # Postprocessing breaks gradients, so just don't compute them
+                with torch.no_grad():
+
+                    # Preprocess audio
+                    batch_size = \
+                        None if gpu is None else penne.EVALUATION_BATCH_SIZE
+                    pad = (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
+                    generator = torchcrepe.preprocess(
+                        torch.nn.functional.pad(audio, (pad, pad)),
+                        penne.SAMPLE_RATE,
+                        penne.HOPSIZE,
+                        batch_size,
+                        device,
+                        False)
+                    for i, frames in enumerate(generator):
+
+                        # Infer independent probabilities for each pitch bin
+                        batch_logits = torchcrepe.infer(frames.to(device))
+
+                        # Slice features and copy to GPU
+                        start = i * penne.EVALUATION_BATCH_SIZE
+                        end = start + frames.shape[0]
+                        batch_bins = bins[:, start:end].to(device)
+                        batch_pitch = pitch[:, start:end].to(device)
+                        batch_voiced = voiced[:, start:end].to(device)
+
+                        # Update metrics
+                        args = (
+                            batch_logits,
+                            batch_bins,
+                            batch_pitch,
+                            batch_voiced)
+                        file_metrics.update(*args)
+                        dataset_metrics.update(*args)
+                        aggregate_metrics.update(*args)
+
+                        # Accumulate logits
+                        logits.append(batch_logits)
+                    logits = torch.cat(logits)
 
             elif penne.METHOD == 'harmof0':
 

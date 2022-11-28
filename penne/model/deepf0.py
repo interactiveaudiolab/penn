@@ -11,15 +11,17 @@ import penne
 class Deepf0(torch.nn.Sequential):
 
     def __init__(self, channels=128, kernel_size=64):
-        super().__init__(
+        layers = (penne.model.Normalize(),) if penne.NORMALIZE_INPUT else ()
+        layers += (
             CausalConv1d(1, channels, kernel_size),
             Block(channels, channels, kernel_size, 1),
             Block(channels, channels, kernel_size, 2),
             Block(channels, channels, kernel_size, 4),
             Block(channels, channels, kernel_size, 8),
             torch.nn.AvgPool1d(kernel_size),
-            Flatten(),
+            penne.model.Flatten(),
             torch.nn.Linear(2048, penne.PITCH_BINS))
+        super().__init__(*layers)
 
     def forward(self, frames):
         # shape=(batch, 1, penne.WINDOW_SIZE) =>
@@ -94,9 +96,3 @@ class CausalConv1d(torch.nn.Conv1d):
         if self.pad != 0:
             return result[:, :, :-self.pad]
         return result
-
-
-class Flatten(torch.nn.Module):
-
-    def forward(self, x):
-        return x.reshape(x.shape[0], -1)

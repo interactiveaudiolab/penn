@@ -1,6 +1,7 @@
-import collections
-
+import onnxruntime
 import torch
+
+import penne
 
 
 ###############################################################################
@@ -22,20 +23,20 @@ def latest_path(directory, regex='*.pt'):
     return files[-1]
 
 
-def load(checkpoint_path, model, optimizer=None):
+def load(checkpoint_path, model=None, optimizer=None):
     """Load model checkpoint from file"""
-    checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+    if penne.ONNX and model is None:
 
-    # Maybe load distributed model for inference
-    if all(key.startswith('module') for key in checkpoint_dict['model'].keys()):
-        model_dict = collections.OrderedDict()
-        for key in checkpoint_dict['model'].keys():
-            model_dict[key[7:]] = checkpoint_dict['model'][key]
+        # Replace model with ONNX model
+        model = onnxruntime.InferenceSession(checkpoint_path)
+
     else:
-        model_dict = checkpoint_dict['model']
 
-    # Restore model
-    model.load_state_dict(model_dict)
+        # Load checkpoint
+        checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+
+        # Restore model weights
+        model.load_state_dict(checkpoint_dict['model'])
 
     # Restore optimizer
     if optimizer is not None:
@@ -49,8 +50,18 @@ def load(checkpoint_path, model, optimizer=None):
 
 def save(model, optimizer, step, file):
     """Save training checkpoint to disk"""
+    # Maybe unpack DDP
+    if torch.distributed.is_initialized():
+        model_state_dict = model.module.state_dict()
+    else:
+        model_state_dict = model.state_dict()
+
+    # Save
     checkpoint = {
         'step': step,
-        'model': model.state_dict(),
+        'model': model_state_dict,
         'optimizer': optimizer.state_dict()}
     torch.save(checkpoint, file)
+
+    # Save ONNX
+    penne.onnx.export(model, file.with_suffix('.onnx'))

@@ -180,9 +180,6 @@ def infer(
     beta_cdf = scipy.stats.beta.cdf(thresholds, 2, 18)
     beta_probs = np.diff(beta_cdf)
 
-    n_bins_per_semitone = (penne.OCTAVE / 12) / penne.CENTS_PER_BIN
-    penne.PITCH_BINS = penne.PITCH_BINS
-
     def _helper(a, b):
         return pyin_helper(
             a,
@@ -192,7 +189,7 @@ def infer(
             beta_probs,
             .01,
             min_period,
-            n_bins_per_semitone)
+            (penne.OCTAVE / 12) / penne.CENTS_PER_BIN)
 
     helper = np.vectorize(_helper, signature="(f,t),(k,t)->(1,d,t)")
     probs = helper(yin_frames, parabolic_shifts)

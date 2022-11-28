@@ -1,4 +1,5 @@
 import itertools
+import warnings
 
 import numpy as np
 import torchaudio
@@ -12,10 +13,12 @@ import penne
 
 
 # MDB analysis parameters
-MDB_HOPSIZE = 128 / 44100  # seconds
+MDB_HOPSIZE = 128  # samples
+MDB_SAMPLE_RATE = 44100  # samples per second
 
 # PTDB analysis parameters
 PTDB_HOPSIZE = 160  # samples
+PTDB_SAMPLE_RATE = 16000  # samples per second
 PTDB_WINDOW_SIZE = 512  # samples
 
 
@@ -67,7 +70,7 @@ def mdb():
         # Load and resample audio
         audio = penne.load.audio(audio_file)
 
-        # Save to cache
+        # Save as numpy array for fast memory-mapped reads
         np.save(
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
@@ -135,21 +138,20 @@ def ptdb():
     for i, (audio_file, pitch_file) in iterator:
         stem = f'{i:06d}'
 
-        # Load and resample audio
-        audio = penne.load.audio(audio_file)
+        # Load and resample to PTDB sample rate
+        audio, sample_rate = torchaudio.load(audio_file)
+        audio = penne.resample(audio, sample_rate, PTDB_SAMPLE_RATE)
 
-        # Simluate the common padding error
-        np.save(
-            output_directory / f'{stem}-misalign.npy',
-            audio.numpy().squeeze())
-
-        # Fix padding error
+        # Remove padding
         offset = PTDB_WINDOW_SIZE - PTDB_HOPSIZE // 2
-        if (audio.shape[-1] - 2 * offset) % penne.HOPSIZE == 0:
+        if (audio.shape[-1] - 2 * offset) % PTDB_HOPSIZE == 0:
             offset += PTDB_HOPSIZE // 2
         audio = audio[:, offset:-offset]
 
-        # Save to cache
+        # Resample to pitch estimation sample rate
+        audio = penne.resample(audio, PTDB_SAMPLE_RATE)
+
+        # Save as numpy array for fast memory-mapped reads
         np.save(
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
@@ -186,8 +188,12 @@ def interpolate_unvoiced(pitch):
     """Fill unvoiced regions via linear interpolation"""
     unvoiced = pitch == 0
 
-    # Pitch is linear in base-2 log-space
-    pitch = np.log2(pitch)
+    # Ignore warning of log setting unvoiced regions (zeros) to nan
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        # Pitch is linear in base-2 log-space
+        pitch = np.log2(pitch)
 
     try:
 

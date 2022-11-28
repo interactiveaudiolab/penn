@@ -9,17 +9,17 @@ import penne
 ###############################################################################
 
 
-def bins_to_cents(bins):
+def bins_to_cents(bins, dither=False):
     """Converts pitch bins to cents"""
     cents = penne.CENTS_PER_BIN * bins
 
     # Maybe trade quantization error for noise
-    return dither(cents) if penne.DITHER else cents
+    return triangular_dither(cents) if dither else cents
 
 
-def bins_to_frequency(bins):
+def bins_to_frequency(bins, dither=False):
     """Converts pitch bins to frequency in Hz"""
-    return cents_to_frequency(bins_to_cents(bins))
+    return cents_to_frequency(bins_to_cents(bins, dither))
 
 
 def cents_to_bins(cents, quantize_fn=torch.floor):
@@ -90,7 +90,7 @@ def samples_to_seconds(samples):
 ###############################################################################
 
 
-def dither(cents):
+def triangular_dither(cents):
     """Dither the predicted pitch in cents to remove quantization error"""
     noise = scipy.stats.triang.rvs(
         c=0.5,

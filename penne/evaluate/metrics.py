@@ -43,7 +43,7 @@ class Metrics:
         logits = logits.detach()
 
         # Update loss
-        self.loss.update(logits[:, :penne.PITCH_BINS], bins)
+        self.loss.update(logits[:, :penne.PITCH_BINS], bins.T)
 
         # Decode bins, pitch, and periodicity
         with penne.time.timer('decode'):
@@ -163,7 +163,7 @@ class Loss():
 
     def update(self, logits, bins):
         self.total += penne.train.loss(logits, bins)
-        self.count += bins.shape[-1]
+        self.count += bins.shape[0]
 
     def reset(self):
         self.count = 0

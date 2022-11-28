@@ -6,26 +6,26 @@ BATCH_SIZE = 32
 # Width of a pitch bin
 CENTS_PER_BIN = 25  # cents
 
-# Whether to peak-normalize CREPE input audio
-CREPE_NORMALIZE = True
-
-# The dropout rate. Set to None to turn off dropout.
-DROPOUT = None
+# Whether to stop training when validation loss stops improving
+EARLY_STOPPING = True
 
 # Minimum representable frequency
 FMIN = 30.  # Hz
 
-# Whether to stop training when validation loss stops improving
-EARLY_STOPPING = True
-
 # Number of steps between logging to Tensorboard
 LOG_INTERVAL = 500  # steps
 
-# Number of batches to use for validation
-LOG_STEPS = 4
+# Loss function
+LOSS = 'binary_cross_entropy'
 
 # The name of the model to use for training
 MODEL = 'fcnf0'
+
+# Whether to peak-normalize CREPE input audio
+NORMALIZE_INPUT = True
+
+# Type of model normalization
+NORMALIZATION = 'batch'
 
 # Number of pitch bins to predict
 PITCH_BINS = 486

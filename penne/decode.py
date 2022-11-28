@@ -16,7 +16,8 @@ def argmax(logits):
     bins = logits.argmax(dim=1)
 
     # Convert to hz
-    pitch = penne.convert.bins_to_frequency(bins)
+    # Maybe dither to prevent banding during downstream quantization
+    pitch = penne.convert.bins_to_frequency(bins, penne.DITHER)
 
     return bins, pitch
 
@@ -32,6 +33,8 @@ def viterbi(logits):
             (torch.exp(logits), unvoiced[None]),
             dim=1).numpy()
     else:
+
+        # Viterbi REQUIRES a categorical distribution, even if the loss was BCE
         distributions = torch.nn.functional.softmax(logits, dim=1)[0].numpy()
 
     # Cache viterbi probabilities
@@ -73,7 +76,15 @@ def viterbi(logits):
     bins = torch.from_numpy(bins.astype(np.int32))
 
     # Convert to frequency in Hz
-    pitch = penne.convert.bins_to_frequency(bins)
+    if penne.DECODER.endswith('weighted'):
+
+        # Decode using an assumption of normality around to the viterbi path
+        pitch = weighted_from_bins(bins, logits)
+
+    else:
+
+        # Maybe dither to prevent banding during downstream quantization
+        pitch = penne.convert.bins_to_frequency(bins, penne.DITHER)
 
     if penne.METHOD == 'pyin':
 
@@ -87,35 +98,52 @@ def viterbi(logits):
 
 def weighted(logits, window=5):
     """Decode pitch using a normal assumption around the argmax"""
-    logits = logits[0].T
-
     # Get center bins
     bins = logits.argmax(dim=1)
 
-    # Get start and end of windows
-    start = torch.maximum(
-        bins - window // 2,
-        torch.tensor(0, device=bins.device))
-    end = torch.minimum(
-        bins + window // 2 + 1,
-        torch.tensor(penne.PITCH_BINS, device=bins.device))
+    return bins, weighted_from_bins(bins, logits, window)
 
+
+###############################################################################
+# Utilities
+###############################################################################
+
+
+def expected_value(logits, cents):
+    """Expected value computation from logits"""
     # Get local distributions
-    for i, (s, e) in enumerate(zip(start, end)):
-        logits[i, :s] = -float('inf')
-        logits[i, e:] = -float('inf')
-    distributions = torch.nn.functional.softmax(logits, dim=1)
-
-    # Cache cents map
-    if not hasattr(weighted, 'cents') or weighted.cents.device != bins.device:
-        weighted.cents = (
-            penne.convert.bins_to_cents(0) +
-            penne.CENTS_PER_BIN * torch.arange(
-                penne.PITCH_BINS,
-                device=bins.device)[None])
+    if penne.LOSS == 'categorical_cross_entropy':
+        distributions = torch.nn.functional.softmax(logits, dim=1)
+    elif penne.LOSS == 'binary_cross_entropy':
+        distributions = torch.sigmoid(logits)
+    else:
+        raise ValueError(f'Loss {penne.LOSS} is not defined')
 
     # Pitch is expected value in cents
-    pitch = penne.convert.cents_to_frequency(
-        (distributions * weighted.cents).sum(dim=1, keepdims=True))
+    pitch = (distributions * cents).sum(dim=1, keepdims=True)
 
-    return bins[None], pitch.T
+    # BCE requires normalization
+    if penne.LOSS == 'binary_cross_entropy':
+        pitch = pitch / distributions.sum(dim=1)
+
+    # Convert to hz
+    return penne.convert.cents_to_frequency(pitch)
+
+
+def weighted_from_bins(bins, logits, window=5):
+    """Decode pitch using normal assumption around argmax from bin indices"""
+    # Pad
+    padded = torch.nn.functional.pad(
+        logits.squeeze(2),
+        (window // 2, window // 2),
+        value=-float('inf'))
+
+    # Get indices
+    indices = \
+        bins.repeat(1, window) + torch.arange(window, device=bins.device)[None]
+
+    # Get values in cents
+    cents = penne.convert.bins_to_cents(torch.clip(indices - window // 2, 0))
+
+    # Decode using local expected value
+    return expected_value(torch.gather(padded, 1, indices), cents)

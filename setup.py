@@ -15,6 +15,8 @@ setup(
     install_requires=[
         'matplotlib',
         'numpy',
+        'onnx',
+        'onnxruntime',
         'scipy',
         'tensorboard',
         'torch',

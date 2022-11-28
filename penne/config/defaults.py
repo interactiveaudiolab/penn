@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import numpy as np
-
 
 ###############################################################################
 # Metadata
@@ -9,7 +7,7 @@ import numpy as np
 
 
 # Configuration name
-CONFIG = 'penne'
+CONFIG = 'fcnf0++'
 
 
 ###############################################################################
@@ -18,10 +16,7 @@ CONFIG = 'penne'
 
 
 # Width of a pitch bin
-CENTS_PER_BIN = 20.  # cents
-
-# Whether to peak-normalize CREPE input audio
-CREPE_NORMALIZE = False
+CENTS_PER_BIN = 5.  # cents
 
 # Whether to trade quantization error for noise during inference
 DITHER = False
@@ -35,6 +30,9 @@ HOPSIZE = 160  # samples
 # Pitch velocity constraint for viterbi decoding
 MAX_OCTAVES_PER_SECOND = 35.92
 
+# Whether to normalize input audio to mean zero and variance one
+NORMALIZE_INPUT = False
+
 # Number of spectrogram frequency bins
 NUM_FFT = 1024
 
@@ -42,13 +40,10 @@ NUM_FFT = 1024
 OCTAVE = 1200  # cents
 
 # Number of pitch bins to predict
-PITCH_BINS = 360
+PITCH_BINS = 1440
 
 # Audio sample rate
-SAMPLE_RATE = 16000  # hz
-
-# Token indicating no pitch is present
-UNVOICED = np.nan
+SAMPLE_RATE = 8000  # hz
 
 # Size of the analysis window
 WINDOW_SIZE = 1024  # samples
@@ -110,11 +105,11 @@ LOG_INTERVAL = 2500  # steps
 # Number of batches to use for validation
 LOG_STEPS = 64
 
+# Whether to use ONNX for CPU inference
+ONNX = True
+
 # Method to use for periodicity extraction
 PERIODICITY = 'max'
-
-# Perform inference using torchscript optimization
-TORCHSCRIPT = False
 
 
 ###############################################################################
@@ -126,16 +121,13 @@ TORCHSCRIPT = False
 DECODER = 'argmax'
 
 # The dropout rate. Set to None to turn off dropout.
-DROPOUT = .25
+DROPOUT = None
 
 # The name of the model to use for training
-MODEL = 'crepe'
+MODEL = 'fcnf0'
 
 # Type of model normalization
-NORMALIZATION = 'batch'
-
-# Number of channels in S4f0 model
-S4F0_CHANNELS = 64
+NORMALIZATION = 'layer'
 
 
 ###############################################################################
@@ -143,11 +135,8 @@ S4F0_CHANNELS = 64
 ###############################################################################
 
 
-# Whether to use adaptive gradient clipping
-ADAPTIVE_CLIPPING = False
-
 # Batch size
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 
 # Weight applied to positive examples in binary cross-entropy loss
 BCE_POSITIVE_WEIGHT = 1.
@@ -165,7 +154,7 @@ GAUSSIAN_BLUR = True
 LEARNING_RATE = 2e-4
 
 # Loss function
-LOSS = 'binary_cross_entropy'
+LOSS = 'categorical_cross_entropy'
 
 # Number of training steps
 STEPS = 250000
@@ -178,6 +167,9 @@ NUM_WORKERS = 4
 
 # Seed for all random number generators
 RANDOM_SEED = 1234
+
+# Maybe shuffle validation data
+RANDOM_VALID = False
 
 # Whether to only use voiced start frames
 VOICED_ONLY = False

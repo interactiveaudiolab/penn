@@ -19,6 +19,7 @@ class Crepe(torch.nn.Sequential):
         padding = [(254, 254)] + 5 * [(31, 32)]
         lengths = [256, 128, 64, 32, 16, 8]
         super().__init__(*(
+            ([penne.model.Normalize()] if penne.NORMALIZE_INPUT else []) +
             [
                 Block(i, o, k, s, p, l) for i, o, k, s, p, l in
                 zip(
@@ -31,7 +32,7 @@ class Crepe(torch.nn.Sequential):
                 )
             ] +
             [
-                Flatten(),
+                penne.model.Flatten(),
                 torch.nn.Linear(
                     in_features=2048,
                     out_features=penne.PITCH_BINS)
@@ -87,9 +88,3 @@ class Block(torch.nn.Sequential):
             layers += (torch.nn.Dropout(penne.DROPOUT),)
 
         super().__init__(*layers)
-
-
-class Flatten(torch.nn.Module):
-
-    def forward(self, x):
-        return x.reshape(x.shape[0], -1)

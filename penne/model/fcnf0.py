@@ -6,8 +6,8 @@ import penne
 class Fcnf0(torch.nn.Sequential):
 
     def __init__(self):
-        # Original fcnf0 configuration
-        super().__init__(
+        layers = (penne.model.Normalize(),) if penne.NORMALIZE_INPUT else ()
+        layers += (
             Block(1, 256, 481, (2, 2)),
             Block(256, 32, 225, (2, 2)),
             Block(32, 32, 97, (2, 2)),
@@ -15,6 +15,7 @@ class Fcnf0(torch.nn.Sequential):
             Block(128, 256, 35),
             Block(256, 512, 4),
             torch.nn.Conv1d(512, penne.PITCH_BINS, 4))
+        super().__init__(*layers)
 
     def forward(self, frames):
         # shape=(batch, 1, penne.WINDOW_SIZE) =>
