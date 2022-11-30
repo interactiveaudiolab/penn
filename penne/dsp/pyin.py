@@ -195,7 +195,7 @@ def infer(
     helper = np.vectorize(_helper, signature="(f,t),(k,t)->(1,d,t)")
     probs = helper(yin_frames, parabolic_shifts)
     probs = torch.from_numpy(probs)
-    return torch.log(probs)
+    return torch.log(probs).T
 
 
 def parabolic_interpolation(frames):

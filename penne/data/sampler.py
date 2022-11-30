@@ -25,14 +25,14 @@ def sampler(dataset, partition):
 
     # Possibly deterministic random sampler for validation
     elif partition == 'valid':
-        if penne.RANDOM_VALID:
-            return torch.utils.data.RandomSampler(dataset)
-        else:
-            return Sampler(indices)
+        return Sampler(indices)
 
     # Sample test data sequentially
     elif partition == 'test':
         return torch.utils.data.SequentialSampler(dataset)
+
+    else:
+        raise ValueError(f'Partition {partition} is not implemented')
 
 
 ###############################################################################

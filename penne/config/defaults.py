@@ -171,8 +171,5 @@ NUM_WORKERS = 4
 # Seed for all random number generators
 RANDOM_SEED = 1234
 
-# Maybe shuffle validation data
-RANDOM_VALID = False
-
 # Whether to only use voiced start frames
 VOICED_ONLY = False

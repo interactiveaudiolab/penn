@@ -35,10 +35,18 @@ def export(model, file):
 
 def model(file):
     """Initialize an ONNX model for inference"""
-    return onnxruntime.InferenceSession(file)
+    return onnxruntime.InferenceSession(str(file))
 
 
 def valid(file):
     """Check whether an ONNX model is valid"""
     import onnx
-    onnx.checker.check_model(onnx.load(file))
+
+    # Load model
+    model = onnx.load(file)
+
+    # Check validity
+    onnx.checker.check_model(model)
+
+    # Print graph
+    print(onnx.helper.printable_graph(model.graph))

@@ -245,7 +245,7 @@ def infer(
     # Time inference
     with penne.time.timer('infer'):
 
-        if penne.ONNX:
+        if penne.ONNX and frames.device.type == 'cpu':
 
             # Infer
             logits = infer.model(
