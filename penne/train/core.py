@@ -231,6 +231,9 @@ def train(
         step,
         output_directory / f'{step:08d}.pt')
 
+    # Save ONNX
+    penne.onnx.export(model, output_directory / f'{step:08d}.onnx')
+
 
 ###############################################################################
 # Evaluation

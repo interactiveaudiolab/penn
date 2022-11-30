@@ -8,7 +8,6 @@
 
 # Paper
 # - pitch posteriorgram
-# - weighted
 # - results should not be taken as judgments of speech vs music data being
 #   easier or harder
 # - unvoiced training causes the landscape of viable thresholds to expand

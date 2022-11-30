@@ -61,6 +61,3 @@ def save(model, optimizer, step, file):
         'model': model_state_dict,
         'optimizer': optimizer.state_dict()}
     torch.save(checkpoint, file)
-
-    # Save ONNX
-    penne.onnx.export(model, file.with_suffix('.onnx'))
