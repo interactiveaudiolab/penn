@@ -13,12 +13,9 @@ setup(
     author_email='maxrmorrison@gmail.com',
     url='https://github.com/interactiveaudiolab/penne',
     install_requires=[
-        'matplotlib',
         'numpy',
-        'onnx',
         'onnxruntime',
         'scipy',
-        'tensorboard',
         'torch',
         'tqdm',
         'torchaudio',

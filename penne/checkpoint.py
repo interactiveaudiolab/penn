@@ -1,4 +1,3 @@
-import onnxruntime
 import torch
 
 import penne
@@ -28,7 +27,7 @@ def load(checkpoint_path, model=None, optimizer=None):
     if penne.ONNX and model is None:
 
         # Replace model with ONNX model
-        model = onnxruntime.InferenceSession(checkpoint_path)
+        model = penne.onnx.model(checkpoint_path)
 
     else:
 

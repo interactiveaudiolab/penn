@@ -12,7 +12,6 @@ import penne
 def datasets(datasets):
     """Partition datasets"""
     for name in datasets:
-        random.seed(penne.RANDOM_SEED)
         dataset(name)
 
 
@@ -22,6 +21,7 @@ def dataset(name):
     stems = sorted([
         file.stem[:-6] for file in
         (penne.CACHE_DIR / name).glob('*-audio.npy')])
+    random.seed(penne.RANDOM_SEED)
     random.shuffle(stems)
 
     # Get split points

@@ -1,3 +1,4 @@
+import onnxruntime
 import torch
 
 import penne
@@ -25,6 +26,11 @@ def export(model, file):
         # Check validity
         if not valid(file):
             raise ValueError('Invalid ONNX model file')
+
+
+def model(file):
+    """Initialize an ONNX model for inference"""
+    return onnxruntime.InferenceSession(file)
 
 
 def valid(file):

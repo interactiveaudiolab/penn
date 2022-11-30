@@ -1,0 +1,11 @@
+librosa
+matplotlib
+numpy
+onnx
+onnxruntime
+scipy
+tensorboard
+torch
+tqdm
+torchaudio
+yapecs

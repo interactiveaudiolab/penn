@@ -39,6 +39,9 @@ def mdb():
         with tarfile.open(file, 'r:gz') as tfile:
             tfile.extractall()
 
+            # Delete previous directory
+            shutil.rmtree('mdb', ignore_errors=True)
+
             # Rename directory
             shutil.move('MDB-stem-synth', 'mdb')
 
