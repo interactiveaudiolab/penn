@@ -255,7 +255,7 @@ def infer(
         else:
 
             # Prepare model for inference
-            with inference_context(infer.model, frames.device.type) as model:
+            with inference_context(infer.model):
 
                 # Infer
                 logits = model(frames)
@@ -374,7 +374,9 @@ def chdir(directory):
 
 
 @contextlib.contextmanager
-def inference_context(model, device_type):
+def inference_context(model):
+    device_type = next(model.parameters()).device.type
+
     # Prepare model for evaluation
     model.eval()
 
@@ -384,10 +386,10 @@ def inference_context(model, device_type):
         # Automatic mixed precision on GPU
         if device_type == 'cuda':
             with torch.autocast(device_type):
-                yield model
+                yield
 
         else:
-            yield model
+            yield
 
     # Prepare model for training
     model.train()

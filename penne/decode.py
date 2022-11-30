@@ -96,7 +96,7 @@ def viterbi(logits):
     return bins, pitch
 
 
-def weighted(logits, window=5):
+def weighted(logits, window=penne.LOCAL_PITCH_WINDOW_SIZE):
     """Decode pitch using a normal assumption around the argmax"""
     # Get center bins
     bins = logits.argmax(dim=1)
@@ -130,7 +130,7 @@ def expected_value(logits, cents):
     return penne.convert.cents_to_frequency(pitch)
 
 
-def weighted_from_bins(bins, logits, window=5):
+def weighted_from_bins(bins, logits, window=penne.LOCAL_PITCH_WINDOW_SIZE):
     """Decode pitch using normal assumption around argmax from bin indices"""
     # Pad
     padded = torch.nn.functional.pad(

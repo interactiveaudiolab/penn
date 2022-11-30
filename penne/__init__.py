@@ -1,7 +1,8 @@
+# Trainings
+# - window size search
+
 # Development
 # - test ONNX*
-# - weighted window size
-# - DIO + stonemask
 # - debug harmof0
 # - original harmof0
 

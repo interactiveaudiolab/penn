@@ -1,7 +1,6 @@
 import functools
 import multiprocessing as mp
 
-import librosa
 import numpy as np
 import scipy
 import torch
@@ -104,6 +103,8 @@ def from_files_to_files(
 
 
 def cumulative_mean_normalized_difference(frames, min_period, max_period):
+    import librosa
+
     a = np.fft.rfft(frames, 2 * penne.WINDOW_SIZE, axis=-2)
     b = np.fft.rfft(
         frames[..., penne.WINDOW_SIZE:0:-1, :],
@@ -199,6 +200,8 @@ def infer(
 
 def parabolic_interpolation(frames):
     """Piecewise parabolic interpolation for yin and pyin"""
+    import librosa
+
     parabolic_shifts = np.zeros_like(frames)
     parabola_a = (
         frames[..., :-2, :] +
@@ -221,6 +224,8 @@ def pyin_helper(
         no_trough_prob,
         min_period,
         n_bins_per_semitone):
+    import librosa
+
     yin_probs = np.zeros_like(frames)
 
     for i, yin_frame in enumerate(frames.T):

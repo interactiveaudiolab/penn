@@ -245,7 +245,7 @@ def evaluate(directory, step, model, gpu, condition, loader):
     metrics = penne.evaluate.Metrics()
 
     # Prepare model for inference
-    with penne.inference_context(model, device.type) as model:
+    with penne.inference_context(model):
 
         # Unpack batch
         for i, (audio, bins, pitch, voiced, *_) in enumerate(loader):

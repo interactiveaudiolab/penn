@@ -27,6 +27,9 @@ FMIN = 31.  # Hz
 # Distance between adjacent frames
 HOPSIZE = 160  # samples
 
+# The size of the window used for locally normal pitch decoding
+LOCAL_PITCH_WINDOW_SIZE = 5
+
 # Pitch velocity constraint for viterbi decoding
 MAX_OCTAVES_PER_SECOND = 35.92
 

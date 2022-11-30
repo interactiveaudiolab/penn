@@ -28,7 +28,9 @@ def datasets(
         pitch_quality(directory, datasets, checkpoint, gpu)
 
         # Get periodicity methods
-        if penne.METHOD == 'pyin':
+        if penne.METHOD == 'dio':
+            periodicity_fns = {}
+        elif penne.METHOD == 'pyin':
             periodicity_fns = {'sum': penne.periodicity.sum}
         else:
             periodicity_fns = {
@@ -54,11 +56,11 @@ def datasets(
     # with set_num_threads(1):
     cpu_checkpoint = \
         checkpoint.with_suffix('.onnx') if penne.ONNX else checkpoint
-    # benchmark_results = {'cpu': benchmark(datasets, cpu_checkpoint)}
-    benchmark_results = {'cpu': 0}
+    benchmark_results = {'cpu': benchmark(datasets, cpu_checkpoint)}
+    # benchmark_results = {'cpu': 0}
 
-    # PYIN is not on GPU
-    if penne.METHOD != 'pyin':
+    # PYIN and DIO do not have GPU support
+    if penne.METHOD not in ['dio', 'pyin']:
         benchmark_results ['gpu'] = benchmark(datasets, checkpoint, gpu)
 
     # Write benchmarking information
@@ -144,6 +146,8 @@ def benchmark(
             penne.temp.harmof0.from_files_to_files(
                 # TODO
             )
+        elif penne.METHOD == 'dio':
+            penne.dsp.dio.from_files_to_files(files, output_prefixes)
         elif penne.METHOD == 'pyin':
             penne.dsp.pyin.from_files_to_files(files, output_prefixes)
 
@@ -238,14 +242,19 @@ def pitch_quality(
     # Containers for results
     overall, granular = {}, {}
 
+    # Get metric class
+    metric_fn = (
+        penne.evaluate.PitchMetrics if penne.METHOD == 'dio' else
+        penne.evaluate.Metrics)
+
     # Per-file metrics
-    file_metrics = penne.evaluate.Metrics()
+    file_metrics = metric_fn()
 
     # Per-dataset metrics
-    dataset_metrics = penne.evaluate.Metrics()
+    dataset_metrics = metric_fn()
 
     # Aggregate metrics over all datasets
-    aggregate_metrics = penne.evaluate.Metrics()
+    aggregate_metrics = metric_fn()
 
     # Evaluate each dataset
     for dataset in datasets:
@@ -363,6 +372,21 @@ def pitch_quality(
 
                 # TODO
                 pass
+
+            elif penne.METHOD == 'dio':
+
+                # Pad
+                pad = (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
+                audio = torch.nn.functional.pad(audio, (pad, pad))
+
+                # Infer
+                predicted = penne.dsp.dio.from_audio(audio[0])
+
+                # Update metrics
+                args = predicted, pitch, voiced
+                file_metrics.update(*args)
+                dataset_metrics.update(*args)
+                aggregate_metrics.update(*args)
 
             elif penne.METHOD == 'pyin':
 

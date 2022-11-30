@@ -4,11 +4,11 @@
 # $1 - list of indices of GPUs to use
 
 # Download datasets
-python -m penne.data.download
+# python -m penne.data.download
 
 # Setup and run 16 kHz experiments
-python -m penne.data.preprocess --config config/crepe.py
-python -m penne.partition
+# python -m penne.data.preprocess --config config/crepe.py
+# python -m penne.partition
 python -m penne.train --config config/crepe.py --gpus $1
 python -m penne.train --config config/deepf0.py --gpus $1
 # python -m penne.train --config config/harmof0.py --gpus $1

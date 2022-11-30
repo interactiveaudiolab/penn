@@ -22,21 +22,15 @@ class Metrics:
     def __init__(self):
         self.accuracy = Accuracy()
         self.f1 = F1()
-        self.l1 = L1()
         self.loss = Loss()
-        self.rca = RCA()
-        self.rmse = RMSE()
-        self.rpa = RPA()
+        self.pitch_metrics = PitchMetrics()
 
     def __call__(self):
         return (
             self.accuracy() |
             self.f1() |
-            self.l1() |
             self.loss() |
-            self.rca() |
-            self.rmse() |
-            self.rpa())
+            self.pitch_metrics())
 
     def update(self, logits, bins, target, voiced):
         # Detach from graph
@@ -49,15 +43,11 @@ class Metrics:
         with penne.time.timer('decode'):
             predicted, pitch, periodicity = penne.postprocess(logits)
 
-        # Mask unvoiced
-        pitch, target = pitch[voiced], target[voiced]
+        # Update bin accuracy
+        self.accuracy.update(predicted[voiced], bins[voiced])
 
         # Update pitch metrics
-        self.accuracy.update(predicted[voiced], bins[voiced])
-        self.l1.update(pitch, target)
-        self.rca.update(pitch, target)
-        self.rmse.update(pitch, target)
-        self.rpa.update(pitch, target)
+        self.pitch_metrics.update(pitch, target, voiced)
 
         # Update periodicity metrics
         self.f1.update(periodicity, voiced)
@@ -65,8 +55,33 @@ class Metrics:
     def reset(self):
         self.accuracy.reset()
         self.f1.reset()
-        self.l1.reset()
         self.loss.reset()
+        self.pitch_metrics.reset()
+
+
+class PitchMetrics:
+
+    def __init__(self):
+        self.l1 = L1()
+        self.rca = RCA()
+        self.rmse = RMSE()
+        self.rpa = RPA()
+
+    def __call__(self):
+        return self.l1() | self.rca() | self.rmse() | self.rpa()
+
+    def update(self, pitch, target, voiced):
+        # Mask unvoiced
+        pitch, target = pitch[voiced], target[voiced]
+
+        # Update metrics
+        self.l1.update(pitch, target)
+        self.rca.update(pitch, target)
+        self.rmse.update(pitch, target)
+        self.rpa.update(pitch, target)
+
+    def reset(self):
+        self.l1.reset()
         self.rca.reset()
         self.rmse.reset()
         self.rpa.reset()
