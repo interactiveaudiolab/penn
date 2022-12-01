@@ -27,7 +27,7 @@ def load(checkpoint_path, model=None, optimizer=None):
     if penne.ONNX and model is None:
 
         # Replace model with ONNX model
-        model = penne.onnx.model(checkpoint_path)
+        model = penne.onnx.model(checkpoint_path.with_suffix('.onnx'))
 
     else:
 

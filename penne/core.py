@@ -225,10 +225,10 @@ def infer(
         if not hasattr(infer, 'model') or infer.checkpoint != checkpoint:
 
             # Maybe initialize model
-            if penne.ONNX or frames.device.type == 'cuda':
+            if penne.ONNX and frames.device.type == 'cpu':
                 model = None
             else:
-                penne.Model(model)
+                model = penne.Model(model)
 
             # Load from disk
             infer.model, *_ = penne.checkpoint.load(checkpoint, model)
