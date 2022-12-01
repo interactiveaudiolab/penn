@@ -336,7 +336,7 @@ def pitch_quality(
                         None if gpu is None else penne.EVALUATION_BATCH_SIZE
                     pad = (penne.WINDOW_SIZE - penne.HOPSIZE) // 2
                     generator = torchcrepe.preprocess(
-                        torch.nn.functional.pad(audio, (pad, pad)),
+                        torch.nn.functional.pad(audio, (pad, pad))[0],
                         penne.SAMPLE_RATE,
                         penne.HOPSIZE,
                         batch_size,
@@ -345,7 +345,7 @@ def pitch_quality(
                     for i, frames in enumerate(generator):
 
                         # Infer independent probabilities for each pitch bin
-                        batch_logits = torchcrepe.infer(frames.to(device))
+                        batch_logits = torchcrepe.infer(frames.to(device))[:, :, None]
 
                         # Slice features and copy to GPU
                         start = i * penne.EVALUATION_BATCH_SIZE

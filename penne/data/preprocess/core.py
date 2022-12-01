@@ -20,6 +20,7 @@ MDB_SAMPLE_RATE = 44100  # samples per second
 PTDB_HOPSIZE = 160  # samples
 PTDB_SAMPLE_RATE = 16000  # samples per second
 PTDB_WINDOW_SIZE = 512  # samples
+PTDB_HOPSIZE_SECONDS = PTDB_HOPSIZE / PTDB_SAMPLE_RATE
 
 
 ###############################################################################
@@ -151,7 +152,7 @@ def ptdb():
         # Resample to pitch estimation sample rate
         audio = penne.resample(audio, PTDB_SAMPLE_RATE)
 
-        # Save as numpy array for fast memory-mapped reads
+        # Save as numpy array for fast memory-mapped read
         np.save(
             output_directory / f'{stem}-audio.npy',
             audio.numpy().squeeze())
@@ -167,6 +168,22 @@ def ptdb():
 
         # Fill unvoiced regions via linear interpolation
         pitch, voiced = interpolate_unvoiced(pitch)
+
+        # Get target number of frames
+        frames = penne.convert.samples_to_frames(audio.shape[-1])
+
+        # Get original times
+        times = PTDB_HOPSIZE_SECONDS * np.arange(0, len(pitch))
+        times += PTDB_HOPSIZE_SECONDS / 2
+        times *= penne.SAMPLE_RATE / PTDB_SAMPLE_RATE
+
+        # Linearly interpolate to target number of frames
+        new_times = penne.HOPSIZE_SECONDS * np.arange(0, frames)
+        new_times += penne.HOPSIZE_SECONDS / 2.
+        pitch = 2. ** np.interp(new_times, times, np.log2(pitch))
+
+        # Linearly interpolate voiced/unvoiced tokens
+        voiced = np.interp(new_times, times, voiced) > .5
 
         # Check shapes
         assert (
