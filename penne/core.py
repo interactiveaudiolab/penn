@@ -234,13 +234,8 @@ def infer(
             infer.model, *_ = penne.checkpoint.load(checkpoint, model)
             infer.checkpoint = checkpoint
 
-            # Move model to correct device (no-op if devices are the same)
-            infer.model = infer.model.to(frames.device)
-
-        else:
-
-            # Move model to correct device (no-op if devices are the same)
-            infer.model = infer.model.to(frames.device)
+        # Move model to correct device (no-op if devices are the same)
+        infer.model = infer.model.to(frames.device)
 
     # Time inference
     with penne.time.timer('infer'):
@@ -258,7 +253,7 @@ def infer(
             with inference_context(infer.model):
 
                 # Infer
-                logits = model(frames)
+                logits = infer.model(frames)
 
         # If we're benchmarking, make sure inference finishes within timer
         if penne.BENCHMARK and logits.device.type == 'cuda':

@@ -47,6 +47,3 @@ def valid(file):
 
     # Check validity
     onnx.checker.check_model(model)
-
-    # Print graph
-    print(onnx.helper.printable_graph(model.graph))

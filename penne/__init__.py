@@ -2,9 +2,12 @@
 # - window size search
 
 # Development
+# - Fix 8k preprocessing
+# - Fix torchcrepe
 # - test ONNX*
 # - debug harmof0
 # - original harmof0
+# - sphinx
 
 # Paper
 # - pitch posteriorgram
