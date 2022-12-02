@@ -6,14 +6,13 @@
 # - debug harmof0
 # - original harmof0
 # - sphinx
+# - Pick examples for figures
+# - Dither figure
 
 # Paper
-# - pitch posteriorgram
 # - results should not be taken as judgments of speech vs music data being
 #   easier or harder
 # - unvoiced training causes the landscape of viable thresholds to expand
-# - Pick examples for figures
-# - Dither figure
 
 
 ###############################################################################

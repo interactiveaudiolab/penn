@@ -7,7 +7,11 @@
 
 ## Installation
 
-Clone this repo, navigate to the root directory of the folder and run `pip install -e .`
+If you just want to perform pitch estimation using a pretrained model, run
+`pip install penne`
+
+If you want to train or use your own models, clone this repo, navigate to the
+root directory of the folder and run `pip install -e .`
 
 
 ## Training

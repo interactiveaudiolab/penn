@@ -68,4 +68,79 @@ python -m penne.evaluate --gpu 0 --config config/pyin-viterbi.py
 # Aggregate evaluation into tables
 python -m penne.evaluate.analyze
 
-# TODO - add documentation of figure parameters
+# Dataset and true positive density figures
+python -m penne.plot.density \
+    --true_datasets mdb \
+    --inference_datasets ptdb \
+    --output_file results/mdb_on_ptdb.jpg \
+    --checkpoint runs/fcnf0++-ptdb/00250000.pt \
+    --gpu $1
+python -m penne.plot.density \
+    --true_datasets ptdb \
+    --inference_datasets mdb \
+    --output_file results/ptdb_on_mdb.jpg \
+    --checkpoint runs/fcnf0++-mdb/00250000.pt \
+    --gpu $1
+python -m penne.plot.density \
+    --true_datasets mdb ptdb \
+    --inference_datasets mdb \
+    --output_file results/both_on_mdb.jpg \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
+python -m penne.plot.density \
+    --true_datasets mdb ptdb \
+    --inference_datasets mdb \
+    --output_file results/both_on_ptdb.jpg \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
+
+# Voiced/unvoiced threshold landscape
+# python -m penne.plot.threshold \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --checkpoint runs/fcnf0++/00250000.pt \
+#     --gpu $1
+
+# Pitch posteriorgram figures
+# python -m penne.plot.logits \
+#     --config config/crepe.py \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --pitch_file TODO \
+#     --checkpoint runs/crepe/TODO.pt \
+#     --gpu $1
+# python -m penne.plot.logits \
+#     --config config/crepe++.py \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --pitch_file TODO \
+#     --checkpoint runs/crepe++/00250000.pt \
+#     --gpu $1
+# python -m penne.plot.logits \
+#     --config config/deepf0++.py \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --pitch_file TODO \
+#     --checkpoint runs/deepf0++/TODO.pt \
+#     --gpu $1
+# python -m penne.plot.logits \
+#     --config config/deepf0++.py \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --pitch_file TODO \
+#     --checkpoint runs/deepf0++/00250000.pt \
+#     --gpu $1
+# python -m penne.plot.logits \
+#     --config config/fcnf0.py \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --pitch_file TODO \
+#     --checkpoint runs/fcnf0/00250000.pt \
+#     --gpu $1
+# python -m penne.plot.logits \
+#     --config config/fcnf0++.py \
+#     --audio_file TODO \
+#     --output_file TODO \
+#     --pitch_file TODO \
+#     --checkpoint runs/fcnf0++/00250000.pt \
+#     --gpu $1

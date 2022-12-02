@@ -22,6 +22,11 @@ def parse_args():
         type=Path,
         help='The output file. Defaults to audio_file with .jpg extension.')
     parser.add_argument(
+        '--checkpoint',
+        type=Path,
+        default=penne.DEFAULT_CHECKPOINT,
+        help='The checkpoint file to use for inference')
+    parser.add_argument(
         '--gpu',
         type=int,
         help='The index of the GPU to use for inference')
