@@ -222,7 +222,11 @@ def infer(
     with penne.time.timer('model'):
 
         # Load and cache model
-        if not hasattr(infer, 'model') or infer.checkpoint != checkpoint:
+        if (
+            not hasattr(infer, 'model') or
+            infer.checkpoint != checkpoint or
+            infer.device_type != frames.device.type
+        ):
 
             # Maybe initialize model
             if penne.ONNX and frames.device.type == 'cpu':
@@ -233,9 +237,11 @@ def infer(
             # Load from disk
             infer.model, *_ = penne.checkpoint.load(checkpoint, model)
             infer.checkpoint = checkpoint
+            infer.device_type = frames.device.type
 
-        # Move model to correct device (no-op if devices are the same)
-        infer.model = infer.model.to(frames.device)
+            # Move model to correct device (no-op if devices are the same)
+            if not penne.ONNX or frames.device.type == 'cuda':
+                infer.model = infer.model.to(frames.device)
 
     # Time inference
     with penne.time.timer('infer'):
@@ -243,9 +249,10 @@ def infer(
         if penne.ONNX and frames.device.type == 'cpu':
 
             # Infer
-            logits = infer.model(
+            logits = infer.model.run(
                 None,
-                {infer.model.get_inputs()[0].name: frames.numpy()})
+                {infer.model.get_inputs()[0].name: frames.numpy()})[0]
+            logits = torch.from_numpy(logits)
 
         else:
 

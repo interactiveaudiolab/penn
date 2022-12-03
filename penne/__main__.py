@@ -54,7 +54,7 @@ def parse_args():
         type=int,
         help='The index of the gpu to perform inference on')
 
-    return parser.parse_known_args()
+    return parser.parse_known_args()[0]
 
 
 penne.from_files_to_files(**vars(parse_args()))

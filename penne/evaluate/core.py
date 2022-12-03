@@ -54,9 +54,7 @@ def datasets(
     # Perform benchmarking on CPU
     # TEMPORARY - use all threads
     # with set_num_threads(1):
-    cpu_checkpoint = \
-        checkpoint.with_suffix('.onnx') if penne.ONNX else checkpoint
-    benchmark_results = {'cpu': benchmark(datasets, cpu_checkpoint)}
+    benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
     # benchmark_results = {'cpu': 0}
 
     # PYIN and DIO do not have GPU support
@@ -132,7 +130,7 @@ def benchmark(
             #        for benchmarking purposes
             batch_size = \
                     None if gpu is None else penne.EVALUATION_BATCH_SIZE
-            torchcrepe.from_files_to_files(
+            torchcrepe.predict_from_files_to_files(
                 files,
                 pitch_files,
                 output_periodicity_files=periodicity_files,
@@ -268,7 +266,7 @@ def pitch_quality(
         # Setup test dataset
         iterator = penne.iterator(
             penne.data.loader([dataset], 'test'),
-            f'Evaluating {penne.CONFIG} on {dataset}')
+            f'Evaluating {penne.CONFIG} pitch quality on {dataset}')
 
         # Iterate over test set
         for audio, bins, pitch, voiced, stem in iterator:
@@ -382,6 +380,8 @@ def pitch_quality(
                 # Infer
                 predicted = penne.dsp.dio.from_audio(audio[0])
 
+                import pdb; pdb.set_trace()
+
                 # Update metrics
                 args = predicted, pitch, voiced
                 file_metrics.update(*args)
@@ -403,9 +403,10 @@ def pitch_quality(
                 dataset_metrics.update(*args)
                 aggregate_metrics.update(*args)
 
-            # Save logits for periodicity evaluation
-            file = directory / dataset / f'{stem}-logits.pt'
-            torch.save(logits.cpu(), file)
+            # Maybe save logits for periodicity evaluation
+            if penne.METHOD != 'dio':
+                file = directory / dataset / f'{stem}-logits.pt'
+                torch.save(logits.cpu(), file)
 
             # Copy results
             granular[f'{dataset}/{stem[0]}'] = file_metrics()

@@ -2,7 +2,6 @@
 # - window size search
 
 # Development
-# - test ONNX*
 # - debug harmof0
 # - original harmof0
 # - sphinx

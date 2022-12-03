@@ -26,16 +26,17 @@ def viterbi(logits):
     """Decode pitch using viterbi decoding (from librosa)"""
     # Normalize and convert to numpy
     if penne.METHOD == 'pyin':
-        periodicity = penne.periodicity.sum(logits)
+        periodicity = penne.periodicity.sum(logits).T
         unvoiced = (
             (1 - periodicity) / penne.PITCH_BINS).repeat(penne.PITCH_BINS, 1)
         distributions = torch.cat(
-            (torch.exp(logits), unvoiced[None]),
+            (torch.exp(logits.permute(2, 1, 0)), unvoiced[None]),
             dim=1).numpy()
     else:
 
         # Viterbi REQUIRES a categorical distribution, even if the loss was BCE
-        distributions = torch.nn.functional.softmax(logits, dim=1)[0].numpy()
+        distributions = torch.nn.functional.softmax(logits, dim=1)
+        distributions = distributions.permute(2, 1, 0).numpy()
 
     # Cache viterbi probabilities
     if not hasattr(viterbi, 'transition'):

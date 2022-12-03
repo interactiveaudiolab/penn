@@ -109,7 +109,7 @@ LOG_INTERVAL = 2500  # steps
 LOG_STEPS = 64
 
 # Whether to use ONNX for CPU inference
-ONNX = True
+ONNX = False
 
 # Method to use for periodicity extraction
 PERIODICITY = 'max'

@@ -117,11 +117,11 @@ python -m penne.plot.density \
 #     --checkpoint runs/crepe++/00250000.pt \
 #     --gpu $1
 # python -m penne.plot.logits \
-#     --config config/deepf0++.py \
+#     --config config/deepf0.py \
 #     --audio_file TODO \
 #     --output_file TODO \
 #     --pitch_file TODO \
-#     --checkpoint runs/deepf0++/TODO.pt \
+#     --checkpoint runs/deepf0/TODO.pt \
 #     --gpu $1
 # python -m penne.plot.logits \
 #     --config config/deepf0++.py \
