@@ -38,4 +38,4 @@ def parse_args():
         help='The index of the GPU to use for inference')
 
 
-penne.plot.density.from_file_to_file(**vars(parse_args()))
+penne.plot.density.xxto_file(**vars(parse_args()))

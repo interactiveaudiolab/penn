@@ -12,6 +12,9 @@ DROPOUT = .25
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = True
 
+# Distance between adjacent frames
+HOPSIZE = 160  # samples
+
 # Number of steps between logging to Tensorboard
 LOG_INTERVAL = 500  # steps
 

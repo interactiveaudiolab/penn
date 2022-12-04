@@ -23,6 +23,9 @@ EARLY_STOPPING = True
 # Exactly align pitch bins
 FMIN = torchcrepe.convert.cents_to_frequency(1997.3794084376191)
 
+# Distance between adjacent frames
+HOPSIZE = 160  # samples
+
 # Number of steps between logging to Tensorboard
 LOG_INTERVAL = 500  # steps
 

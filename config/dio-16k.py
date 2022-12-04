@@ -1,5 +1,8 @@
 CONFIG = 'dio-16k'
 
+# Distance between adjacent frames
+HOPSIZE = 160  # samples
+
 # The pitch estimation method to use
 METHOD = 'dio'
 

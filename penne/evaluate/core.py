@@ -380,8 +380,6 @@ def pitch_quality(
                 # Infer
                 predicted = penne.dsp.dio.from_audio(audio[0])
 
-                import pdb; pdb.set_trace()
-
                 # Update metrics
                 args = predicted, pitch, voiced
                 file_metrics.update(*args)

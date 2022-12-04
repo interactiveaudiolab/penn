@@ -1,4 +1,5 @@
-# Runs the whole paper
+# Runs all experiments in the paper
+# "Cross-domain Neural Pitch and Periodicity Estimation"
 
 # Args
 # $1 - list of indices of GPUs to use

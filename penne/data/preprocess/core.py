@@ -175,11 +175,11 @@ def ptdb():
         # Get original times
         times = PTDB_HOPSIZE_SECONDS * np.arange(0, len(pitch))
         times += PTDB_HOPSIZE_SECONDS / 2
-        times *= penne.SAMPLE_RATE / PTDB_SAMPLE_RATE
 
         # Linearly interpolate to target number of frames
         new_times = penne.HOPSIZE_SECONDS * np.arange(0, frames)
         new_times += penne.HOPSIZE_SECONDS / 2.
+
         pitch = 2. ** np.interp(new_times, times, np.log2(pitch))
 
         # Linearly interpolate voiced/unvoiced tokens

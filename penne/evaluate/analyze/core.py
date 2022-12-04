@@ -75,7 +75,7 @@ def parse_f1(results):
 def quality_results(directory, dataset):
     """Update quality results table"""
     # Load results
-    with open(directory / '.json') as file:
+    with open(directory / 'overall.json') as file:
         results = json.load(file)[dataset]
 
     # Get optimal f1 and corresponding threshold
@@ -94,7 +94,7 @@ def quality_results(directory, dataset):
 def time_results(directory):
     """Update timing results table"""
     # Load results
-    with open(directory / '.json') as file:
+    with open(directory / 'time.json') as file:
         results = json.load(file)
 
     # Format table row

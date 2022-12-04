@@ -25,7 +25,7 @@ DITHER = False
 FMIN = 31.  # Hz
 
 # Distance between adjacent frames
-HOPSIZE = 160  # samples
+HOPSIZE = 80  # samples
 
 # The size of the window used for locally normal pitch decoding
 LOCAL_PITCH_WINDOW_SIZE = 5

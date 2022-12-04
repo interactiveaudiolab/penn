@@ -94,7 +94,7 @@ def viterbi(logits):
         pitch = penne.data.preprocess.interpolate_unvoiced(pitch.numpy())[0]
         pitch = torch.from_numpy(pitch)
 
-    return bins, pitch
+    return bins.T, pitch.T
 
 
 def weighted(logits, window=penne.LOCAL_PITCH_WINDOW_SIZE):

@@ -2,6 +2,7 @@
 # - window size search
 
 # Development
+# - pyin-viterbi hanging
 # - debug harmof0
 # - original harmof0
 # - sphinx
