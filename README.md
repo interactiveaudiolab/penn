@@ -1,9 +1,7 @@
 <h1 align="center">Pitch Estimating Neural NEtworks (PENNE)</h1>
-<p align="center">
-    [![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne)
-    [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-    [![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne)
-</p>
+[![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne)
 
 Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch.
 
