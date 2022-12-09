@@ -1,12 +1,21 @@
 # Pitch Estimating Neural NEtworks (PENNE)
-<!-- [![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne) -->
+[![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-<!-- [![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne) -->
+[![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne)
+
+Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch.
+
 
 ## Table of contents
 
 - [Installation](#installation)
 - [Inference](#inference)
+    * [Application programming interface](#application-programming-interface)
+        * [`penne.from_audio`](#pennefrom_audio)
+        * [`penne.from_file`](#pennefrom_file)
+        * [`penne.from_file_to_file`](#pennefrom_file_to_file)
+        * [`penne.from_files_to_files`](#pennefrom_files_to_files)
+    * [Command-line interface](#command-line-interface)
 - [Training](#training)
     * [Download](#download)
     * [Preprocess](#preprocess)
@@ -31,11 +40,82 @@ root directory of the folder and run `pip install -e .`
 
 ## Inference
 
-**TODO - example**
+```
+import penne
 
-**TODO - API**
+# Load audio at the correct sample rate
+audio = penne.load.audio('test/assets/gershwin.wav')
 
-**TODO - CLI**
+# Here we'll use a 10 millisecond hopsize
+hopsize = .01
+
+# Provide a sensible frequency range given your domain and model
+fmin = 30.
+fmax = 1000.
+
+# Choose a gpu index to use for inference. Set to None to use cpu.
+gpu = 0
+
+# If you are using a gpu, pick a batch size that doesn't cause memory errors
+# on your gpu
+batch_size = 2048
+
+# Pick a model to use. One of ['crepe', 'deepf0', 'fcnf0']. Default is 'fcnf0'.
+model = 'fcnf0'
+
+# Select a checkpoint to use for inference
+checkpoint = penne.DEFAULT_CHECKPOINT
+
+# Infer pitch and periodicity
+pitch, periodicity = penne.from_audio(
+    audio,
+    penne.SAMPLE_RATE,
+    hopsize=hopsize,
+    fmin=fmin,
+    fmax=fmax,
+    model=model,
+    checkpoint=checkpoint,
+    batch_size=batch_size,
+    gpu=gpu)
+```
+
+
+### Application programming interface
+
+**TODO - sphinx link
+
+
+### Command-line interface
+
+```
+python -m penne
+    [-h]
+    --audio_files AUDIO_FILES [AUDIO_FILES ...]
+    [--output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]]
+    [--hopsize HOPSIZE]
+    [--fmin FMIN]
+    [--fmax FMAX]
+    [--model MODEL]
+    [--checkpoint CHECKPOINT]
+    [--batch_size BATCH_SIZE]
+    [--gpu GPU]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --audio_files AUDIO_FILES [AUDIO_FILES ...]
+                        The audio file to process
+  --output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]
+                        The files to save pitch and periodicity without extension
+  --hopsize HOPSIZE     The hopsize in seconds
+  --fmin FMIN           The minimum frequency allowed
+  --fmax FMAX           The maximum frequency allowed
+  --model MODEL         The name of the estimator model
+  --checkpoint CHECKPOINT
+                        The model checkpoint file
+  --batch_size BATCH_SIZE
+                        The number of frames per batch
+  --gpu GPU             The index of the gpu to perform inference on
+```
 
 
 ## Training

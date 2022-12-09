@@ -39,8 +39,10 @@ def from_audio(
         gpu: The index of the gpu to run inference on
 
     Returns:
-        pitch: torch.tensor(shape=(1, int(samples // hopsize)))
-        periodicity: torch.tensor(shape=(1, int(samples // hopsize)))
+        pitch: torch.tensor(
+            shape=(1, int(samples // penne.seconds_to_sample(hopsize))))
+        periodicity: torch.tensor(
+            shape=(1, int(samples // penne.seconds_to_sample(hopsize))))
     """
     pitch, periodicity = [], []
 

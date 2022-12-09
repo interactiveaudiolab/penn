@@ -26,9 +26,6 @@ PARTITION_DIR = penne.ASSETS_DIR / 'partitions'
 # Default checkpoint for generation
 DEFAULT_CHECKPOINT = penne.ASSETS_DIR / 'checkpoints' / 'default.pt'
 
-# Default configuration file
-DEFAULT_CONFIGURATION = penne.ASSETS_DIR / 'configs' / 'default.py'
-
 
 ###############################################################################
 # Evaluation

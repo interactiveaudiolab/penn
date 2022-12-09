@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         type=Path,
-        default=penne.DEFAULT_CONFIGURATION,
+        required=True,
         help='The configuration file')
     parser.add_argument(
         '--datasets',

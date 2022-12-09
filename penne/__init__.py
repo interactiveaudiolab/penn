@@ -2,9 +2,14 @@
 # - sphinx
 # - Huggingface models
 # - Yapecs passwords
+# - Soft version pinning
+
+# Readme
+# - API
 
 # Paper
-# - Pitch posteriorgram figure
+# - TSAP template
+# - Pitch posteriorgram figure (title figure; rhapsody in blue)
 # - Unvoiced training threshold figure
 # - Dither figure
 # - Cross-domain
