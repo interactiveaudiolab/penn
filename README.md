@@ -7,7 +7,7 @@
 
 </div>
 
-Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch.
+Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch. Includes the original code for the paper "Cross-domain Neural Pitch and Periodicity Estimation".
 
 
 ## Table of contents
@@ -186,13 +186,6 @@ Evaluate a model. `<checkpoint>` is the checkpoint file to evaluate and `<gpu>`
 is the GPU index.
 
 
-### Analyze
-
-`python -m penne.evaluate.analyze`
-
-Aggregate model evaluations to produce tables of results.
-
-
 ### Plot
 
 ```
@@ -247,7 +240,7 @@ function of the voiced/unvoiced threshold.
 ## Citation
 
 ### IEEE
-M. Morrison, C. Hseih, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," Submitted to <conference>, <month> 2023.
+M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," IEEE Transactions on Speech and Audio Processing, <month> 2023.
 
 
 ### BibTex
@@ -255,8 +248,8 @@ M. Morrison, C. Hseih, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and P
 ```
 @inproceedings{morrison2023cross,
     title={Cross-domain Neural Pitch and Periodicity Estimation},
-    author={Morrison, Max and Hseih, Caedon and Pruyne, Nathan and Pardo, Bryan},
-    booktitle={Submitted to TODO},
+    author={Morrison, Max and Hsieh, Caedon and Pruyne, Nathan and Pardo, Bryan},
+    booktitle={IEEE Transactions on Speech and Audio Processing},
     month={TODO},
     year={2023}
 }

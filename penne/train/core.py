@@ -231,9 +231,6 @@ def train(
         step,
         output_directory / f'{step:08d}.pt')
 
-    # Save ONNX
-    penne.onnx.export(model, output_directory / f'{step:08d}.onnx')
-
 
 ###############################################################################
 # Evaluation
@@ -362,18 +359,10 @@ def loss(logits, bins):
 
     if penne.LOSS == 'binary_cross_entropy':
 
-        # Positive example weight
-        weight = torch.full(
-            (penne.PITCH_BINS,),
-            penne.BCE_POSITIVE_WEIGHT,
-            dtype=torch.float,
-            device=logits.device)
-
         # Compute binary cross-entropy loss
         return torch.nn.functional.binary_cross_entropy_with_logits(
             logits,
-            bins,
-            pos_weight=weight)
+            bins)
 
     elif penne.LOSS == 'categorical_cross_entropy':
 

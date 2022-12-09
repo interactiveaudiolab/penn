@@ -216,10 +216,7 @@ def infer(frames, checkpoint=penne.DEFAULT_CHECKPOINT):
         ):
 
             # Maybe initialize model
-            if penne.ONNX and frames.device.type == 'cpu':
-                model = None
-            else:
-                model = penne.Model()
+            model = penne.Model()
 
             # Load from disk
             infer.model, *_ = penne.checkpoint.load(checkpoint, model)
@@ -227,27 +224,16 @@ def infer(frames, checkpoint=penne.DEFAULT_CHECKPOINT):
             infer.device_type = frames.device.type
 
             # Move model to correct device (no-op if devices are the same)
-            if not penne.ONNX or frames.device.type == 'cuda':
-                infer.model = infer.model.to(frames.device)
+            infer.model = infer.model.to(frames.device)
 
     # Time inference
     with penne.time.timer('infer'):
 
-        if penne.ONNX and frames.device.type == 'cpu':
+        # Prepare model for inference
+        with inference_context(infer.model):
 
             # Infer
-            logits = infer.model.run(
-                None,
-                {infer.model.get_inputs()[0].name: frames.numpy()})[0]
-            logits = torch.from_numpy(logits)
-
-        else:
-
-            # Prepare model for inference
-            with inference_context(infer.model):
-
-                # Infer
-                logits = infer.model(frames)
+            logits = infer.model(frames)
 
         # If we're benchmarking, make sure inference finishes within timer
         if penne.BENCHMARK and logits.device.type == 'cuda':

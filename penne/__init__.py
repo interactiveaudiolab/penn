@@ -4,9 +4,6 @@
 # - Yapecs passwords
 # - Soft version pinning
 
-# Readme
-# - API
-
 # Paper
 # - TSAP template
 # - Pitch posteriorgram figure (title figure; rhapsody in blue)
@@ -49,7 +46,6 @@ from . import decode
 from . import dsp
 from . import evaluate
 from . import load
-from . import onnx
 from . import partition
 from . import periodicity
 from . import plot

@@ -108,9 +108,6 @@ LOG_INTERVAL = 2500  # steps
 # Number of batches to use for validation
 LOG_STEPS = 64
 
-# Whether to use ONNX for CPU inference
-ONNX = False
-
 # Method to use for periodicity extraction
 PERIODICITY = 'max'
 
@@ -140,9 +137,6 @@ NORMALIZATION = 'layer'
 
 # Batch size
 BATCH_SIZE = 128
-
-# Weight applied to positive examples in binary cross-entropy loss
-BCE_POSITIVE_WEIGHT = 1.
 
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = False

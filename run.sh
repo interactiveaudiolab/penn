@@ -14,9 +14,9 @@
 # python -m penne.train --config config/deepf0.py --gpus $1
 
 # Evaluate baselines at 16 kHz
-# python -m penne.evaluate --gpu 0 --config config/dio-16k.py
-# python -m penne.evaluate --gpu 0 --config config/pyin-16k.py
-# python -m penne.evaluate --gpu 0 --config config/pyin-viterbi-16k.py
+python -m penne.evaluate --gpu 0 --config config/dio.py
+python -m penne.evaluate --gpu 0 --config config/pyin.py
+python -m penne.evaluate --gpu 0 --config config/pyin-viterbi.py
 python -m penne.evaluate \
     --gpu 0 \
     --method torchcrepe \
@@ -60,14 +60,6 @@ python -m penne.evaluate \
     --checkpoint runs/fcnf0++/00250000.pt \
     --gpu $1
 
-# Evaluate baselines at 8 kHz
-python -m penne.evaluate --gpu $1 --config config/dio.py
-python -m penne.evaluate --gpu $1 --config config/pyin.py
-python -m penne.evaluate --gpu $1 --config config/pyin-viterbi.py
-
-# Aggregate evaluation into tables
-python -m penne.evaluate.analyze
-
 # Dataset and true positive density figures
 python -m penne.plot.density \
     --true_datasets mdb \
@@ -95,56 +87,89 @@ python -m penne.plot.density \
     --gpu $1
 
 # Voiced/unvoiced threshold landscape
-# python -m penne.plot.threshold \
-#     --audio_file TODO \
-#     --output_file TODO \
-#     --checkpoint runs/fcnf0++/00250000.pt \
-#     --gpu $1
+python -m penne.plot.threshold \
+    --output_file results/threshold.jpg \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
 
-# Pitch posteriorgram figures
+# Perform inference on test audio
 python -m penne \
     --config config/crepe.py \
     --audio_files test/assets/gershwin.wav \
-    --mode
+    --output_prefixes results/crepe-gershwin.pt \
+    --checkpoint runs/crepe/00126500.pt \
+    --gpu $1
+python -m penne \
+    --config config/crepe++.py \
+    --audio_files test/assets/gershwin.wav \
+    --output_prefixes results/crepe++-gershwin.pt \
+    --checkpoint runs/crepe++/00250000.pt \
+    --gpu $1
+python -m penne \
+    --config config/deepf0.py \
+    --audio_files test/assets/gershwin.wav \
+    --output_prefixes results/deepf0-gershwin.pt \
+    --checkpoint runs/deepf0/00099000.pt \
+    --gpu $1
+python -m penne \
+    --config config/deepf0++.py \
+    --audio_files test/assets/gershwin.wav \
+    --output_prefixes results/deepf0++-gershwin.pt \
+    --checkpoint runs/deepf0++/00250000.pt \
+    --gpu $1
+python -m penne \
+    --config config/fcnf0.py \
+    --audio_files test/assets/gershwin.wav \
+    --output_prefixes results/fcnf0-gershwin.pt \
+    --checkpoint runs/fcnf0/00142000.pt \
+    --gpu $1
+python -m penne \
+    --config config/fcnf0++.py \
+    --audio_files test/assets/gershwin.wav \
+    --output_prefixes results/fcnf0++-gershwin.pt \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
 
+# Pitch posteriorgram figures
 python -m penne.plot.logits \
     --config config/crepe.py \
     --audio_file test/assets/gershwin.wav \
     --output_file results/crepe-gershwin.jpg \
+    --pitch_file results/crepe-gershwin.pt \
     --checkpoint runs/crepe/00126500.pt \
     --gpu $1
 python -m penne.plot.logits \
     --config config/crepe++.py \
-    --audio_file gershwin.wav \
-    --output_file gershwin.wav \
-    --pitch_file gershwin.wav \
+    --audio_file test/assets/gershwin.wav \
+    --output_file results/crepe++-gershwin.jpg \
+    --pitch_file results/crepe++-gershwin.pt \
     --checkpoint runs/crepe++/00250000.pt \
     --gpu $1
 python -m penne.plot.logits \
     --config config/deepf0.py \
-    --audio_file gershwin.wav \
-    --output_file gershwin.wav \
-    --pitch_file gershwin.wav \
-    --checkpoint runs/deepf0/gershwin.wav.pt \
+    --audio_file test/assets/gershwin.wav \
+    --output_file results/deepf0-gershwin.jpg \
+    --pitch_file results/deepf0-gershwin.pt \
+    --checkpoint runs/deepf0/00099000.pt \
     --gpu $1
 python -m penne.plot.logits \
     --config config/deepf0++.py \
-    --audio_file gershwin.wav \
-    --output_file gershwin.wav \
-    --pitch_file gershwin.wav \
+    --audio_file test/assets/gershwin.wav \
+    --output_file results/deepf0++-gershwin.jpg \
+    --pitch_file results/deepf0++-gershwin.pt \
     --checkpoint runs/deepf0++/00250000.pt \
     --gpu $1
 python -m penne.plot.logits \
     --config config/fcnf0.py \
-    --audio_file gershwin.wav \
-    --output_file gershwin.wav \
-    --pitch_file gershwin.wav \
-    --checkpoint runs/fcnf0/00250000.pt \
+    --audio_file test/assets/gershwin.wav \
+    --output_file results/fcnf0-gershwin.jpg \
+    --pitch_file results/fcnf0-gershwin.pt \
+    --checkpoint runs/fcnf0/00142000.pt \
     --gpu $1
 python -m penne.plot.logits \
     --config config/fcnf0++.py \
-    --audio_file gershwin.wav \
-    --output_file gershwin.wav \
-    --pitch_file gershwin.wav \
+    --audio_file test/assets/gershwin.wav \
+    --output_file results/fcnf0++-gershwin.jpg \
+    --pitch_file results/fcnf0++-gershwin.pt \
     --checkpoint runs/fcnf0++/00250000.pt \
     --gpu $1

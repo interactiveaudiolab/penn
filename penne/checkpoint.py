@@ -22,20 +22,13 @@ def latest_path(directory, regex='*.pt'):
     return files[-1]
 
 
-def load(checkpoint_path, model=None, optimizer=None):
+def load(checkpoint_path, model, optimizer=None):
     """Load model checkpoint from file"""
     # Load checkpoint
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
 
-    if penne.ONNX and model is None:
-
-        # Replace model with ONNX model
-        model = penne.onnx.model(checkpoint_path.with_suffix('.onnx'))
-
-    else:
-
-        # Restore model weights
-        model.load_state_dict(checkpoint_dict['model'])
+    # Restore model weights
+    model.load_state_dict(checkpoint_dict['model'])
 
     # Restore optimizer
     if optimizer is not None:
