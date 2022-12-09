@@ -1,7 +1,9 @@
-# Pitch Estimating Neural NEtworks (PENNE)
-[![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne)
+<h1 align="center">Pitch Estimating Neural NEtworks (PENNE)</h1>
+<p align="center">
+    [![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne)
+    [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+    [![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne)
+</p>
 
 Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch.
 
@@ -11,10 +13,6 @@ Training, evaluation, and inference of neural pitch and periodicity estimators i
 - [Installation](#installation)
 - [Inference](#inference)
     * [Application programming interface](#application-programming-interface)
-        * [`penne.from_audio`](#pennefrom_audio)
-        * [`penne.from_file`](#pennefrom_file)
-        * [`penne.from_file_to_file`](#pennefrom_file_to_file)
-        * [`penne.from_files_to_files`](#pennefrom_files_to_files)
     * [Command-line interface](#command-line-interface)
 - [Training](#training)
     * [Download](#download)
@@ -40,6 +38,8 @@ root directory of the folder and run `pip install -e .`
 
 ## Inference
 
+Perform inference using FCNF0++
+
 ```
 import penne
 
@@ -60,9 +60,6 @@ gpu = 0
 # on your gpu
 batch_size = 2048
 
-# Pick a model to use. One of ['crepe', 'deepf0', 'fcnf0']. Default is 'fcnf0'.
-model = 'fcnf0'
-
 # Select a checkpoint to use for inference
 checkpoint = penne.DEFAULT_CHECKPOINT
 
@@ -73,7 +70,6 @@ pitch, periodicity = penne.from_audio(
     hopsize=hopsize,
     fmin=fmin,
     fmax=fmax,
-    model=model,
     checkpoint=checkpoint,
     batch_size=batch_size,
     gpu=gpu)
@@ -89,32 +85,41 @@ pitch, periodicity = penne.from_audio(
 
 ```
 python -m penne
-    [-h]
     --audio_files AUDIO_FILES [AUDIO_FILES ...]
+    [-h]
+    [--config CONFIG]
     [--output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]]
     [--hopsize HOPSIZE]
     [--fmin FMIN]
     [--fmax FMAX]
-    [--model MODEL]
     [--checkpoint CHECKPOINT]
     [--batch_size BATCH_SIZE]
     [--gpu GPU]
 
+required arguments:
+    --audio_files AUDIO_FILES [AUDIO_FILES ...]
+        The audio files to process
+
 optional arguments:
-  -h, --help            show this help message and exit
-  --audio_files AUDIO_FILES [AUDIO_FILES ...]
-                        The audio file to process
-  --output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]
-                        The files to save pitch and periodicity without extension
-  --hopsize HOPSIZE     The hopsize in seconds
-  --fmin FMIN           The minimum frequency allowed
-  --fmax FMAX           The maximum frequency allowed
-  --model MODEL         The name of the estimator model
-  --checkpoint CHECKPOINT
-                        The model checkpoint file
-  --batch_size BATCH_SIZE
-                        The number of frames per batch
-  --gpu GPU             The index of the gpu to perform inference on
+    -h, --help
+        show this help message and exit
+    --config CONFIG
+        The configuration file. Defaults to using FCNF0++.
+    --output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]
+        The files to save pitch and periodicity without extension.
+        Defaults to audio_files without extensions.
+    --hopsize HOPSIZE
+        The hopsize in seconds. Defaults to 0.01 seconds.
+    --fmin FMIN
+        The minimum frequency allowed in Hz. Defaults to 31.0 Hz.
+    --fmax FMAX
+        The maximum frequency allowed in Hz. Defaults to 1984.0 Hz.
+    --checkpoint CHECKPOINT
+        The model checkpoint file. Defaults to ./penne/assets/checkpoints/default.pt.
+    --batch_size BATCH_SIZE
+        The number of frames per batch. Defaults to 2048.
+    --gpu GPU
+        The index of the gpu to perform inference on. Defaults to CPU.
 ```
 
 

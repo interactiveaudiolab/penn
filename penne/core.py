@@ -21,7 +21,6 @@ def from_audio(
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
     fmax: float = penne.FMAX,
-    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
     gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -33,7 +32,6 @@ def from_audio(
         hopsize: The hopsize in seconds
         fmin: The minimum allowable frequency in Hz
         fmax: The maximum allowable frequency in Hz
-        model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
@@ -51,7 +49,6 @@ def from_audio(
         audio,
         sample_rate,
         hopsize,
-        model,
         batch_size)
     for frames, _ in iterator:
 
@@ -60,7 +57,7 @@ def from_audio(
             frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
 
         # Infer
-        logits = infer(frames, model, checkpoint).detach()
+        logits = infer(frames, checkpoint).detach()
 
         # Postprocess
         with penne.time.timer('postprocess'):
@@ -77,7 +74,6 @@ def from_file(
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
     fmax: float = penne.FMAX,
-    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
     gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -88,7 +84,6 @@ def from_file(
         hopsize: The hopsize in seconds
         fmin: The minimum allowable frequency in Hz
         fmax: The maximum allowable frequency in Hz
-        model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
@@ -108,7 +103,6 @@ def from_file(
         hopsize,
         fmin,
         fmax,
-        model,
         checkpoint,
         batch_size,
         gpu)
@@ -120,7 +114,6 @@ def from_file_to_file(
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
     fmax: float = penne.FMAX,
-    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
     gpu: Optional[int] = None) -> None:
@@ -132,7 +125,6 @@ def from_file_to_file(
         hopsize: The hopsize in seconds
         fmin: The minimum allowable frequency in Hz
         fmax: The maximum allowable frequency in Hz
-        model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
@@ -143,7 +135,6 @@ def from_file_to_file(
         hopsize,
         fmin,
         fmax,
-        model,
         checkpoint,
         batch_size,
         gpu)
@@ -170,7 +161,6 @@ def from_files_to_files(
     hopsize: float = penne.HOPSIZE_SECONDS,
     fmin: float = penne.FMIN,
     fmax: float = penne.FMAX,
-    model: str = penne.MODEL,
     checkpoint: Path = penne.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
     gpu: Optional[int] = None) -> None:
@@ -182,7 +172,6 @@ def from_files_to_files(
         hopsize: The hopsize in seconds
         fmin: The minimum allowable frequency in Hz
         fmax: The maximum allowable frequency in Hz
-        model: The name of the model
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
@@ -204,7 +193,6 @@ def from_files_to_files(
             hopsize,
             fmin,
             fmax,
-            model,
             checkpoint,
             batch_size,
             gpu)
@@ -215,10 +203,7 @@ def from_files_to_files(
 ###############################################################################
 
 
-def infer(
-    frames,
-    model=penne.MODEL,
-    checkpoint=penne.DEFAULT_CHECKPOINT):
+def infer(frames, checkpoint=penne.DEFAULT_CHECKPOINT):
     """Forward pass through the model"""
     # Time model loading
     with penne.time.timer('model'):
@@ -234,7 +219,7 @@ def infer(
             if penne.ONNX and frames.device.type == 'cpu':
                 model = None
             else:
-                model = penne.Model(model)
+                model = penne.Model()
 
             # Load from disk
             infer.model, *_ = penne.checkpoint.load(checkpoint, model)
@@ -312,11 +297,11 @@ def postprocess(logits, fmin=penne.FMIN, fmax=penne.FMAX):
         return bins.T, pitch.T, periodicity.T
 
 
-def preprocess(audio,
-               sample_rate,
-               hopsize=penne.HOPSIZE_SECONDS,
-               model=penne.MODEL,
-               batch_size=None):
+def preprocess(
+    audio,
+    sample_rate,
+    hopsize=penne.HOPSIZE_SECONDS,
+    batch_size=None):
     """Convert audio to model input"""
     # Convert hopsize to samples
     hopsize = penne.convert.seconds_to_samples(hopsize)
