@@ -19,31 +19,33 @@ def from_audio(
     fmin=penne.FMIN,
     fmax=penne.FMAX):
     """Estimate pitch and periodicity with dio"""
-    import pyworld
+    with penne.time.timer('infer'):
 
-    # Convert to numpy
-    audio = audio.numpy().squeeze().astype(np.float)
+        import pyworld
 
-    # Get pitch
-    pitch, times  = pyworld.dio(
-        audio[penne.WINDOW_SIZE // 2:-penne.WINDOW_SIZE // 2],
-        sample_rate,
-        fmin,
-        fmax,
-        frame_period=1000 * hopsize)
+        # Convert to numpy
+        audio = audio.numpy().squeeze().astype(np.float)
 
-    # Refine pitch
-    pitch = pyworld.stonemask(
-        audio,
-        pitch,
-        times,
-        sample_rate)
+        # Get pitch
+        pitch, times  = pyworld.dio(
+            audio[penne.WINDOW_SIZE // 2:-penne.WINDOW_SIZE // 2],
+            sample_rate,
+            fmin,
+            fmax,
+            frame_period=1000 * hopsize)
 
-    # Interpolate unvoiced tokens
-    pitch, _ = penne.data.preprocess.interpolate_unvoiced(pitch)
+        # Refine pitch
+        pitch = pyworld.stonemask(
+            audio,
+            pitch,
+            times,
+            sample_rate)
 
-    # Convert to torch
-    return torch.from_numpy(pitch)[None]
+        # Interpolate unvoiced tokens
+        pitch, _ = penne.data.preprocess.interpolate_unvoiced(pitch)
+
+        # Convert to torch
+        return torch.from_numpy(pitch)[None]
 
 
 def from_file(

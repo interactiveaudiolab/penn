@@ -5,22 +5,18 @@ import penne
 
 
 ###############################################################################
-# Create figure
+# Periodicity threshold figure
 ###############################################################################
 
 
 def parse_args():
     """Parse command-line arguments"""
-    parser = argparse.ArgumentParser(description='Create inference figure')
-    parser.add_argument(
-        '--audio_file',
-        required=True,
-        type=Path,
-        help='The dataset to draw an example from')
+    parser = argparse.ArgumentParser(
+        description='Create periodicity threshold figure')
     parser.add_argument(
         '--output_file',
         type=Path,
-        help='The output file. Defaults to audio_file with .jpg extension.')
+        help='The output jpg file')
     parser.add_argument(
         '--checkpoint',
         type=Path,
@@ -30,7 +26,7 @@ def parse_args():
         '--gpu',
         type=int,
         help='The index of the GPU to use for inference')
-    return parser.parse_args()
+    return parser.parse_known_args()[0]
 
 
-penne.plot.inference.from_file_to_file(**vars(parse_args()))
+penne.plot.thresholds.from_file_to_file(**vars(parse_args()))

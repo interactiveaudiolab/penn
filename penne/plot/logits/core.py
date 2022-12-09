@@ -34,13 +34,20 @@ def from_audio(
         logits.append(penne.infer(frames, checkpoint=checkpoint).detach())
 
     # Concatenate results
-    logits = torch.cat(logits)
+    logits = torch.cat(logits).cpu().squeeze(2).T.flipud()
 
     # Setup figure
     figure = plt.figure(figsize=(18, 6))
 
-    # Plot logits
-    plt.imshow(logits.cpu()[0])
+    # Setup axes
+    axes = plt.Axes(figure, [0., 0., 1., 1.])
+
+    # Remove axes
+    axes.set_axis_off()
+    figure.add_axes(axes)
+
+    # Plot pitch posteriorgram
+    axes.imshow(logits)
 
     # Maybe plot pitch overlay
     if pitch is not None:

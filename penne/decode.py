@@ -1,4 +1,3 @@
-import librosa
 import numpy as np
 import torch
 
@@ -24,6 +23,8 @@ def argmax(logits):
 
 def viterbi(logits):
     """Decode pitch using viterbi decoding (from librosa)"""
+    import librosa
+
     # Normalize and convert to numpy
     if penne.METHOD == 'pyin':
         periodicity = penne.periodicity.sum(logits).T

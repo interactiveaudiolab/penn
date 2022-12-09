@@ -31,7 +31,7 @@ def parse_args():
         '--gpu',
         type=int,
         help='The index of the GPU to use for inference')
-    return parser.parse_known_args()
+    return parser.parse_known_args()[0]
 
 
 penne.plot.threshold.to_file(**vars(parse_args()))

@@ -343,20 +343,13 @@ def preprocess(audio,
         start = i * hopsize
         end = start + int((batch - 1) * hopsize) + penne.WINDOW_SIZE
 
-        if model != 'harmof0':
+        # Slice and chunk audio
+        frames = torch.nn.functional.unfold(
+            audio[:, None, None, start:end],
+            kernel_size=(1, penne.WINDOW_SIZE),
+            stride=(1, hopsize)).permute(2, 0, 1)
 
-            # Slice and chunk audio
-            frames = torch.nn.functional.unfold(
-                audio[:, None, None, start:end],
-                kernel_size=(1, penne.WINDOW_SIZE),
-                stride=(1, hopsize)).permute(2, 0, 1)
-
-            yield frames, batch
-
-        elif model == 'harmof0':
-
-            # Slice audio
-            yield audio[:, None, start:end], batch
+        yield frames, batch
 
 
 ###############################################################################

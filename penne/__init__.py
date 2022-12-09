@@ -1,18 +1,15 @@
-# Trainings
-# - window size search
-
 # Development
-# - pyin-viterbi hanging
-# - debug harmof0
-# - original harmof0
 # - sphinx
-# - Pick examples for figures
-# - Dither figure
+# - Huggingface models
+# - Yapecs passwords
 
 # Paper
-# - results should not be taken as judgments of speech vs music data being
-#   easier or harder
-# - unvoiced training causes the landscape of viable thresholds to expand
+# - Pitch posteriorgram figure
+# - Unvoiced training threshold figure
+# - Dither figure
+# - Cross-domain
+#   - Figure
+#   - Text
 
 
 ###############################################################################
@@ -53,6 +50,3 @@ from . import periodicity
 from . import plot
 from . import train
 from . import write
-
-# TEMPORARY
-from . import temp

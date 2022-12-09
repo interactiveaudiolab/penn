@@ -1,7 +1,7 @@
-CONFIG = 'fcnf0++-window-3'
+CONFIG = 'fcnf0++-window-17'
 
 # The decoder to use for postprocessing
 DECODER = 'weighted'
 
 # The size of the window used for locally normal pitch decoding
-LOCAL_PITCH_WINDOW_SIZE = 3
+LOCAL_PITCH_WINDOW_SIZE = 17

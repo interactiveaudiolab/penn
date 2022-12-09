@@ -9,7 +9,7 @@ import penne
 ###############################################################################
 
 
-def from_audio(output_file, checkpoint=None, gpu=None):
+def from_datasets(output_file, checkpoint=None, gpu=None):
     """Plot periodicity thresholds"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
 

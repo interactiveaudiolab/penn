@@ -21,6 +21,10 @@ def datasets(
     checkpoint=penne.DEFAULT_CHECKPOINT,
     gpu=None):
     """Perform evaluation"""
+    # Make output directory
+    directory = penne.EVAL_DIR / penne.CONFIG
+    directory.mkdir(exist_ok=True, parents=True)
+
     with tempfile.TemporaryDirectory() as directory:
         directory = Path(directory)
 
@@ -52,16 +56,13 @@ def datasets(
             json.dump(periodicity_results, file, indent=4)
 
     # Perform benchmarking on CPU
-    # TEMPORARY - use all threads
-    # with set_num_threads(1):
     benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
-    # benchmark_results = {'cpu': 0}
 
     # PYIN and DIO do not have GPU support
     if penne.METHOD not in ['dio', 'pyin']:
         benchmark_results ['gpu'] = benchmark(datasets, checkpoint, gpu)
 
-    # Write benchmarking information
+    # # Write benchmarking information
     with open(penne.EVAL_DIR / penne.CONFIG / 'time.json', 'w') as file:
         json.dump(benchmark_results, file, indent=4)
 
@@ -135,15 +136,10 @@ def benchmark(
                 pitch_files,
                 output_periodicity_files=periodicity_files,
                 hop_length=penne.HOPSIZE,
-                decoder=torchcrepe.decoder.argmax,
+                decoder=torchcrepe.decode.argmax,
                 batch_size=batch_size,
                 device='cpu' if gpu is None else f'cuda:{gpu}',
                 pad=False)
-
-        elif penne.METHOD == 'harmof0':
-            penne.temp.harmof0.from_files_to_files(
-                # TODO
-            )
         elif penne.METHOD == 'dio':
             penne.dsp.dio.from_files_to_files(files, output_prefixes)
         elif penne.METHOD == 'pyin':
@@ -366,11 +362,6 @@ def pitch_quality(
                         logits.append(batch_logits)
                     logits = torch.cat(logits)
 
-            elif penne.METHOD == 'harmof0':
-
-                # TODO
-                pass
-
             elif penne.METHOD == 'dio':
 
                 # Pad
@@ -411,10 +402,6 @@ def pitch_quality(
         overall[dataset] = dataset_metrics()
     overall['aggregate'] = aggregate_metrics()
 
-    # Make output directory
-    directory = penne.EVAL_DIR / penne.CONFIG
-    directory.mkdir(exist_ok=True, parents=True)
-
     # Write to json files
     with open(directory / 'overall.json', 'w') as file:
         json.dump(overall, file, indent=4)
@@ -441,4 +428,3 @@ def set_num_threads(threads):
 
     # Change back
     torch.set_num_threads(prev_threads)
-
