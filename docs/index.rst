@@ -1,0 +1,4 @@
+penne
+=======
+
+.. automodule:: penne

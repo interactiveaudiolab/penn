@@ -1,7 +1,5 @@
 import torch
 
-import penne
-
 
 ###############################################################################
 # Checkpoint utilities

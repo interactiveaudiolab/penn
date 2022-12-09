@@ -1,13 +1,20 @@
+"""
+Submodules
+==========
+.. autosummary::
+    :toctree: _autosummary
+    core
+"""
+
 # Development
-# - sphinx
-# - Huggingface models
+# - sphinx****
 # - Yapecs passwords
-# - Soft version pinning
+# - Huggingface models
 
 # Paper
-# - TSAP template
-# - Pitch posteriorgram figure (title figure; rhapsody in blue)
-# - Unvoiced training threshold figure
+# - TSAP template***
+# - Pitch posteriorgram figure (title figure; rhapsody in blue)**
+# - Unvoiced training threshold figure*
 # - Dither figure
 # - Cross-domain
 #   - Figure

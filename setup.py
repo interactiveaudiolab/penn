@@ -10,7 +10,7 @@ setup(
     description='Pitch Estimating Neural NEtworks (PENNE)',
     version='0.0.1',
     author='Max Morrison, Caedon Hsieh, Nathan Pruyne, and Bryan Pardo',
-    author_email='maxrmorrison@gmail.com',
+    author_email='interactiveaudiolab@gmail.com',
     url='https://github.com/interactiveaudiolab/penne',
     install_requires=[
         'numpy',       # 1.23.4
@@ -24,6 +24,6 @@ setup(
     package_data={'penne': ['assets/*', 'assets/*/*']},
     long_description=long_description,
     long_description_content_type='text/markdown',
-    keywords=['pitch', 'audio', 'speech', 'music', 'pytorch', 'crepe'],
+    keywords=['audio', 'frequency', 'music', 'periodicity', 'pitch', 'speech'],
     classifiers=['License :: OSI Approved :: MIT License'],
     license='MIT')
