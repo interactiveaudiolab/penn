@@ -7,8 +7,6 @@ data/sources/*
 !data/sources/.gitkeep
 eval/*
 !eval/.gitkeep
-results/*
-!results/.gitkeep
 runs/*
 !runs/.gitkeep
 

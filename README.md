@@ -1,9 +1,9 @@
-<h1 align="center">Pitch Estimating Neural NEtworks (PENNE)</h1>
+<h1 align="center">Pitch-Estimating Neural Networks (PENN)</h1>
 <div align="center">
 
-[![PyPI](https://img.shields.io/pypi/v/penne.svg)](https://pypi.python.org/pypi/penne)
+[![PyPI](https://img.shields.io/pypi/v/penn.svg)](https://pypi.python.org/pypi/penn)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Downloads](https://pepy.tech/badge/penne)](https://pepy.tech/project/penne)
+[![Downloads](https://pepy.tech/badge/penn)](https://pepy.tech/project/penn)
 
 </div>
 
@@ -15,6 +15,10 @@ Training, evaluation, and inference of neural pitch and periodicity estimators i
 - [Installation](#installation)
 - [Inference](#inference)
     * [Application programming interface](#application-programming-interface)
+        * [`penn.from_audio`](#pennfrom_audio)
+        * [`penn.from_file`](#pennfrom_file)
+        * [`penn.from_file_to_file`](#pennfrom_file_to_file)
+        * [`penn.from_files_to_files`](#pennfrom_files_to_files)
     * [Command-line interface](#command-line-interface)
 - [Training](#training)
     * [Download](#download)
@@ -32,7 +36,7 @@ Training, evaluation, and inference of neural pitch and periodicity estimators i
 ## Installation
 
 If you just want to perform pitch estimation using a pretrained model, run
-`pip install penne`
+`pip install penn`
 
 If you want to train or use your own models, clone this repo, navigate to the
 root directory of the folder and run `pip install -e .`
@@ -43,10 +47,10 @@ root directory of the folder and run `pip install -e .`
 Perform inference using FCNF0++
 
 ```
-import penne
+import penn
 
 # Load audio at the correct sample rate
-audio = penne.load.audio('test/assets/gershwin.wav')
+audio = penn.load.audio('test/assets/gershwin.wav')
 
 # Here we'll use a 10 millisecond hopsize
 hopsize = .01
@@ -63,12 +67,12 @@ gpu = 0
 batch_size = 2048
 
 # Select a checkpoint to use for inference
-checkpoint = penne.DEFAULT_CHECKPOINT
+checkpoint = penn.DEFAULT_CHECKPOINT
 
 # Infer pitch and periodicity
-pitch, periodicity = penne.from_audio(
+pitch, periodicity = penn.from_audio(
     audio,
-    penne.SAMPLE_RATE,
+    penn.SAMPLE_RATE,
     hopsize=hopsize,
     fmin=fmin,
     fmax=fmax,
@@ -80,13 +84,91 @@ pitch, periodicity = penne.from_audio(
 
 ### Application programming interface
 
-**TODO - sphinx link
+#### `penn.from_audio`
+
+```
+"""Perform pitch and periodicity estimation
+
+Args:
+    audio: The audio to extract pitch and periodicity from
+    sample_rate: The audio sample rate
+    hopsize: The hopsize in seconds
+    fmin: The minimum allowable frequency in Hz
+    fmax: The maximum allowable frequency in Hz
+    checkpoint: The checkpoint file
+    batch_size: The number of frames per batch
+    gpu: The index of the gpu to run inference on
+
+Returns:
+    pitch: torch.tensor(
+        shape=(1, int(samples // penn.seconds_to_sample(hopsize))))
+    periodicity: torch.tensor(
+        shape=(1, int(samples // penn.seconds_to_sample(hopsize))))
+"""
+```
+
+
+#### `penn.from_file`
+
+```
+"""Perform pitch and periodicity estimation from audio on disk
+
+Args:
+    file: The audio file
+    hopsize: The hopsize in seconds
+    fmin: The minimum allowable frequency in Hz
+    fmax: The maximum allowable frequency in Hz
+    checkpoint: The checkpoint file
+    batch_size: The number of frames per batch
+    gpu: The index of the gpu to run inference on
+
+Returns:
+    pitch: torch.tensor(shape=(1, int(samples // hopsize)))
+    periodicity: torch.tensor(shape=(1, int(samples // hopsize)))
+"""
+```
+
+
+#### `penn.from_file_to_file`
+
+```
+"""Perform pitch and periodicity estimation from audio on disk and save
+
+Args:
+    file: The audio file
+    output_prefix: The file to save pitch and periodicity without extension
+    hopsize: The hopsize in seconds
+    fmin: The minimum allowable frequency in Hz
+    fmax: The maximum allowable frequency in Hz
+    checkpoint: The checkpoint file
+    batch_size: The number of frames per batch
+    gpu: The index of the gpu to run inference on
+"""
+```
+
+
+#### `penn.from_files_to_files`
+
+```
+"""Perform pitch and periodicity estimation from files on disk and save
+
+Args:
+    files: The audio files
+    output_prefixes: Files to save pitch and periodicity without extension
+    hopsize: The hopsize in seconds
+    fmin: The minimum allowable frequency in Hz
+    fmax: The maximum allowable frequency in Hz
+    checkpoint: The checkpoint file
+    batch_size: The number of frames per batch
+    gpu: The index of the gpu to run inference on
+"""
+```
 
 
 ### Command-line interface
 
 ```
-python -m penne
+python -m penn
     --audio_files AUDIO_FILES [AUDIO_FILES ...]
     [-h]
     [--config CONFIG]
@@ -117,7 +199,7 @@ optional arguments:
     --fmax FMAX
         The maximum frequency allowed in Hz. Defaults to 1984.0 Hz.
     --checkpoint CHECKPOINT
-        The model checkpoint file. Defaults to ./penne/assets/checkpoints/default.pt.
+        The model checkpoint file. Defaults to ./penn/assets/checkpoints/default.pt.
     --batch_size BATCH_SIZE
         The number of frames per batch. Defaults to 2048.
     --gpu GPU
@@ -129,14 +211,14 @@ optional arguments:
 
 ### Download
 
-`python -m penne.data.download`
+`python -m penn.data.download`
 
 Downloads and uncompresses the `mdb` and `ptdb` datasets used for training.
 
 
 ### Preprocess
 
-`python -m penne.data.preprocess --config <config>`
+`python -m penn.data.preprocess --config <config>`
 
 Converts each dataset to a common format on disk ready for training. You
 can optionally pass a configuration file to override the default configuration.
@@ -144,17 +226,17 @@ can optionally pass a configuration file to override the default configuration.
 
 ### Partition
 
-`python -m penne.partition`
+`python -m penn.partition`
 
 Generates `train`, `valid`, and `test` partitions for `mdb` and `ptdb`.
 Partitioning is deterministic given the same random seed. You do not need to
 run this step, as the original partitions are saved in
-`penne/assets/partitions`.
+`penn/assets/partitions`.
 
 
 ### Train
 
-`python -m penne.train --config <config> --gpus <gpus>`
+`python -m penn.train --config <config> --gpus <gpus>`
 
 Trains a model according to a given configuration on the `mdb` and `ptdb`
 datasets. Uses a list of GPU indices as an argument, and uses distributed
@@ -174,9 +256,8 @@ Then, open `localhost:6006` in your browser.
 
 ### Evaluate
 
-
 ```
-python -m penne.evaluate \
+python -m penn.evaluate \
     --config <config> \
     --checkpoint <checkpoint> \
     --gpu <gpu>
@@ -189,7 +270,7 @@ is the GPU index.
 ### Plot
 
 ```
-python -m penne.plot.density \
+python -m penn.plot.density \
     --config <config> \
     --true_datasets <true_datasets> \
     --inference_datasets <inference_datasets> \
@@ -202,7 +283,7 @@ Plot the true positives of a model on a dataset overlayed on the data
 distribution of that dataset and save to a jpg file.
 
 ```
-python -m penne.plot.inference \
+python -m penn.plot.inference \
     --config <config> \
     --audio_file <audio_file> \
     --output_file <output_file> \
@@ -213,7 +294,7 @@ python -m penne.plot.inference \
 Plot the monophonic pitch contour of an audio file and save to a jpg file.
 
 ```
-python -m penne.plot.logits \
+python -m penn.plot.logits \
     --config <config> \
     --audio_file <audio_file> \
     --output_file <output_file> \
@@ -226,7 +307,7 @@ Plot the pitch posteriorgram of an audio file with optional pitch overlay and
 save to a jpg file.
 
 ```
-python -m penne.plot.thresholds \
+python -m penn.plot.thresholds \
     --config <config> \
     --output_file <output_file> \
     --checkpoint <checkpoint> \

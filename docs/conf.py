@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'penne'
+project = 'penn'
 copyright = '2022, Interactive Audio Lab'
 author = 'Interactive Audio Lab'
 

@@ -1,4 +1,4 @@
-penne
+penn
 =======
 
-.. automodule:: penne
+.. automodule:: penn
