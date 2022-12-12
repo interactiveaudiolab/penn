@@ -28,7 +28,7 @@ def to_file(
         alpha=0.5)
 
     # Save plot
-    figure.save(output_file, bbox_inches='tight', pad_inches=0)
+    figure.savefig(output_file, bbox_inches='tight', pad_inches=0)
 
 
 def inference_histogram(datasets, checkpoint=None, gpu=None):
@@ -63,10 +63,7 @@ def inference_histogram(datasets, checkpoint=None, gpu=None):
             batch_voiced = voiced[:, start:end].to(device)
 
             # Infer
-            batch_logits = penn.infer(
-                frames,
-                penn.MODEL,
-                checkpoint).detach()
+            batch_logits = penn.infer(frames, checkpoint).detach()
 
             # Get predicted bins
             batch_predicted, *_ = penn.postprocess(batch_logits)
@@ -76,7 +73,8 @@ def inference_histogram(datasets, checkpoint=None, gpu=None):
                 batch_voiced & (batch_predicted == batch_bins)]
 
             # Update counts
-            counts += torch.histogram(true_positives.cpu())
+            counts += torch.histogram(
+                true_positives.cpu().float(), penn.PITCH_BINS)[0]
 
     return counts
 
@@ -91,6 +89,6 @@ def true_histogram(datasets):
 
     # Update counts
     for _, bins, _, _, _ in loader:
-        counts += torch.histogram(bins, penn.PITCH_BINS)
+        counts += torch.histogram(bins.float(), penn.PITCH_BINS)[0]
 
     return counts

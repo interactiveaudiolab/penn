@@ -24,7 +24,7 @@ def bins_to_frequency(bins, dither=False):
 
 def cents_to_bins(cents, quantize_fn=torch.floor):
     """Converts cents to pitch bins"""
-    bins = quantize_fn(cents / penn.CENTS_PER_BIN).int()
+    bins = quantize_fn(cents / penn.CENTS_PER_BIN).long()
     bins[bins < 0] = 0
     bins[bins >= penn.PITCH_BINS] = penn.PITCH_BINS - 1
     return bins

@@ -39,10 +39,7 @@ def from_datasets(output_file, checkpoint=None, gpu=None):
             batch_voiced = voiced[:, start:end].to(device)
 
             # Infer
-            batch_logits = penn.infer(
-                frames,
-                penn.MODEL,
-                checkpoint).detach()
+            batch_logits = penn.infer(frames, checkpoint).detach()
 
             # Decode periodicity
             _, _, periodicity = penn.postprocess(batch_logits)
@@ -51,13 +48,13 @@ def from_datasets(output_file, checkpoint=None, gpu=None):
             metrics.update(periodicity, batch_voiced)
 
     # Get thresholds and corresponding F1 values
-    x, y = zip(
+    x, y = zip(*
         [(key, val) for key, val in metrics().items() if key.startswith('f1')])
 
     # Plot
     # TODO - styling
     figure = plt.figure()
-    figure.plot(x, y)
+    plt.plot(x, y)
 
     # Save
-    figure.save(output_file, bbox_inches='tight', pad_inches=0)
+    figure.savefig(output_file, bbox_inches='tight', pad_inches=0)

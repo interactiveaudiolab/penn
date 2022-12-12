@@ -1,6 +1,5 @@
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 
 import penn
@@ -57,12 +56,11 @@ def from_audio(
 
         # Make pitch contour black
         colormap = matplotlib.colors.LinearSegmentedColormap.from_list(
-            'pitchcolor', [None, 'purple'], 256)
+            'pitchcolor', ['black', 'purple'], penn.PITCH_BINS)
         colormap._init()
 
         # Apply zero alpha to bins without pitch
-        alphas = torch.nn.functional.one_hot(bins, penn.PITCH_BINS)
-        colormap._lut[:, -1] = alphas
+        colormap._lut[:penn.PITCH_BINS - 1, -1] = 0
 
         # Plot pitch overlay
         plt.imshow(bins, cmap=colormap)
@@ -81,7 +79,7 @@ def from_file(
 
     # Maybe load pitch
     if pitch_file is not None:
-        pitch = np.load(pitch_file)
+        pitch = torch.load(pitch_file)
     else:
         pitch = None
 

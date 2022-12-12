@@ -399,6 +399,7 @@ def pitch_quality(
     overall['aggregate'] = aggregate_metrics()
 
     # Write to json files
+    directory = penn.EVAL_DIR / penn.CONFIG
     with open(directory / 'overall.json', 'w') as file:
         json.dump(overall, file, indent=4)
     with open(directory / 'granular.json', 'w') as file:
