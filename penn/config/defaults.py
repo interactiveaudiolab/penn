@@ -108,6 +108,9 @@ LOG_STEPS = 64
 # Method to use for periodicity extraction
 PERIODICITY = 'entropy'
 
+# The threshold above which a frame is considered voiced
+VOICED_THRESHOLD = .171875
+
 
 ###############################################################################
 # Model parameters

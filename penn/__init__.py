@@ -1,21 +1,14 @@
-# Evaluation
-# - Redo FCNC0++ timing
-
 # Development
 # - Yapecs passwords
 # - Huggingface models
 # - Reserve module name on PyPi
 # - Figures
-#   - Gershwin
-#     - Fix y-axis frequency bug*****
-#     - Contour****
-#     - Powerpoint***
+#   - Gershwin powerpoint***
 #   - Density powerpoint**
-#   - Threshold*
 
 # Paper
 # - Cross-domain
-#   - Text
+#   - Text*
 
 
 ###############################################################################

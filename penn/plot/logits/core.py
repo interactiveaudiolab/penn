@@ -40,13 +40,13 @@ def from_audio(
     #        BCE looks erroneously lower.
     distributions = torch.nn.functional.softmax(logits, dim=1)
 
-    # TEMPORARY - take the log again for display?
+    # Take the log again for display
     distributions = torch.log(distributions)
     distributions[torch.isinf(distributions)] = \
         distributions[~torch.isinf(distributions)].min()
 
     # Prepare for plotting
-    distributions = distributions.cpu().squeeze(2).T.flipud()
+    distributions = distributions.cpu().squeeze(2).T
 
 
     # Setup figure
@@ -57,23 +57,14 @@ def from_audio(
     axis.spines['right'].set_visible(False)
     axis.spines['bottom'].set_visible(False)
     axis.spines['left'].set_visible(False)
-    # duration = audio.shape[-1] / sample_rate
-    # step = max(1, duration // 3)
-    # xticks = torch.arange(0, duration, step)
-    # axis.get_xaxis().set_ticks(
-    #     penn.convert.seconds_to_frames(xticks).int().tolist(),
-    #     xticks.int().tolist())
     axis.get_xaxis().set_ticks([])
-    yticks = torch.tensor(
-        list(range(0, penn.PITCH_BINS, penn.PITCH_BINS // 4)) +
-        [penn.PITCH_BINS]) - 1
-    ylabels = penn.convert.bins_to_frequency(penn.PITCH_BINS - 1 - yticks)
+    yticks = torch.linspace(0, penn.PITCH_BINS - 1, 5)
+    ylabels = penn.convert.bins_to_frequency(yticks)
     ylabels = ylabels.round().int().tolist()
     axis.get_yaxis().set_ticks(yticks, ylabels)
-    # axis.set_ylabel('Frequency (Hz)')
 
     # Plot pitch posteriorgram
-    axis.imshow(distributions, aspect='auto')
+    axis.imshow(distributions, aspect='auto', origin='lower')
 
     return figure
 

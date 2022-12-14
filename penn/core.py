@@ -329,6 +329,11 @@ def preprocess(
 ###############################################################################
 
 
+def cents(a, b):
+    """Compute pitch difference in cents"""
+    return penn.OCTAVE * torch.log2(a / b)
+
+
 @contextlib.contextmanager
 def chdir(directory):
     """Context manager for changing the current working directory"""

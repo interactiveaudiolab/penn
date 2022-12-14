@@ -56,120 +56,57 @@
 #     --gpu $1
 
 # Plot data and inference distributions
-# python -m penn.plot.density \
-#     --datasets mdb \
-#     --output_file results/mdb_on_mdb.jpg \
-#     --checkpoint runs/fcnf0++-mdb/00250000.pt \
-#     --gpu $1
-# python -m penn.plot.density \
-#     --datasets ptdb \
-#     --output_file results/mdb_on_ptdb.jpg \
-#     --checkpoint runs/fcnf0++-mdb/00250000.pt \
-#     --gpu $1
-# python -m penn.plot.density \
-#     --datasets ptdb \
-#     --output_file results/ptdb_on_ptdb.jpg \
-#     --checkpoint runs/fcnf0++-ptdb/00250000.pt \
-#     --gpu $1
-# python -m penn.plot.density \
-#     --datasets mdb \
-#     --output_file results/ptdb_on_mdb.jpg \
-#     --checkpoint runs/fcnf0++-ptdb/00250000.pt \
-#     --gpu $1
-# python -m penn.plot.density \
-#     --datasets mdb \
-#     --output_file results/both_on_mdb.jpg \
-#     --checkpoint runs/fcnf0++/00250000.pt \
-#     --gpu $1
-# python -m penn.plot.density \
-#     --datasets ptdb \
-#     --output_file results/both_on_ptdb.jpg \
-#     --checkpoint runs/fcnf0++/00250000.pt \
-#     --gpu $1
-# python -m penn.plot.density \
-#     --datasets mdb ptdb \
-#     --output_file results/both_on_both.jpg \
-#     --checkpoint runs/fcnf0++/00250000.pt \
-#     --gpu $1
+python -m penn.plot.density \
+    --datasets mdb \
+    --output_file results/mdb_on_mdb.jpg \
+    --checkpoint runs/fcnf0++-mdb/00250000.pt \
+    --gpu $1
+python -m penn.plot.density \
+    --datasets ptdb \
+    --output_file results/mdb_on_ptdb.jpg \
+    --checkpoint runs/fcnf0++-mdb/00250000.pt \
+    --gpu $1
+python -m penn.plot.density \
+    --datasets ptdb \
+    --output_file results/ptdb_on_ptdb.jpg \
+    --checkpoint runs/fcnf0++-ptdb/00250000.pt \
+    --gpu $1
+python -m penn.plot.density \
+    --datasets mdb \
+    --output_file results/ptdb_on_mdb.jpg \
+    --checkpoint runs/fcnf0++-ptdb/00250000.pt \
+    --gpu $1
+python -m penn.plot.density \
+    --datasets mdb \
+    --output_file results/both_on_mdb.jpg \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
+python -m penn.plot.density \
+    --datasets ptdb \
+    --output_file results/both_on_ptdb.jpg \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
+python -m penn.plot.density \
+    --datasets mdb ptdb \
+    --output_file results/both_on_both.jpg \
+    --checkpoint runs/fcnf0++/00250000.pt \
+    --gpu $1
 
 # Plot voiced/unvoiced threshold landscape
 # python -m penn.plot.threshold \
-#     --output_file results/threshold.jpg \
-#     --checkpoint runs/fcnf0++/00250000.pt \
-#     --gpu $1
-
-# Perform inference on test audio
-# python -m penn \
-#     --config config/crepe.py \
-#     --files test/assets/gershwin.wav \
-#     --output_prefixes results/crepe-gershwin \
-#     --checkpoint runs/crepe/00126500.pt \
-#     --gpu $1
-# python -m penn \
-#     --config config/crepe++.py \
-#     --files test/assets/gershwin.wav \
-#     --output_prefixes results/crepe++-gershwin \
-#     --checkpoint runs/crepe++/00250000.pt \
-#     --gpu $1
-# python -m penn \
-#     --config config/deepf0.py \
-#     --files test/assets/gershwin.wav \
-#     --output_prefixes results/deepf0-gershwin \
-#     --checkpoint runs/deepf0/00099000.pt \
-#     --gpu $1
-# python -m penn \
-#     --config config/deepf0++.py \
-#     --files test/assets/gershwin.wav \
-#     --output_prefixes results/deepf0++-gershwin \
-#     --checkpoint runs/deepf0++/00250000.pt \
-#     --gpu $1
-# python -m penn \
-#     --config config/fcnf0.py \
-#     --files test/assets/gershwin.wav \
-#     --output_prefixes results/fcnf0-gershwin \
-#     --checkpoint runs/fcnf0/00142000.pt \
-#     --gpu $1
-# python -m penn \
-#     --config config/fcnf0++.py \
-#     --files test/assets/gershwin.wav \
-#     --output_prefixes results/fcnf0++-gershwin \
-#     --checkpoint runs/fcnf0++/00250000.pt \
-#     --gpu $1
+#     --evaluations fcnf0++ fcnf0++-ablate-unvoiced \
+#     --output_file results/threshold.jpg
 
 # Plot pitch posteriorgram figures
-python -m penn.plot.logits \
-    --config config/crepe.py \
-    --audio_file test/assets/gershwin.wav \
-    --output_file results/crepe-gershwin.jpg \
-    --checkpoint runs/crepe/00126500.pt \
-    --gpu $1
-python -m penn.plot.logits \
-    --config config/crepe++.py \
-    --audio_file test/assets/gershwin.wav \
-    --output_file results/crepe++-gershwin.jpg \
-    --checkpoint runs/crepe++/00250000.pt \
-    --gpu $1
-python -m penn.plot.logits \
-    --config config/deepf0.py \
-    --audio_file test/assets/gershwin.wav \
-    --output_file results/deepf0-gershwin.jpg \
-    --checkpoint runs/deepf0/00099000.pt \
-    --gpu $1
-python -m penn.plot.logits \
-    --config config/deepf0++.py \
-    --audio_file test/assets/gershwin.wav \
-    --output_file results/deepf0++-gershwin.jpg \
-    --checkpoint runs/deepf0++/00250000.pt \
-    --gpu $1
-python -m penn.plot.logits \
-    --config config/fcnf0.py \
-    --audio_file test/assets/gershwin.wav \
-    --output_file results/fcnf0-gershwin.jpg \
-    --checkpoint runs/fcnf0/00142000.pt \
-    --gpu $1
-python -m penn.plot.logits \
-    --config config/fcnf0++.py \
-    --audio_file test/assets/gershwin.wav \
-    --output_file results/fcnf0++-gershwin.jpg \
-    --checkpoint runs/fcnf0++/00250000.pt \
-    --gpu $1
+# python -m penn.plot.logits \
+#     --config config/fcnf0.py \
+#     --audio_file test/assets/gershwin.wav \
+#     --output_file results/fcnf0-gershwin.jpg \
+#     --checkpoint runs/fcnf0/00142000.pt \
+#     --gpu $1
+# python -m penn.plot.logits \
+#     --config config/fcnf0++.py \
+#     --audio_file test/assets/gershwin.wav \
+#     --output_file results/fcnf0++-gershwin.jpg \
+#     --checkpoint runs/fcnf0++/00250000.pt \
+#     --gpu $1

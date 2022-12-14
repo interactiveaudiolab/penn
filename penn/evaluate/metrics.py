@@ -160,7 +160,7 @@ class L1:
         return {'l1': (self.sum / self.count).item()}
 
     def update(self, predicted, target):
-        self.sum += torch.abs(cents(predicted, target)).sum()
+        self.sum += torch.abs(penn.cents(predicted, target)).sum()
         self.count += predicted.shape[-1]
 
     def reset(self):
@@ -236,7 +236,7 @@ class RCA:
 
     def update(self, predicted, target):
         # Compute pitch difference in cents
-        difference = cents(predicted, target)
+        difference = penn.cents(predicted, target)
 
         # Forgive octave errors
         difference[difference > (penn.OCTAVE - THRESHOLD)] -= penn.OCTAVE
@@ -261,7 +261,7 @@ class RMSE:
         return {'rmse': torch.sqrt(self.sum / self.count).item()}
 
     def update(self, predicted, target):
-        self.sum += (cents(predicted, target) ** 2).sum()
+        self.sum += (penn.cents(predicted, target) ** 2).sum()
         self.count += predicted.shape[-1]
 
     def reset(self):
@@ -279,20 +279,10 @@ class RPA:
         return {'rpa': (self.sum / self.count).item()}
 
     def update(self, predicted, target):
-        difference = cents(predicted, target)
+        difference = penn.cents(predicted, target)
         self.sum += (torch.abs(difference) < THRESHOLD).sum()
         self.count += predicted.shape[-1]
 
     def reset(self):
         self.count = 0
         self.sum = 0
-
-
-###############################################################################
-# Individual metrics
-###############################################################################
-
-
-def cents(a, b):
-    """Compute pitch difference in cents"""
-    return penn.OCTAVE * torch.log2(a / b)

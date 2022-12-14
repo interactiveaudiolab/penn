@@ -29,26 +29,36 @@ def to_file(
 
     # Plot true data density
     x = torch.arange(0, penn.PITCH_BINS, DOWNSAMPLE_RATE)
-    y_true, y_pred = histograms(datasets, checkpoint, gpu)
+    y_true, y_pred, rpa = histograms(datasets, checkpoint, gpu)
     y_true = y_true.reshape(-1, DOWNSAMPLE_RATE).sum(-1)
     axis.bar(
         x,
         y_true,
-        alpha=0.5,
         width=DOWNSAMPLE_RATE,
         label=f'Data distribution')
 
-    # Plot our correct guesses
+    # Plot our guesses
     y_pred = y_pred.reshape(-1, DOWNSAMPLE_RATE).sum(-1)
     axis.bar(
         x,
         y_pred,
-        alpha=0.5,
         width=DOWNSAMPLE_RATE,
         label='Inferred distribution')
 
+    # Plot overlap
+    overlap = torch.minimum(y_true, y_pred)
+    axis.bar(
+        x,
+        overlap,
+        color='gray',
+        width=DOWNSAMPLE_RATE,
+        label='Overlap')
+
+    # Add RPA at bottom of the plot
+    axis.text(int(.45 * penn.PITCH_BINS), y_true.max() // 40, f'{rpa:0.4f}')
+
     # Remove axes
-    # axis.legend()
+    # axis.legend(frameon=False)
 
     # Save plot
     figure.savefig(output_file, bbox_inches='tight', pad_inches=0, dpi=300)
@@ -65,8 +75,11 @@ def histograms(datasets, checkpoint=None, gpu=None):
     # Setup loader
     loader = penn.data.loader(datasets, 'test', gpu)
 
+    # Setup RPA metric
+    metric = penn.evaluate.metrics.RPA()
+
     # Update counts
-    for audio, bins, _, voiced, _ in loader:
+    for audio, bins, pitch, voiced, _ in loader:
 
         # Preprocess audio
         batch_size = \
@@ -84,28 +97,28 @@ def histograms(datasets, checkpoint=None, gpu=None):
             start = i * penn.EVALUATION_BATCH_SIZE
             end = start + size
             batch_bins = bins[:, start:end].to(device)
+            batch_pitch = pitch[:, start:end].to(device)
             batch_voiced = voiced[:, start:end].to(device)
 
             # Infer
             batch_logits = penn.infer(frames, checkpoint).detach()
 
             # Get predicted bins
-            batch_predicted, *_ = penn.postprocess(batch_logits)
+            batch_predicted, batch_decoded, _ = penn.postprocess(batch_logits)
+
+            # Update RPA
+            metric.update(
+                batch_decoded[batch_voiced],
+                batch_pitch[batch_voiced])
 
             # Get true positives
-            difference = torch.abs(
-                penn.convert.bins_to_cents(batch_predicted) -
-                penn.convert.bins_to_cents(batch_bins))
-            # import pdb; pdb.set_trace()
             true_all = batch_bins[batch_voiced]
-            true_positives = batch_bins[
-                batch_voiced & (difference < penn.evaluate.metrics.THRESHOLD)]
-            # true_positives = batch_bins[batch_voiced & (batch_predicted == batch_bins)]
+            pred_all = batch_predicted[batch_voiced]
 
             # Update counts
             true_result += torch.histogram(
                 true_all.cpu().float(), penn.PITCH_BINS)[0]
             infer_result += torch.histogram(
-                true_positives.cpu().float(), penn.PITCH_BINS)[0]
+                pred_all.cpu().float(), penn.PITCH_BINS)[0]
 
-    return true_result, infer_result
+    return true_result, infer_result, metric()['rpa']

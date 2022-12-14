@@ -27,7 +27,7 @@ def parse_args():
             'Defaults to audio_files without extensions.'))
     parser.add_argument(
         '--hopsize',
-        type=int,
+        type=float,
         default=penn.HOPSIZE_SECONDS,
         help=(
             'The hopsize in seconds. '

@@ -14,6 +14,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Create periodicity threshold figure')
     parser.add_argument(
+        '--names',
+        required=True,
+        nargs='+',
+        help='Corresponding labels for each evaluation')
+    parser.add_argument(
         '--evaluations',
         type=Path,
         required=True,
