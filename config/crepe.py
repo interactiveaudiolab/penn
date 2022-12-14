@@ -6,6 +6,9 @@ BATCH_SIZE = 32
 # Width of a pitch bin
 CENTS_PER_BIN = 20.  # cents
 
+# The decoder to use for postprocessing
+DECODER = 'argmax'
+
 # The dropout rate. Set to None to turn off dropout.
 DROPOUT = .25
 

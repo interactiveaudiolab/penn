@@ -106,7 +106,7 @@ LOG_INTERVAL = 2500  # steps
 LOG_STEPS = 64
 
 # Method to use for periodicity extraction
-PERIODICITY = 'max'
+PERIODICITY = 'entropy'
 
 
 ###############################################################################
@@ -115,7 +115,7 @@ PERIODICITY = 'max'
 
 
 # The decoder to use for postprocessing
-DECODER = 'argmax'
+DECODER = 'locally_normal'
 
 # The dropout rate. Set to None to turn off dropout.
 DROPOUT = None

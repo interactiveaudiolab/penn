@@ -13,15 +13,10 @@ def parse_args():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description='Create density figure')
     parser.add_argument(
-        '--true_datasets',
+        '--datasets',
         nargs='+',
         required=True,
-        help='Datasets to use for ground truth density')
-    parser.add_argument(
-        '--inference_datasets',
-        nargs='+',
-        required=True,
-        help='Datasets to use for inference density')
+        help='Datasets to use for density figure')
     parser.add_argument(
         '--output_file',
         required=True,

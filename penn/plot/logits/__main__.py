@@ -23,10 +23,6 @@ def parse_args():
         type=Path,
         help='The jpg file to save the plot')
     parser.add_argument(
-        '--pitch_file',
-        type=Path,
-        help='An optional numpy file with a pitch contour to overlay')
-    parser.add_argument(
         '--checkpoint',
         type=Path,
         default=penn.DEFAULT_CHECKPOINT,

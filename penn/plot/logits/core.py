@@ -13,7 +13,6 @@ import penn
 def from_audio(
     audio,
     sample_rate,
-    pitch=None,
     checkpoint=penn.DEFAULT_CHECKPOINT,
     gpu=None):
     """Plot logits with pitch overlay"""
@@ -33,69 +32,69 @@ def from_audio(
         logits.append(penn.infer(frames, checkpoint=checkpoint).detach())
 
     # Concatenate results
-    logits = torch.cat(logits).cpu().squeeze(2).T.flipud()
+    logits = torch.cat(logits)
+
+    # Convert to distribution
+    # NOTE - We use softmax even if the loss is BCE for more comparable
+    #        visualization. Otherwise, the variance of models trained with
+    #        BCE looks erroneously lower.
+    distributions = torch.nn.functional.softmax(logits, dim=1)
+
+    # TEMPORARY - take the log again for display?
+    distributions = torch.log(distributions)
+    distributions[torch.isinf(distributions)] = \
+        distributions[~torch.isinf(distributions)].min()
+
+    # Prepare for plotting
+    distributions = distributions.cpu().squeeze(2).T.flipud()
+
 
     # Setup figure
-    figure = plt.figure(figsize=(18, 6))
+    figure, axis = plt.subplots(figsize=(18, 2))
 
-    # Setup axes
-    axes = plt.Axes(figure, [0., 0., 1., 1.])
-
-    # Remove axes
-    axes.set_axis_off()
-    figure.add_axes(axes)
+    # Make pretty
+    axis.spines['top'].set_visible(False)
+    axis.spines['right'].set_visible(False)
+    axis.spines['bottom'].set_visible(False)
+    axis.spines['left'].set_visible(False)
+    # duration = audio.shape[-1] / sample_rate
+    # step = max(1, duration // 3)
+    # xticks = torch.arange(0, duration, step)
+    # axis.get_xaxis().set_ticks(
+    #     penn.convert.seconds_to_frames(xticks).int().tolist(),
+    #     xticks.int().tolist())
+    axis.get_xaxis().set_ticks([])
+    yticks = torch.tensor(
+        list(range(0, penn.PITCH_BINS, penn.PITCH_BINS // 4)) +
+        [penn.PITCH_BINS]) - 1
+    ylabels = penn.convert.bins_to_frequency(penn.PITCH_BINS - 1 - yticks)
+    ylabels = ylabels.round().int().tolist()
+    axis.get_yaxis().set_ticks(yticks, ylabels)
+    # axis.set_ylabel('Frequency (Hz)')
 
     # Plot pitch posteriorgram
-    axes.imshow(logits)
-
-    # Maybe plot pitch overlay
-    if pitch is not None:
-
-        # Get pitch bins
-        bins = penn.convert.frequency_to_bins(pitch)
-
-        # Make pitch contour black
-        colormap = matplotlib.colors.LinearSegmentedColormap.from_list(
-            'pitchcolor', ['black', 'purple'], penn.PITCH_BINS)
-        colormap._init()
-
-        # Apply zero alpha to bins without pitch
-        colormap._lut[:penn.PITCH_BINS - 1, -1] = 0
-
-        # Plot pitch overlay
-        plt.imshow(bins, cmap=colormap)
+    axis.imshow(distributions, aspect='auto')
 
     return figure
 
 
-def from_file(
-    audio_file,
-    pitch_file=None,
-    checkpoint=penn.DEFAULT_CHECKPOINT,
-    gpu=None):
+def from_file(audio_file, checkpoint=penn.DEFAULT_CHECKPOINT, gpu=None):
     """Plot logits and optional pitch"""
     # Load audio
     audio = penn.load.audio(audio_file)
 
-    # Maybe load pitch
-    if pitch_file is not None:
-        pitch = torch.load(pitch_file)
-    else:
-        pitch = None
-
     # Plot
-    return from_audio(audio, penn.SAMPLE_RATE, pitch, checkpoint, gpu)
+    return from_audio(audio, penn.SAMPLE_RATE, checkpoint, gpu)
 
 
 def from_file_to_file(
     audio_file,
     output_file,
-    pitch_file=None,
     checkpoint=penn.DEFAULT_CHECKPOINT,
     gpu=None):
     """Plot pitch and periodicity and save to disk"""
     # Plot
-    figure = from_file(audio_file, pitch_file, checkpoint, gpu)
+    figure = from_file(audio_file, checkpoint, gpu)
 
     # Save to disk
-    figure.savefig(output_file, bbox_inches='tight', pad_inches=0)
+    figure.savefig(output_file, bbox_inches='tight', pad_inches=0, dpi=900)

@@ -6,8 +6,8 @@ BATCH_SIZE = 32
 # Width of a pitch bin
 CENTS_PER_BIN = 20.  # cents
 
-# The dropout rate. Set to None to turn off dropout.
-DROPOUT = .25
+# The decoder to use for postprocessing
+DECODER = 'argmax'
 
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = True

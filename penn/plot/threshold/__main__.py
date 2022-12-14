@@ -14,19 +14,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Create periodicity threshold figure')
     parser.add_argument(
+        '--evaluations',
+        type=Path,
+        required=True,
+        nargs='+',
+        help='The evaluations to plot')
+    parser.add_argument(
         '--output_file',
         type=Path,
+        required=True,
         help='The output jpg file')
-    parser.add_argument(
-        '--checkpoint',
-        type=Path,
-        default=penn.DEFAULT_CHECKPOINT,
-        help='The checkpoint file to use for inference')
-    parser.add_argument(
-        '--gpu',
-        type=int,
-        help='The index of the GPU to use for inference')
     return parser.parse_known_args()[0]
 
 
-penn.plot.threshold.from_datasets(**vars(parse_args()))
+penn.plot.threshold.from_evaluations(**vars(parse_args()))

@@ -1,5 +1,7 @@
+import json
+import math
+
 import matplotlib.pyplot as plt
-import torch
 
 import penn
 
@@ -9,52 +11,39 @@ import penn
 ###############################################################################
 
 
-def from_datasets(output_file, checkpoint=None, gpu=None):
+def from_evaluations(evaluations, output_file):
     """Plot periodicity thresholds"""
-    device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
+    # Create plot
+    figure, axis = plt.subplots()
 
-    # Setup loader
-    loader = penn.data.loader(penn.DATASETS, 'test', gpu)
+    # Make pretty
+    axis.spines['top'].set_visible(False)
+    axis.spines['right'].set_visible(False)
+    axis.spines['bottom'].set_visible(False)
+    axis.spines['left'].set_visible(False)
+    # axis.get_xaxis().set_ticks([])
+    # axis.get_yaxis().set_ticks([])
+    axis.set_xlabel('Unvoiced threshold')
+    axis.set_ylabel('F1')
 
-    # Setup metric
-    metrics = penn.evaluate.metrics.F1()
+    # Iterate over evaluations to plot
+    for evaluation in evaluations:
 
-    for audio, _, _, voiced, _ in loader:
+        # Get evaluation file
+        file = penn.EVAL_DIR / evaluation / 'overall.json'
 
-        # Preprocess audio
-        batch_size = \
-            None if gpu is None else penn.EVALUATION_BATCH_SIZE
-        iterator = penn.preprocess(
-            audio[0],
-            penn.SAMPLE_RATE,
-            batch_size=batch_size)
-        for i, (frames, size) in enumerate(iterator):
+        # Load results
+        with open(file) as file:
+            results = json.load(file)['aggregate']
 
-            # Copy to device
-            frames = frames.to(device)
+        # Get thresholds and corresponding F1 values
+        x, y = zip(*
+            [(key, val) for key, val in results.items() if key.startswith('f1')])
+        x = [float(item[3:]) for item in x]
+        y = [0 if math.isnan(item) else item for item in y]
 
-            # Slice features and copy to GPU
-            start = i * penn.EVALUATION_BATCH_SIZE
-            end = start + size
-            batch_voiced = voiced[:, start:end].to(device)
-
-            # Infer
-            batch_logits = penn.infer(frames, checkpoint).detach()
-
-            # Decode periodicity
-            _, _, periodicity = penn.postprocess(batch_logits)
-
-            # Update metrics
-            metrics.update(periodicity, batch_voiced)
-
-    # Get thresholds and corresponding F1 values
-    x, y = zip(*
-        [(key, val) for key, val in metrics().items() if key.startswith('f1')])
-
-    # Plot
-    # TODO - styling
-    figure = plt.figure()
-    plt.plot(x, y)
+        # Plot
+        axis.plot([0] + x, [0] + list(y), label=evaluation)
 
     # Save
-    figure.savefig(output_file, bbox_inches='tight', pad_inches=0)
+    figure.savefig(output_file, bbox_inches='tight', pad_inches=0, dpi=300)

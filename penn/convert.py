@@ -9,17 +9,14 @@ import penn
 ###############################################################################
 
 
-def bins_to_cents(bins, dither=False):
+def bins_to_cents(bins):
     """Converts pitch bins to cents"""
-    cents = penn.CENTS_PER_BIN * bins
-
-    # Maybe trade quantization error for noise
-    return triangular_dither(cents) if dither else cents
+    return penn.CENTS_PER_BIN * bins
 
 
-def bins_to_frequency(bins, dither=False):
+def bins_to_frequency(bins):
     """Converts pitch bins to frequency in Hz"""
-    return cents_to_frequency(bins_to_cents(bins, dither))
+    return cents_to_frequency(bins_to_cents(bins))
 
 
 def cents_to_bins(cents, quantize_fn=torch.floor):
@@ -47,7 +44,7 @@ def frequency_to_cents(frequency):
 
 def frequency_to_samples(frequency, sample_rate=penn.SAMPLE_RATE):
     """Convert frequency in Hz to number of samples per period"""
-    return int(sample_rate / frequency)
+    return sample_rate / frequency
 
 
 ###############################################################################
@@ -72,7 +69,7 @@ def seconds_to_frames(seconds):
 
 def seconds_to_samples(seconds):
     """Convert seconds to number of samples"""
-    return int(seconds * penn.SAMPLE_RATE)
+    return seconds * penn.SAMPLE_RATE
 
 
 def samples_to_frames(samples):
@@ -83,18 +80,3 @@ def samples_to_frames(samples):
 def samples_to_seconds(samples):
     """Convert number of samples to seconds"""
     return samples / penn.SAMPLE_RATE
-
-
-###############################################################################
-# Utilities
-###############################################################################
-
-
-def triangular_dither(cents):
-    """Dither the predicted pitch in cents to remove quantization error"""
-    noise = scipy.stats.triang.rvs(
-        c=0.5,
-        loc=-penn.CENTS_PER_BIN,
-        scale=2 * penn.CENTS_PER_BIN,
-        size=cents.size())
-    return cents + cents.new_tensor(noise)

@@ -6,6 +6,9 @@ BATCH_SIZE = 32
 # Width of a pitch bin
 CENTS_PER_BIN = 25  # cents
 
+# The decoder to use for postprocessing
+DECODER = 'argmax'
+
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = True
 

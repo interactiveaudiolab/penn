@@ -15,8 +15,7 @@ def argmax(logits):
     bins = logits.argmax(dim=1)
 
     # Convert to hz
-    # Maybe dither to prevent banding during downstream quantization
-    pitch = penn.convert.bins_to_frequency(bins, penn.DITHER)
+    pitch = penn.convert.bins_to_frequency(bins)
 
     return bins, pitch
 
@@ -78,15 +77,15 @@ def viterbi(logits):
     bins = torch.from_numpy(bins.astype(np.int32))
 
     # Convert to frequency in Hz
-    if penn.DECODER.endswith('weighted'):
+    if penn.DECODER.endswith('normal'):
 
         # Decode using an assumption of normality around to the viterbi path
-        pitch = weighted_from_bins(bins, logits)
+        pitch = locally_normal_from_bins(bins, logits)
 
     else:
 
-        # Maybe dither to prevent banding during downstream quantization
-        pitch = penn.convert.bins_to_frequency(bins, penn.DITHER)
+        # Argmax decoding
+        pitch = penn.convert.bins_to_frequency(bins)
 
     if penn.METHOD == 'pyin':
 
@@ -98,12 +97,12 @@ def viterbi(logits):
     return bins.T, pitch.T
 
 
-def weighted(logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
+def locally_normal(logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
     """Decode pitch using a normal assumption around the argmax"""
     # Get center bins
     bins = logits.argmax(dim=1)
 
-    return bins, weighted_from_bins(bins, logits, window)
+    return bins, locally_normal_from_bins(bins, logits, window)
 
 
 ###############################################################################
@@ -132,7 +131,7 @@ def expected_value(logits, cents):
     return penn.convert.cents_to_frequency(pitch)
 
 
-def weighted_from_bins(bins, logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
+def locally_normal_from_bins(bins, logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
     """Decode pitch using normal assumption around argmax from bin indices"""
     # Pad
     padded = torch.nn.functional.pad(

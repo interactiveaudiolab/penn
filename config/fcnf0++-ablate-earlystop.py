@@ -1,5 +1,8 @@
 CONFIG = 'fcnf0++-ablate-earlystop'
 
+# The decoder to use for postprocessing
+DECODER = 'argmax'
+
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = True
 

@@ -1,15 +1,20 @@
+# Evaluation
+# - Redo FCNC0++ timing
+
 # Development
 # - Yapecs passwords
 # - Huggingface models
 # - Reserve module name on PyPi
+# - Figures
+#   - Gershwin
+#     - Fix y-axis frequency bug*****
+#     - Contour****
+#     - Powerpoint***
+#   - Density powerpoint**
+#   - Threshold*
 
 # Paper
-# - Weighted****
-# - Pitch posteriorgram figure (title figure; rhapsody in blue)***
-# - Unvoiced training threshold figure**
-# - Dither figure
 # - Cross-domain
-#   - Figure*
 #   - Text
 
 

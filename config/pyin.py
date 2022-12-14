@@ -1,5 +1,8 @@
 CONFIG = 'pyin'
 
+# The decoder to use for postprocessing
+DECODER = 'argmax'
+
 # Distance between adjacent frames
 HOPSIZE = 160  # samples
 

@@ -260,12 +260,10 @@ def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX):
         # Decode pitch from logits
         if penn.DECODER == 'argmax':
             bins, pitch = penn.decode.argmax(logits)
-        elif penn.DECODER == 'average':
-            bins, pitch = penn.decode.average(logits)
         elif penn.DECODER.startswith('viterbi'):
             bins, pitch = penn.decode.viterbi(logits)
-        elif penn.DECODER == 'weighted':
-            bins, pitch = penn.decode.weighted(logits)
+        elif penn.DECODER == 'locally_normal':
+            bins, pitch = penn.decode.locally_normal(logits)
         else:
             raise ValueError(f'Decoder method {penn.DECODER} is not defined')
 
@@ -290,7 +288,7 @@ def preprocess(
     batch_size=None):
     """Convert audio to model input"""
     # Convert hopsize to samples
-    hopsize = penn.convert.seconds_to_samples(hopsize)
+    hopsize = int(penn.convert.seconds_to_samples(hopsize))
 
     # Resample
     if sample_rate != penn.SAMPLE_RATE:
@@ -307,6 +305,7 @@ def preprocess(
     batch_size = total_frames if batch_size is None else batch_size
 
     # Generate batches
+    # TODO - don't skip last partial batch
     for i in range(0, total_frames, batch_size):
 
         # Size of this batch

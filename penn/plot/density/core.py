@@ -5,38 +5,62 @@ import penn
 
 
 ###############################################################################
+# Constants
+###############################################################################
+
+
+# Amount of bin downsampling
+DOWNSAMPLE_RATE = penn.PITCH_BINS // 90
+
+
+###############################################################################
 # Plot dataset density vs true positive density
 ###############################################################################
 
 
 def to_file(
-    true_datasets,
-    inference_datasets,
+    datasets,
     output_file,
     checkpoint=None,
     gpu=None):
     """Plot ground truth and true positive densities"""
-    # TODO - styling
-    figure = plt.figure()
+    figure, axis = plt.subplots()
+    axis.set_axis_off()
 
     # Plot true data density
-    plt.hist(true_histogram(true_datasets), alpha=0.5)
+    x = torch.arange(0, penn.PITCH_BINS, DOWNSAMPLE_RATE)
+    y_true, y_pred = histograms(datasets, checkpoint, gpu)
+    y_true = y_true.reshape(-1, DOWNSAMPLE_RATE).sum(-1)
+    axis.bar(
+        x,
+        y_true,
+        alpha=0.5,
+        width=DOWNSAMPLE_RATE,
+        label=f'Data distribution')
 
     # Plot our correct guesses
-    plt.hist(
-        inference_histogram(inference_datasets, checkpoint, gpu),
-        alpha=0.5)
+    y_pred = y_pred.reshape(-1, DOWNSAMPLE_RATE).sum(-1)
+    axis.bar(
+        x,
+        y_pred,
+        alpha=0.5,
+        width=DOWNSAMPLE_RATE,
+        label='Inferred distribution')
+
+    # Remove axes
+    # axis.legend()
 
     # Save plot
-    figure.savefig(output_file, bbox_inches='tight', pad_inches=0)
+    figure.savefig(output_file, bbox_inches='tight', pad_inches=0, dpi=300)
 
 
-def inference_histogram(datasets, checkpoint=None, gpu=None):
+def histograms(datasets, checkpoint=None, gpu=None):
     """Get histogram of true positives from datasets and model checkpoint"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
 
     # Initialize counts
-    counts = torch.zeros((penn.PITCH_BINS,))
+    true_result = torch.zeros((penn.PITCH_BINS,))
+    infer_result = torch.zeros((penn.PITCH_BINS,))
 
     # Setup loader
     loader = penn.data.loader(datasets, 'test', gpu)
@@ -69,26 +93,19 @@ def inference_histogram(datasets, checkpoint=None, gpu=None):
             batch_predicted, *_ = penn.postprocess(batch_logits)
 
             # Get true positives
-            true_positives = batch_predicted[
-                batch_voiced & (batch_predicted == batch_bins)]
+            difference = torch.abs(
+                penn.convert.bins_to_cents(batch_predicted) -
+                penn.convert.bins_to_cents(batch_bins))
+            # import pdb; pdb.set_trace()
+            true_all = batch_bins[batch_voiced]
+            true_positives = batch_bins[
+                batch_voiced & (difference < penn.evaluate.metrics.THRESHOLD)]
+            # true_positives = batch_bins[batch_voiced & (batch_predicted == batch_bins)]
 
             # Update counts
-            counts += torch.histogram(
+            true_result += torch.histogram(
+                true_all.cpu().float(), penn.PITCH_BINS)[0]
+            infer_result += torch.histogram(
                 true_positives.cpu().float(), penn.PITCH_BINS)[0]
 
-    return counts
-
-
-def true_histogram(datasets):
-    """Get histogram of ground truth from datasets"""
-    # Initialize counts
-    counts = torch.zeros((penn.PITCH_BINS,))
-
-    # Setup loader
-    loader = penn.data.loader(datasets, 'test')
-
-    # Update counts
-    for _, bins, _, _, _ in loader:
-        counts += torch.histogram(bins.float(), penn.PITCH_BINS)[0]
-
-    return counts
+    return true_result, infer_result
