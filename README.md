@@ -279,43 +279,30 @@ python -m penn.plot.density \
     --gpu <gpu>
 ```
 
-Plot the true positives of a model on a dataset overlayed on the data
-distribution of that dataset and save to a jpg file.
-
-```
-python -m penn.plot.inference \
-    --config <config> \
-    --audio_file <audio_file> \
-    --output_file <output_file> \
-    --checkpoint <checkpoint> \
-    --gpu <gpu>
-```
-
-Plot the monophonic pitch contour of an audio file and save to a jpg file.
+Plot the data distribution and inferred distribution for a given dataset and
+save to a jpg file.
 
 ```
 python -m penn.plot.logits \
     --config <config> \
     --audio_file <audio_file> \
     --output_file <output_file> \
-    --pitch_file <pitch_file> \
     --checkpoint <checkpoint> \
     --gpu <gpu>
 ```
 
-Plot the pitch posteriorgram of an audio file with optional pitch overlay and
-save to a jpg file.
+Plot the pitch posteriorgram of an audio file and save to a jpg file.
 
 ```
 python -m penn.plot.thresholds \
-    --config <config> \
-    --output_file <output_file> \
-    --checkpoint <checkpoint> \
-    --gpu <gpu>
+    --names <names> \
+    --evaluations <evaluations> \
+    --output_file <output_file>
 ```
 
 Plot the periodicity performance (voiced/unvoiced F1) over mdb and ptdb as a
-function of the voiced/unvoiced threshold.
+function of the voiced/unvoiced threshold. `names` are the plot labels to give
+each evaluation. `evaluations` are the names of the evaluations to plot.
 
 
 ## Citation
