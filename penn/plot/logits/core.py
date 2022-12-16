@@ -1,4 +1,3 @@
-import matplotlib
 import matplotlib.pyplot as plt
 import torch
 
@@ -48,7 +47,6 @@ def from_audio(
     # Prepare for plotting
     distributions = distributions.cpu().squeeze(2).T
 
-
     # Setup figure
     figure, axis = plt.subplots(figsize=(18, 2))
 
@@ -57,11 +55,15 @@ def from_audio(
     axis.spines['right'].set_visible(False)
     axis.spines['bottom'].set_visible(False)
     axis.spines['left'].set_visible(False)
-    axis.get_xaxis().set_ticks([])
+    xticks = torch.arange(0, len(logits), int(penn.SAMPLE_RATE / penn.HOPSIZE))
+    xlabels = xticks // 100
+    axis.get_xaxis().set_ticks(xticks, xlabels)
     yticks = torch.linspace(0, penn.PITCH_BINS - 1, 5)
     ylabels = penn.convert.bins_to_frequency(yticks)
     ylabels = ylabels.round().int().tolist()
     axis.get_yaxis().set_ticks(yticks, ylabels)
+    axis.set_xlabel('Time (seconds)')
+    axis.set_ylabel('Frequency (Hz)')
 
     # Plot pitch posteriorgram
     axis.imshow(distributions, aspect='auto', origin='lower')

@@ -55,16 +55,16 @@ def datasets(
         with open(file, 'w') as file:
             json.dump(periodicity_results, file, indent=4)
 
-    # # Perform benchmarking on CPU
-    # benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
+    # Perform benchmarking on CPU
+    benchmark_results = {'cpu': benchmark(datasets, checkpoint)}
 
-    # # PYIN and DIO do not have GPU support
-    # if penn.METHOD not in ['dio', 'pyin']:
-    #     benchmark_results ['gpu'] = benchmark(datasets, checkpoint, gpu)
+    # PYIN and DIO do not have GPU support
+    if penn.METHOD not in ['dio', 'pyin']:
+        benchmark_results ['gpu'] = benchmark(datasets, checkpoint, gpu)
 
-    # # # Write benchmarking information
-    # with open(penn.EVAL_DIR / penn.CONFIG / 'time.json', 'w') as file:
-    #     json.dump(benchmark_results, file, indent=4)
+    # Write benchmarking information
+    with open(penn.EVAL_DIR / penn.CONFIG / 'time.json', 'w') as file:
+        json.dump(benchmark_results, file, indent=4)
 
 
 ###############################################################################

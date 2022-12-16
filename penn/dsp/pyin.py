@@ -148,7 +148,7 @@ def infer(
     fmin=penn.FMIN,
     fmax=penn.FMAX):
     hopsize = int(penn.convert.seconds_to_samples(hopsize))
-    # # Pad audio to center-align frames
+    # Pad audio to center-align frames
     pad = penn.WINDOW_SIZE // 2
     padded = torch.nn.functional.pad(audio, (0, 2 * pad))
 

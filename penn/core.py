@@ -305,7 +305,6 @@ def preprocess(
     batch_size = total_frames if batch_size is None else batch_size
 
     # Generate batches
-    # TODO - don't skip last partial batch
     for i in range(0, total_frames, batch_size):
 
         # Size of this batch

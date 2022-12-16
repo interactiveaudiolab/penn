@@ -116,9 +116,11 @@ def histograms(datasets, checkpoint=None, gpu=None):
             pred_all = batch_predicted[batch_voiced]
 
             # Update counts
-            true_result += torch.histogram(
-                true_all.cpu().float(), penn.PITCH_BINS)[0]
-            infer_result += torch.histogram(
-                pred_all.cpu().float(), penn.PITCH_BINS)[0]
+            indices = torch.arange(
+                penn.PITCH_BINS + 1,
+                dtype=float,
+                device=device)
+            true_result += torch.histogram(true_all.cpu().float(), indices)[0]
+            infer_result += torch.histogram(pred_all.cpu().float(), indices)[0]
 
     return true_result, infer_result, metric()['rpa']
