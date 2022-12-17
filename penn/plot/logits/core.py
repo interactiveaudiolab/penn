@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.pyplot as plt
 import torch
 
@@ -16,6 +17,9 @@ def from_audio(
     gpu=None):
     """Plot logits with pitch overlay"""
     logits = []
+
+    # Change font size
+    matplotlib.rcParams.update({'font.size': 16})
 
     # Preprocess audio
     iterator = penn.preprocess(
@@ -57,7 +61,7 @@ def from_audio(
     axis.spines['left'].set_visible(False)
     xticks = torch.arange(0, len(logits), int(penn.SAMPLE_RATE / penn.HOPSIZE))
     xlabels = xticks // 100
-    axis.get_xaxis().set_ticks(xticks, xlabels)
+    axis.get_xaxis().set_ticks(xticks.tolist(), xlabels.tolist())
     yticks = torch.linspace(0, penn.PITCH_BINS - 1, 5)
     ylabels = penn.convert.bins_to_frequency(yticks)
     ylabels = ylabels.round().int().tolist()

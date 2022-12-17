@@ -1,15 +1,11 @@
 # Development
-# - Yapecs passwords
-# - Huggingface models
-# - Reserve module name on PyPi
-# - Figures
-#   - Gershwin powerpoint***
-#   - Density powerpoint**
+# - Yapecs passwords***
+# - Reserve module name on PyPi**
+# - Huggingface models*
 
 # Paper
-# - Cross-domain
-#   - Text*
-
+# - bios*****
+# - citations****
 
 ###############################################################################
 # Configuration

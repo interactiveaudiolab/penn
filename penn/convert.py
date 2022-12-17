@@ -1,4 +1,3 @@
-import scipy
 import torch
 
 import penn

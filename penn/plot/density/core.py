@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.pyplot as plt
 import torch
 
@@ -24,12 +25,13 @@ def to_file(
     checkpoint=None,
     gpu=None):
     """Plot ground truth and true positive densities"""
+    matplotlib.rcParams.update({'font.size': 20})
     figure, axis = plt.subplots()
     axis.set_axis_off()
 
     # Plot true data density
     x = torch.arange(0, penn.PITCH_BINS, DOWNSAMPLE_RATE)
-    y_true, y_pred, rpa = histograms(datasets, checkpoint, gpu)
+    y_true, y_pred = histograms(datasets, checkpoint, gpu)
     y_true = y_true.reshape(-1, DOWNSAMPLE_RATE).sum(-1)
     axis.bar(
         x,
@@ -54,11 +56,8 @@ def to_file(
         width=DOWNSAMPLE_RATE,
         label='Overlap')
 
-    # Add RPA at bottom of the plot
-    axis.text(int(.45 * penn.PITCH_BINS), y_true.max() // 40, f'{rpa:0.4f}')
-
-    # Remove axes
-    # axis.legend(frameon=False)
+    # Add legend
+    axis.legend(frameon=False, prop={'size': 10})
 
     # Save plot
     figure.savefig(output_file, bbox_inches='tight', pad_inches=0, dpi=300)
@@ -74,9 +73,6 @@ def histograms(datasets, checkpoint=None, gpu=None):
 
     # Setup loader
     loader = penn.data.loader(datasets, 'test', gpu)
-
-    # Setup RPA metric
-    metric = penn.evaluate.metrics.RPA()
 
     # Update counts
     for audio, bins, pitch, voiced, _ in loader:
@@ -106,11 +102,6 @@ def histograms(datasets, checkpoint=None, gpu=None):
             # Get predicted bins
             batch_predicted, batch_decoded, _ = penn.postprocess(batch_logits)
 
-            # Update RPA
-            metric.update(
-                batch_decoded[batch_voiced],
-                batch_pitch[batch_voiced])
-
             # Get true positives
             true_all = batch_bins[batch_voiced]
             pred_all = batch_predicted[batch_voiced]
@@ -118,9 +109,9 @@ def histograms(datasets, checkpoint=None, gpu=None):
             # Update counts
             indices = torch.arange(
                 penn.PITCH_BINS + 1,
-                dtype=float,
+                dtype=torch.float,
                 device=device)
-            true_result += torch.histogram(true_all.cpu().float(), indices)[0]
-            infer_result += torch.histogram(pred_all.cpu().float(), indices)[0]
+            true_result += torch.histogram(true_all.cpu().float(), indices.cpu())[0]
+            infer_result += torch.histogram(pred_all.cpu().float(), indices.cpu())[0]
 
-    return true_result, infer_result, metric()['rpa']
+    return true_result, infer_result
