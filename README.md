@@ -38,8 +38,8 @@ Training, evaluation, and inference of neural pitch and periodicity estimators i
 If you want to perform pitch estimation using a pretrained FCNF0++ model, run
 `pip install penn`
 
-If you want to train or use your own models, clone this repo, navigate to the
-root directory of the folder and run `pip install -e .`
+If you want to train or use your own models, clone this repo and run
+`pip install -r requirements.txt`
 
 
 ## Inference

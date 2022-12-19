@@ -1,8 +1,6 @@
 import json
 import math
 
-import matplotlib.pyplot as plt
-
 import penn
 
 
@@ -13,6 +11,8 @@ import penn
 
 def from_evaluations(names, evaluations, output_file):
     """Plot periodicity thresholds"""
+    import matplotlib.pyplot as plt
+
     # Create plot
     figure, axis = plt.subplots(figsize=(7, 3))
 

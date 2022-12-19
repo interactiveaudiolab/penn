@@ -1,5 +1,3 @@
-import matplotlib
-import matplotlib.pyplot as plt
 import torch
 
 import penn
@@ -25,6 +23,8 @@ def to_file(
     checkpoint=None,
     gpu=None):
     """Plot ground truth and true positive densities"""
+    import matplotlib
+    import matplotlib.pyplot as plt
     matplotlib.rcParams.update({'font.size': 20})
     figure, axis = plt.subplots()
     axis.set_axis_off()
@@ -100,7 +100,7 @@ def histograms(datasets, checkpoint=None, gpu=None):
             batch_logits = penn.infer(frames, checkpoint).detach()
 
             # Get predicted bins
-            batch_predicted, batch_decoded, _ = penn.postprocess(batch_logits)
+            batch_predicted, _, _ = penn.postprocess(batch_logits)
 
             # Get true positives
             true_all = batch_bins[batch_voiced]

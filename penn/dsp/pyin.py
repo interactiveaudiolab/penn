@@ -2,7 +2,6 @@ import functools
 import multiprocessing as mp
 
 import numpy as np
-import scipy
 import torch
 
 import penn
@@ -148,6 +147,8 @@ def infer(
     fmin=penn.FMIN,
     fmax=penn.FMAX):
     hopsize = int(penn.convert.seconds_to_samples(hopsize))
+    import scipy
+
     # Pad audio to center-align frames
     pad = penn.WINDOW_SIZE // 2
     padded = torch.nn.functional.pad(audio, (0, 2 * pad))
@@ -225,6 +226,8 @@ def pyin_helper(
         min_period,
         n_bins_per_semitone):
     import librosa
+    import scipy
+
 
     yin_probs = np.zeros_like(frames)
 

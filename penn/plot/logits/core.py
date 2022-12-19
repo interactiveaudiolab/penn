@@ -1,5 +1,3 @@
-import matplotlib
-import matplotlib.pyplot as plt
 import torch
 
 import penn
@@ -16,6 +14,9 @@ def from_audio(
     checkpoint=penn.DEFAULT_CHECKPOINT,
     gpu=None):
     """Plot logits with pitch overlay"""
+    import matplotlib
+    import matplotlib.pyplot as plt
+
     logits = []
 
     # Change font size
