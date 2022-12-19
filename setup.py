@@ -18,7 +18,7 @@ setup(
         'torch',           # 1.12.1+cu113
         'tqdm',            # 4.64.1
         'torchaudio',      # 0.12.1+cu113
-        'yapecs'           # 0.0.5
+        'yapecs'           # 0.0.6
     ],
     packages=['penn'],
     package_data={'penn': ['assets/*', 'assets/*/*']},
