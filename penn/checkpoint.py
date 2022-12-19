@@ -1,9 +1,23 @@
+import shutil
+
+import huggingface_hub
 import torch
+
+import penn
 
 
 ###############################################################################
 # Checkpoint utilities
 ###############################################################################
+
+
+def download(repo='maxrmorrison/fcnf0-plus-plus', file='fcnf0++.pt'):
+    """Download pretrained model weights from HuggingFace"""
+    # Download model
+    file = huggingface_hub.hf_hub_download(repo_id=repo, filename=file)
+
+    # Copy to checkpoint directory
+    shutil.copyfile(file, penn.DEFAULT_CHECKPOINT)
 
 
 def latest_path(directory, regex='*.pt'):
@@ -22,8 +36,21 @@ def latest_path(directory, regex='*.pt'):
 
 def load(checkpoint_path, model, optimizer=None):
     """Load model checkpoint from file"""
-    # Load checkpoint
-    checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+    try:
+
+        # Load checkpoint
+        checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+
+    except FileNotFoundError as error:
+
+        # Maybe download
+        if checkpoint_path == penn.DEFAULT_CHECKPOINT:
+            download()
+
+            # Load checkpoint
+            checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+        else:
+            raise error
 
     # Restore model weights
     model.load_state_dict(checkpoint_dict['model'])

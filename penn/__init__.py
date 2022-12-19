@@ -1,11 +1,9 @@
 # Development
-# - Yapecs passwords***
 # - Reserve module name on PyPi**
-# - Huggingface models*
 
 # Paper
-# - bios*****
-# - citations****
+# - bios*
+
 
 ###############################################################################
 # Configuration
@@ -17,7 +15,7 @@ from .config import defaults
 
 # Modify configuration
 import yapecs
-yapecs.configure(defaults)
+yapecs.configure('penn', defaults)
 
 # Import configuration parameters
 from .config.defaults import *

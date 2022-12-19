@@ -1,3 +1,6 @@
+MODULE = 'penn'
+
+# Configuration name
 CONFIG = 'dio'
 
 # Distance between adjacent frames

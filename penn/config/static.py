@@ -24,7 +24,7 @@ HOPSIZE_SECONDS = penn.HOPSIZE / penn.SAMPLE_RATE
 PARTITION_DIR = penn.ASSETS_DIR / 'partitions'
 
 # Default checkpoint for generation
-DEFAULT_CHECKPOINT = penn.ASSETS_DIR / 'checkpoints' / 'default.pt'
+DEFAULT_CHECKPOINT = penn.ASSETS_DIR / 'checkpoints' / 'fcnf0++.pt'
 
 
 ###############################################################################

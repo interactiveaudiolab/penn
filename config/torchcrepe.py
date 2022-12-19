@@ -1,5 +1,8 @@
 import torchcrepe
 
+MODULE = 'penn'
+
+# Configuration name
 # Note - We're not actually training torchcrepe. We only use this for
 #        evaluation, and only use the FMIN in order to precisely align
 #        predictions with ground truth pitch bins. The other arguments are

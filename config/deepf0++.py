@@ -1,3 +1,6 @@
+MODULE = 'penn'
+
+# Configuration name
 CONFIG = 'deepf0++'
 
 # The decoder to use for postprocessing

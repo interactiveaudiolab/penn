@@ -1,3 +1,6 @@
+MODULE = 'penn'
+
+# Configuration name
 CONFIG = 'deepf0'
 
 # Batch size

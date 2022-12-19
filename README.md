@@ -66,7 +66,8 @@ gpu = 0
 # on your gpu
 batch_size = 2048
 
-# Select a checkpoint to use for inference
+# Select a checkpoint to use for inference. The default checkpoint will
+# download and use FCNF0++ pretrained on MDB-stem-synth and PTDB
 checkpoint = penn.DEFAULT_CHECKPOINT
 
 # Infer pitch and periodicity
@@ -199,7 +200,7 @@ optional arguments:
     --fmax FMAX
         The maximum frequency allowed in Hz. Defaults to 1984.0 Hz.
     --checkpoint CHECKPOINT
-        The model checkpoint file. Defaults to ./penn/assets/checkpoints/default.pt.
+        The model checkpoint file. Defaults to ./penn/assets/checkpoints/fcnf0++.pt.
     --batch_size BATCH_SIZE
         The number of frames per batch. Defaults to 2048.
     --gpu GPU
@@ -308,7 +309,7 @@ each evaluation. `evaluations` are the names of the evaluations to plot.
 ## Citation
 
 ### IEEE
-M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," IEEE Transactions on Speech and Audio Processing, <month> 2023.
+M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," IEEE Transactions on Speech and Audio Processing, <TODO - month> 2023.
 
 
 ### BibTex

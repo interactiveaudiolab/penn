@@ -1,3 +1,6 @@
+MODULE = 'penn'
+
+# Configuration name
 CONFIG = 'fcnf0++-ablate-inputnorm'
 
 # The decoder to use for postprocessing

@@ -1,3 +1,6 @@
+MODULE = 'penn'
+
+# Configuration name
 CONFIG = 'crepe++'
 
 # The decoder to use for postprocessing

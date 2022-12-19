@@ -7,18 +7,19 @@ with open('README.md') as file:
 
 setup(
     name='penn',
-    description='Pitch Estimating Neural NEtworks (PENNE)',
+    description='Pitch Estimating Neural Networks (PENN)',
     version='0.0.1',
     author='Max Morrison, Caedon Hsieh, Nathan Pruyne, and Bryan Pardo',
     author_email='interactiveaudiolab@gmail.com',
     url='https://github.com/interactiveaudiolab/penn',
     install_requires=[
-        'numpy',       # 1.23.4
-        'scipy',       # 1.9.3
-        'torch',       # 1.12.1+cu113
-        'tqdm',        # 4.64.1
-        'torchaudio',  # 0.12.1+cu113
-        'yapecs'       # TODO
+        'huggingface_hub', # 0.11.1
+        'numpy',           # 1.23.4
+        'scipy',           # 1.9.3
+        'torch',           # 1.12.1+cu113
+        'tqdm',            # 4.64.1
+        'torchaudio',      # 0.12.1+cu113
+        'yapecs'           # 0.0.5
     ],
     packages=['penn'],
     package_data={'penn': ['assets/*', 'assets/*/*']},

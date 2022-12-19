@@ -7,6 +7,8 @@ data/sources/*
 !data/sources/.gitkeep
 eval/*
 !eval/.gitkeep
+penn/assets/checkpoints/*
+!penn/assets/checkpoints/.gitkeep
 results/*
 !results/.gitkeep
 runs/*
