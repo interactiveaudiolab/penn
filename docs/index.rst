@@ -1,4 +1,0 @@
-penn
-=======
-
-.. automodule:: penn
