@@ -1,7 +1,7 @@
 import contextlib
 import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 import torchaudio
@@ -23,6 +23,7 @@ def from_audio(
     fmax: float = penn.FMAX,
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
+    pad: bool = True,
     gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation
 
@@ -33,6 +34,7 @@ def from_audio(
         fmin: The minimum allowable frequency in Hz
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
+        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
         batch_size: The number of frames per batch
         gpu: The index of the gpu to run inference on
 
@@ -45,12 +47,7 @@ def from_audio(
     pitch, periodicity = [], []
 
     # Preprocess audio
-    iterator = preprocess(
-        audio,
-        sample_rate,
-        hopsize,
-        batch_size)
-    for frames, _ in iterator:
+    for frames, _ in preprocess(audio, sample_rate, hopsize, batch_size, pad):
 
         # Copy to device
         with penn.time.timer('copy-to'):
@@ -76,6 +73,7 @@ def from_file(
     fmax: float = penn.FMAX,
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
+    pad: bool = True,
     gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation from audio on disk
 
@@ -86,6 +84,7 @@ def from_file(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
+        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
         gpu: The index of the gpu to run inference on
 
     Returns:
@@ -105,6 +104,7 @@ def from_file(
         fmax,
         checkpoint,
         batch_size,
+        pad,
         gpu)
 
 
@@ -116,6 +116,7 @@ def from_file_to_file(
     fmax: float = penn.FMAX,
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
+    pad: bool = True,
     gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from audio on disk and save
 
@@ -127,6 +128,7 @@ def from_file_to_file(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
+        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
         gpu: The index of the gpu to run inference on
     """
     # Inference
@@ -137,6 +139,7 @@ def from_file_to_file(
         fmax,
         checkpoint,
         batch_size,
+        pad,
         gpu)
 
     # Move to cpu
@@ -156,13 +159,14 @@ def from_file_to_file(
 
 
 def from_files_to_files(
-    files: list[Path],
-    output_prefixes: Optional[list[Path]] = None,
+    files: List[Path],
+    output_prefixes: Optional[List[Path]] = None,
     hopsize: float = penn.HOPSIZE_SECONDS,
     fmin: float = penn.FMIN,
     fmax: float = penn.FMAX,
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
+    pad: bool = True,
     gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
 
@@ -174,6 +178,7 @@ def from_files_to_files(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
+        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
         gpu: The index of the gpu to run inference on
     """
     # Maybe use default output filenames
@@ -195,6 +200,7 @@ def from_files_to_files(
             fmax,
             checkpoint,
             batch_size,
+            pad,
             gpu)
 
 
@@ -285,7 +291,8 @@ def preprocess(
     audio,
     sample_rate,
     hopsize=penn.HOPSIZE_SECONDS,
-    batch_size=None):
+    batch_size=None,
+    pad=True):
     """Convert audio to model input"""
     # Convert hopsize to samples
     hopsize = int(penn.convert.seconds_to_samples(hopsize))
@@ -295,11 +302,14 @@ def preprocess(
         audio = resample(audio, sample_rate)
 
     # Get total number of frames
-    total_frames = int(audio.shape[-1] / hopsize)
 
     # Pad audio
     padding = int((penn.WINDOW_SIZE - hopsize) / 2)
-    audio = torch.nn.functional.pad(audio, (padding, padding))
+    if pad:
+        audio = torch.nn.functional.pad(audio, (padding, padding))
+        total_frames = int(audio.shape[-1] / hopsize)
+    else:
+        total_frames = int((audio.shape[-1] - 2 * padding) / hopsize)
 
     # Default to running all frames in a single batch
     batch_size = total_frames if batch_size is None else batch_size
