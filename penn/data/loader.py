@@ -3,10 +3,10 @@ import torch
 import penn
 
 
-def loader(datasets, partition, gpu=None):
+def loader(datasets, partition, gpu=None, hparam_search=False):
     """Retrieve a data loader"""
     # Create dataset
-    dataset = penn.data.Dataset(datasets, partition)
+    dataset = penn.data.Dataset(datasets, partition, hparam_search)
 
     # Create sampler
     sampler = penn.data.sampler(dataset, partition)
@@ -20,10 +20,10 @@ def loader(datasets, partition, gpu=None):
         else:
             batch_size = penn.BATCH_SIZE
 
+    elif partition == 'test' or (partition == 'valid' and hparam_search):
+        batch_size = 1
     elif partition == 'valid':
         batch_size = penn.BATCH_SIZE
-    elif partition == 'test':
-        batch_size = 1
     else:
         raise ValueError(f'Partition {partition} is not defined')
 

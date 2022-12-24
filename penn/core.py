@@ -301,9 +301,7 @@ def preprocess(
     if sample_rate != penn.SAMPLE_RATE:
         audio = resample(audio, sample_rate)
 
-    # Get total number of frames
-
-    # Pad audio
+    # Pad audio and get total number of frames
     padding = int((penn.WINDOW_SIZE - hopsize) / 2)
     if pad:
         audio = torch.nn.functional.pad(audio, (padding, padding))

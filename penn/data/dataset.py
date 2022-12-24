@@ -21,18 +21,25 @@ class Dataset(torch.utils.data.Dataset):
             The name of the data partition
     """
 
-    def __init__(self, names, partition):
+    def __init__(self, names, partition, hparam_search=False):
         self.partition = partition
+        self.hparam_search = hparam_search
         self.datasets = [Metadata(name, partition) for name in names]
 
     def __getitem__(self, index):
-        if self.partition == 'test':
+        if (
+            self.partition == 'test' or
+            (self.partition == 'valid' and self.hparam_search)
+        ):
             return self.load_inference(index)
         return self.load_training(index)
 
     def __len__(self):
         """Length of the dataset"""
-        if self.partition == 'test':
+        if (
+            self.partition == 'test' or
+            (self.partition == 'valid' and self.hparam_search)
+        ):
             return sum(len(dataset.files) for dataset in self.datasets)
         return sum(dataset.total for dataset in self.datasets)
 

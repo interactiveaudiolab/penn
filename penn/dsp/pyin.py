@@ -22,6 +22,7 @@ def from_audio(
     # Pad
     pad = (
         penn.WINDOW_SIZE - penn.convert.seconds_to_samples(hopsize)) // 2
+    import pdb; pdb.set_trace()
     audio = torch.nn.functional.pad(audio, (pad, pad))
 
     # Infer pitch bin probabilities

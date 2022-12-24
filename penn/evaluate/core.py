@@ -189,11 +189,14 @@ def periodicity_quality(
 
         for dataset in datasets:
 
+            # Setup loader
+            loader = penn.data.loader([dataset], 'valid', gpu, True)
+
             # Iterate over test set
-            for _, _, _, voiced, stem in penn.data.loader([dataset], 'test'):
+            for _, _, _, voiced, stem in loader:
 
                 # Load logits
-                logits = torch.load(directory / dataset / f'{stem}-logits.pt')
+                logits = torch.load(directory / dataset / f'{stem[0]}-logits.pt')
 
                 # Decode periodicity
                 periodicity = periodicity_fn(logits.to(device)).T
@@ -403,24 +406,3 @@ def pitch_quality(
         json.dump(overall, file, indent=4)
     with open(directory / 'granular.json', 'w') as file:
         json.dump(granular, file, indent=4)
-
-
-###############################################################################
-# Utilities
-###############################################################################
-
-
-@contextlib.contextmanager
-def set_num_threads(threads):
-    """Set the number of threads used for PyTorch inference"""
-    # Cache current thread count
-    prev_threads = torch.get_num_threads()
-
-    # Change count
-    torch.set_num_threads(threads)
-
-    # Execute user code
-    yield
-
-    # Change back
-    torch.set_num_threads(prev_threads)
