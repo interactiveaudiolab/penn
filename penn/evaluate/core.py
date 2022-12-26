@@ -1,4 +1,3 @@
-import contextlib
 import json
 import math
 import tempfile
@@ -25,11 +24,11 @@ def datasets(
     directory = penn.EVAL_DIR / penn.CONFIG
     directory.mkdir(exist_ok=True, parents=True)
 
+    # Evaluate pitch estimation quality and save logits
+    pitch_quality(directory, datasets, checkpoint, gpu)
+
     with tempfile.TemporaryDirectory() as directory:
         directory = Path(directory)
-
-        # Evaluate pitch estimation quality and save logits
-        pitch_quality(directory, datasets, checkpoint, gpu)
 
         # Get periodicity methods
         if penn.METHOD == 'dio':
@@ -168,13 +167,96 @@ def benchmark(
 
 
 def periodicity_quality(
-    directory,
-    periodicity_fn,
-    datasets=penn.EVALUATION_DATASETS,
-    steps=8,
-    gpu=None):
+        directory,
+        periodicity_fn,
+        datasets=penn.EVALUATION_DATASETS,
+        steps=8,
+        checkpoint=penn.DEFAULT_CHECKPOINT,
+        gpu=None):
     """Fine-grained periodicity estimation quality evaluation"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
+
+    # Evaluate each dataset
+    for dataset in datasets:
+
+        # Create output directory
+        (directory / dataset).mkdir(exist_ok=True, parents=True)
+
+        # Setup dataset
+        iterator = penn.iterator(
+            penn.data.loader([dataset], 'valid', gpu, True),
+            f'Evaluating {penn.CONFIG} periodicity quality on {dataset}')
+
+        # Iterate over test set
+        for audio, _, _, voiced, stem in iterator:
+
+            if penn.METHOD == 'penn':
+
+                # Accumulate logits
+                logits = []
+
+                # Preprocess audio
+                batch_size = \
+                    None if gpu is None else penn.EVALUATION_BATCH_SIZE
+                iterator = penn.preprocess(
+                    audio[0],
+                    penn.SAMPLE_RATE,
+                    batch_size=batch_size)
+                for frames in iterator:
+
+                    # Copy to device
+                    frames = frames.to(device)
+
+                    # Infer
+                    batch_logits = penn.infer(frames, checkpoint).detach()
+
+                    # Accumulate logits
+                    logits.append(batch_logits)
+                logits = torch.cat(logits)
+
+            elif penn.METHOD == 'torchcrepe':
+
+                import torchcrepe
+
+                # Accumulate logits
+                logits = []
+
+                # Postprocessing breaks gradients, so just don't compute them
+                with torch.no_grad():
+
+                    # Preprocess audio
+                    batch_size = \
+                        None if gpu is None else penn.EVALUATION_BATCH_SIZE
+                    pad = (penn.WINDOW_SIZE - penn.HOPSIZE) // 2
+                    generator = torchcrepe.preprocess(
+                        torch.nn.functional.pad(audio, (pad, pad))[0],
+                        penn.SAMPLE_RATE,
+                        penn.HOPSIZE,
+                        batch_size,
+                        device,
+                        False)
+                    for frames in generator:
+
+                        # Infer independent probabilities for each pitch bin
+                        batch_logits = torchcrepe.infer(
+                            frames.to(device))[:, :, None]
+
+                        # Accumulate logits
+                        logits.append(batch_logits)
+                    logits = torch.cat(logits)
+
+            elif penn.METHOD == 'pyin':
+
+                # Pad
+                pad = (penn.WINDOW_SIZE - penn.HOPSIZE) // 2
+                audio = torch.nn.functional.pad(audio, (pad, pad))
+
+                # Infer
+                logits = penn.dsp.pyin.infer(audio[0])
+
+            # Save to temporary storage
+            file = directory / dataset / f'{stem[0]}-logits.pt'
+            torch.save(logits, file)
 
     # Default values
     best_threshold = .5
@@ -254,9 +336,6 @@ def pitch_quality(
 
     # Evaluate each dataset
     for dataset in datasets:
-
-        # Create output directory
-        (directory / dataset).mkdir(exist_ok=True, parents=True)
 
         # Reset dataset metrics
         dataset_metrics.reset()
@@ -389,11 +468,6 @@ def pitch_quality(
                 file_metrics.update(*args)
                 dataset_metrics.update(*args)
                 aggregate_metrics.update(*args)
-
-            # Maybe save logits for periodicity evaluation
-            if penn.METHOD != 'dio':
-                file = directory / dataset / f'{stem}-logits.pt'
-                torch.save(logits.cpu(), file)
 
             # Copy results
             granular[f'{dataset}/{stem[0]}'] = file_metrics()

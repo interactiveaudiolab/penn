@@ -20,9 +20,8 @@ def from_audio(
     fmax=penn.FMAX):
     """Estimate pitch and periodicity with pyin"""
     # Pad
-    pad = (
+    pad = int(
         penn.WINDOW_SIZE - penn.convert.seconds_to_samples(hopsize)) // 2
-    import pdb; pdb.set_trace()
     audio = torch.nn.functional.pad(audio, (pad, pad))
 
     # Infer pitch bin probabilities
