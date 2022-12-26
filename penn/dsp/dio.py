@@ -82,7 +82,7 @@ def from_file_to_file(
         # Save pitch
         torch.save(results[0], f'{output_prefix}-pitch.pt')
 
-        # Mabe save periodicity
+        # Maybe save periodicity
         if len(results) > 1:
             torch.save(results[1], f'{output_prefix}-periodicity.pt')
 

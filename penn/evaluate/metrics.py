@@ -139,7 +139,7 @@ class F1:
     def update(self, periodicity, voiced):
         iterator = zip(self.thresholds, self.precision, self.recall)
         for threshold, precision, recall in iterator:
-            predicted = periodicity > threshold
+            predicted = penn.voicing.threshold(periodicity, threshold)
             precision.update(predicted, voiced)
             recall.update(predicted, voiced)
 

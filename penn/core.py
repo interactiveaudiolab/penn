@@ -374,6 +374,21 @@ def inference_context(model):
     model.train()
 
 
+def interpolate(x, xp, fp):
+    """1D linear interpolation for monotonically increasing sample points"""
+    m = (fp[:, 1:] - fp[:, :-1]) / (xp[:, 1:] - xp[:, :-1])
+    b = fp[:, :-1] - (m.mul(xp[:, :-1]))
+
+    indicies = torch.sum(torch.ge(x[:, :, None], xp[:, None, :]), -1) - 1
+    indicies = torch.clamp(indicies, 0, m.shape[-1] - 1)
+
+    line_idx = torch.linspace(
+        0, indicies.shape[0], 1, device=indicies.device).to(torch.long)
+    line_idx = line_idx.expand(indicies.shape)
+
+    return m[line_idx, indicies].mul(x) + b[line_idx, indicies]
+
+
 def iterator(iterable, message, initial=0, total=None):
     """Create a tqdm iterator"""
     total = len(iterable) if total is None else total

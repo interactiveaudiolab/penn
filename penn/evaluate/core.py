@@ -202,7 +202,7 @@ def periodicity_quality(
                     audio[0],
                     penn.SAMPLE_RATE,
                     batch_size=batch_size)
-                for frames in iterator:
+                for frames, _ in iterator:
 
                     # Copy to device
                     frames = frames.to(device)
