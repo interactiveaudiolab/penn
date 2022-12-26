@@ -18,11 +18,11 @@ def interpolate(pitch, periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
 
     # Interpolate
     pitch[~voiced] = penn.interpolate(
-        pitch,
-        torch.where(~voiced),
-        torch.where(voiced))
+        torch.where(~voiced[0])[0][None],
+        torch.where(voiced[0])[0][None],
+        pitch[voiced][None])
 
-    return 2 ** pitch, voiced
+    return 2 ** pitch
 
 
 def threshold(periodicity, value):
