@@ -110,6 +110,7 @@ def benchmark(
                 output_prefixes,
                 checkpoint=checkpoint,
                 batch_size=batch_size,
+                pad=True,
                 gpu=gpu)
 
         elif penn.METHOD == 'torchcrepe':

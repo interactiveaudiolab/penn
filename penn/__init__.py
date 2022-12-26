@@ -34,4 +34,5 @@ from . import partition
 from . import periodicity
 from . import plot
 from . import train
+from . import voicing
 from . import write

@@ -16,15 +16,16 @@ import penn
 
 
 def from_audio(
-    audio: torch.Tensor,
-    sample_rate: int,
-    hopsize: float = penn.HOPSIZE_SECONDS,
-    fmin: float = penn.FMIN,
-    fmax: float = penn.FMAX,
-    checkpoint: Path = penn.DEFAULT_CHECKPOINT,
-    batch_size: Optional[int] = None,
-    pad: bool = True,
-    gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        audio: torch.Tensor,
+        sample_rate: int,
+        hopsize: float = penn.HOPSIZE_SECONDS,
+        fmin: float = penn.FMIN,
+        fmax: float = penn.FMAX,
+        checkpoint: Path = penn.DEFAULT_CHECKPOINT,
+        batch_size: Optional[int] = None,
+        pad: bool = False,
+        interp_unvoiced_at: Optional[float] = None,
+        gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation
 
     Args:
@@ -34,8 +35,9 @@ def from_audio(
         fmin: The minimum allowable frequency in Hz
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
-        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
         batch_size: The number of frames per batch
+        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
 
     Returns:
@@ -63,18 +65,28 @@ def from_audio(
             periodicity.append(result[2])
 
     # Concatenate results
-    return torch.cat(pitch, 1), torch.cat(periodicity, 1)
+    pitch, periodicity = torch.cat(pitch, 1), torch.cat(periodicity, 1)
+
+    # Maybe interpolate unvoiced regions
+    if interp_unvoiced_at is not None:
+        pitch = penn.voicing.interpolate(
+            pitch,
+            periodicity,
+            interp_unvoiced_at)
+
+    return pitch, periodicity
 
 
 def from_file(
-    file: Path,
-    hopsize: float = penn.HOPSIZE_SECONDS,
-    fmin: float = penn.FMIN,
-    fmax: float = penn.FMAX,
-    checkpoint: Path = penn.DEFAULT_CHECKPOINT,
-    batch_size: Optional[int] = None,
-    pad: bool = True,
-    gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        file: Path,
+        hopsize: float = penn.HOPSIZE_SECONDS,
+        fmin: float = penn.FMIN,
+        fmax: float = penn.FMAX,
+        checkpoint: Path = penn.DEFAULT_CHECKPOINT,
+        batch_size: Optional[int] = None,
+        pad: bool = False,
+        interp_unvoiced_at: Optional[float] = None,
+        gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation from audio on disk
 
     Args:
@@ -85,6 +97,7 @@ def from_file(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
 
     Returns:
@@ -105,19 +118,21 @@ def from_file(
         checkpoint,
         batch_size,
         pad,
+        interp_unvoiced_at,
         gpu)
 
 
 def from_file_to_file(
-    file: Path,
-    output_prefix: Optional[Path] = None,
-    hopsize: float = penn.HOPSIZE_SECONDS,
-    fmin: float = penn.FMIN,
-    fmax: float = penn.FMAX,
-    checkpoint: Path = penn.DEFAULT_CHECKPOINT,
-    batch_size: Optional[int] = None,
-    pad: bool = True,
-    gpu: Optional[int] = None) -> None:
+        file: Path,
+        output_prefix: Optional[Path] = None,
+        hopsize: float = penn.HOPSIZE_SECONDS,
+        fmin: float = penn.FMIN,
+        fmax: float = penn.FMAX,
+        checkpoint: Path = penn.DEFAULT_CHECKPOINT,
+        batch_size: Optional[int] = None,
+        pad: bool = False,
+        interp_unvoiced_at: Optional[float] = None,
+        gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from audio on disk and save
 
     Args:
@@ -129,6 +144,7 @@ def from_file_to_file(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
     """
     # Inference
@@ -140,6 +156,7 @@ def from_file_to_file(
         checkpoint,
         batch_size,
         pad,
+        interp_unvoiced_at,
         gpu)
 
     # Move to cpu
@@ -166,7 +183,8 @@ def from_files_to_files(
     fmax: float = penn.FMAX,
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
-    pad: bool = True,
+    pad: bool = False,
+    interp_unvoiced_at: Optional[float] = None,
     gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
 
@@ -179,6 +197,7 @@ def from_files_to_files(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
     """
     # Maybe use default output filenames
@@ -201,6 +220,7 @@ def from_files_to_files(
             checkpoint,
             batch_size,
             pad,
+            interp_unvoiced_at,
             gpu)
 
 
@@ -292,7 +312,7 @@ def preprocess(
     sample_rate,
     hopsize=penn.HOPSIZE_SECONDS,
     batch_size=None,
-    pad=True):
+    pad=False):
     """Convert audio to model input"""
     # Convert hopsize to samples
     hopsize = int(penn.convert.seconds_to_samples(hopsize))

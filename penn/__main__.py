@@ -61,6 +61,16 @@ def parse_args():
             'The number of frames per batch. '
             f'Defaults to {penn.EVALUATION_BATCH_SIZE}.'))
     parser.add_argument(
+        '--pad',
+        action='store_true',
+        help=(
+            'If true, centers frames at '
+            'hopsize / 2, 3 * hopsize / 2, 5 * ...'))
+    parser.add_argument(
+        '--interp_unvoiced_at',
+        type=float,
+        help='Specifies voicing threshold for interpolation')
+    parser.add_argument(
         '--gpu',
         type=int,
         help='The index of the gpu to perform inference on. Defaults to CPU.')
