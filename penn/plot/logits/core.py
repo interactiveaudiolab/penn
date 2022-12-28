@@ -26,7 +26,8 @@ def from_audio(
     iterator = penn.preprocess(
         audio,
         sample_rate,
-        batch_size=penn.EVALUATION_BATCH_SIZE)
+        batch_size=penn.EVALUATION_BATCH_SIZE,
+        pad=True)
     for frames, _ in iterator:
 
         # Copy to device

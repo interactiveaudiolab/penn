@@ -47,6 +47,7 @@ def datasets(
                 directory,
                 val,
                 datasets,
+                checkpoint=checkpoint,
                 gpu=gpu)
 
         # Write periodicity results
@@ -202,7 +203,8 @@ def periodicity_quality(
                 iterator = penn.preprocess(
                     audio[0],
                     penn.SAMPLE_RATE,
-                    batch_size=batch_size)
+                    batch_size=batch_size,
+                    pad=True)
                 for frames, _ in iterator:
 
                     # Copy to device
@@ -363,7 +365,8 @@ def pitch_quality(
                 iterator = penn.preprocess(
                     audio[0],
                     penn.SAMPLE_RATE,
-                    batch_size=batch_size)
+                    batch_size=batch_size,
+                    pad=True)
                 for i, (frames, size) in enumerate(iterator):
 
                     # Copy to device
