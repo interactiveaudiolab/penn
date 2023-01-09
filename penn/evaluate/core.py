@@ -215,6 +215,7 @@ def periodicity_quality(
 
                     # Accumulate logits
                     logits.append(batch_logits)
+
                 logits = torch.cat(logits)
 
             elif penn.METHOD == 'torchcrepe':

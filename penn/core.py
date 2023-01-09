@@ -321,13 +321,13 @@ def preprocess(
     if sample_rate != penn.SAMPLE_RATE:
         audio = resample(audio, sample_rate)
 
-    # Pad audio and get total number of frames
+    # Maybe pad audio
     padding = int((penn.WINDOW_SIZE - hopsize) / 2)
     if pad:
         audio = torch.nn.functional.pad(audio, (padding, padding))
-        total_frames = int(audio.shape[-1] / hopsize)
-    else:
-        total_frames = int((audio.shape[-1] - 2 * padding) / hopsize)
+
+    # Get total number of frames
+    total_frames = int((audio.shape[-1] - 2 * padding) / hopsize)
 
     # Default to running all frames in a single batch
     batch_size = total_frames if batch_size is None else batch_size
@@ -341,10 +341,24 @@ def preprocess(
         # Batch indices
         start = i * hopsize
         end = start + int((batch - 1) * hopsize) + penn.WINDOW_SIZE
+        end = min(end, audio.shape[-1])
+        batch_audio = audio[:, start:end]
+
+        # Maybe pad to a single frame
+        if end - start < penn.WINDOW_SIZE:
+            padding = penn.WINDOW_SIZE - (end - start)
+
+            # Handle multiple of hopsize
+            remainder = (end - start) % penn.HOPSIZE
+            if remainder:
+                padding += end - start - penn.HOPSIZE
+
+            # Pad
+            batch_audio = torch.nn.functional.pad(batch_audio, (0, padding))
 
         # Slice and chunk audio
         frames = torch.nn.functional.unfold(
-            audio[:, None, None, start:end],
+            batch_audio[:, None, None],
             kernel_size=(1, penn.WINDOW_SIZE),
             stride=(1, hopsize)).permute(2, 0, 1)
 
