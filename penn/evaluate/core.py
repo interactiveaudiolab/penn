@@ -40,7 +40,7 @@ def datasets(
                 'entropy': penn.periodicity.entropy,
                 'max': penn.periodicity.max}
 
-        # Use saved logits to further evaluate periodicity
+        # Evaluate periodicity
         periodicity_results = {}
         for key, val in periodicity_fns.items():
             periodicity_results[key] = periodicity_quality(
@@ -189,7 +189,7 @@ def periodicity_quality(
             penn.data.loader([dataset], 'valid', gpu, True),
             f'Evaluating {penn.CONFIG} periodicity quality on {dataset}')
 
-        # Iterate over test set
+        # Iterate over validation set
         for audio, _, _, voiced, stem in iterator:
 
             if penn.METHOD == 'penn':
@@ -278,7 +278,7 @@ def periodicity_quality(
             # Setup loader
             loader = penn.data.loader([dataset], 'valid', gpu, True)
 
-            # Iterate over test set
+            # Iterate over validation set
             for _, _, _, voiced, stem in loader:
 
                 # Load logits
@@ -309,8 +309,91 @@ def periodicity_quality(
         stepsize /= 2
         step += 1
 
-    # Return threshold and corresponding F1 score
-    return {'threshold': best_threshold, 'f1': best_value}
+    # Setup metrics with optimal threshold
+    metrics = penn.evaluate.metrics.F1([best_threshold])
+
+    # Setup test loader
+    loader = penn.data.loader(datasets, 'test', gpu)
+
+    # Iterate over test set
+    for audio, _, _, voiced, stem in loader:
+
+        if penn.METHOD == 'penn':
+
+            # Accumulate logits
+            logits = []
+
+            # Preprocess audio
+            batch_size = \
+                None if gpu is None else penn.EVALUATION_BATCH_SIZE
+            iterator = penn.preprocess(
+                audio[0],
+                penn.SAMPLE_RATE,
+                batch_size=batch_size,
+                pad=True)
+            for frames, _ in iterator:
+
+                # Copy to device
+                frames = frames.to(device)
+
+                # Infer
+                batch_logits = penn.infer(frames, checkpoint).detach()
+
+                # Accumulate logits
+                logits.append(batch_logits)
+
+            logits = torch.cat(logits)
+
+        elif penn.METHOD == 'torchcrepe':
+
+            import torchcrepe
+
+            # Accumulate logits
+            logits = []
+
+            # Postprocessing breaks gradients, so just don't compute them
+            with torch.no_grad():
+
+                # Preprocess audio
+                batch_size = \
+                    None if gpu is None else penn.EVALUATION_BATCH_SIZE
+                pad = (penn.WINDOW_SIZE - penn.HOPSIZE) // 2
+                generator = torchcrepe.preprocess(
+                    torch.nn.functional.pad(audio, (pad, pad))[0],
+                    penn.SAMPLE_RATE,
+                    penn.HOPSIZE,
+                    batch_size,
+                    device,
+                    False)
+                for frames in generator:
+
+                    # Infer independent probabilities for each pitch bin
+                    batch_logits = torchcrepe.infer(
+                        frames.to(device))[:, :, None]
+
+                    # Accumulate logits
+                    logits.append(batch_logits)
+                logits = torch.cat(logits)
+
+        elif penn.METHOD == 'pyin':
+
+            # Pad
+            pad = (penn.WINDOW_SIZE - penn.HOPSIZE) // 2
+            audio = torch.nn.functional.pad(audio, (pad, pad))
+
+            # Infer
+            logits = penn.dsp.pyin.infer(audio[0]).to(device)
+
+        # Decode periodicity
+        periodicity = periodicity_fn(logits).T
+
+        # Update metrics
+        metrics.update(periodicity, voiced.to(device))
+
+    # Get F1 score on test set
+    score = metrics()[f'f1-{best_threshold:.6f}']
+
+    return {'threshold': best_threshold, 'f1': score}
 
 
 def pitch_quality(
