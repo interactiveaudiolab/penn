@@ -70,6 +70,12 @@ batch_size = 2048
 # download and use FCNF0++ pretrained on MDB-stem-synth and PTDB
 checkpoint = penn.DEFAULT_CHECKPOINT
 
+# Centers frames at hopsize / 2, 3 * hopsize / 2, 5 * hopsize / 2, ...
+pad = True
+
+# Linearly interpolate unvoiced regions below a periodicity threshold
+interp_unvoiced_at = penn.DEFAULT_VOICING_THRESHOLD
+
 # Infer pitch and periodicity
 pitch, periodicity = penn.from_audio(
     audio,
@@ -79,6 +85,8 @@ pitch, periodicity = penn.from_audio(
     fmax=fmax,
     checkpoint=checkpoint,
     batch_size=batch_size,
+    pad=pad,
+    interp_unvoiced_at=interp_unvoiced_at,
     gpu=gpu)
 ```
 
@@ -98,6 +106,8 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
+    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 
 Returns:
@@ -121,6 +131,8 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
+    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 
 Returns:
@@ -143,6 +155,8 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
+    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 """
 ```
@@ -161,6 +175,8 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
+    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 """
 ```
@@ -179,6 +195,8 @@ python -m penn
     [--fmax FMAX]
     [--checkpoint CHECKPOINT]
     [--batch_size BATCH_SIZE]
+    [--pad]
+    [--interp_unvoiced_at INTERP_UNVOICED_AT]
     [--gpu GPU]
 
 required arguments:
@@ -203,6 +221,10 @@ optional arguments:
         The model checkpoint file. Defaults to ./penn/assets/checkpoints/fcnf0++.pt.
     --batch_size BATCH_SIZE
         The number of frames per batch. Defaults to 2048.
+    --pad
+        If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+  --interp_unvoiced_at INTERP_UNVOICED_AT
+        Specifies voicing threshold for interpolation. Defaults to 0.1625.
     --gpu GPU
         The index of the gpu to perform inference on. Defaults to CPU.
 ```
@@ -309,7 +331,7 @@ each evaluation. `evaluations` are the names of the evaluations to plot.
 ## Citation
 
 ### IEEE
-M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," IEEE Transactions on Speech and Audio Processing, <TODO - month> 2023.
+M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," IEEE Transactions on Audio, Speech, and Language Processing, <TODO - month> 2023.
 
 
 ### BibTex
@@ -318,7 +340,7 @@ M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and P
 @inproceedings{morrison2023cross,
     title={Cross-domain Neural Pitch and Periodicity Estimation},
     author={Morrison, Max and Hsieh, Caedon and Pruyne, Nathan and Pardo, Bryan},
-    booktitle={IEEE Transactions on Speech and Audio Processing},
+    booktitle={IEEE Transactions on Audio, Speech, and Language Processing},
     month={TODO},
     year={2023}
 }

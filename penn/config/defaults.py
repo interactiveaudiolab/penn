@@ -108,9 +108,6 @@ LOG_STEPS = 64
 # Method to use for periodicity extraction
 PERIODICITY = 'entropy'
 
-# The threshold above which a frame is considered voiced
-VOICED_THRESHOLD = .171875
-
 
 ###############################################################################
 # Model parameters
@@ -139,8 +136,7 @@ NORMALIZATION = 'layer'
 BATCH_SIZE = 128
 
 # Default threshold for voiced/unvoiced classification
-# TODO - update with FCNF0++ optimal threshold
-DEFAULT_VOICING_THRESHOLD = .17
+DEFAULT_VOICING_THRESHOLD = .1625
 
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = False

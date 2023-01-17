@@ -24,7 +24,7 @@ def from_audio(
         checkpoint: Path = penn.DEFAULT_CHECKPOINT,
         batch_size: Optional[int] = None,
         pad: bool = False,
-        interp_unvoiced_at: Optional[float] = None,
+        interp_unvoiced_at: Optional[float] = penn.DEFAULT_VOICING_THRESHOLD,
         gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation
 
@@ -85,7 +85,7 @@ def from_file(
         checkpoint: Path = penn.DEFAULT_CHECKPOINT,
         batch_size: Optional[int] = None,
         pad: bool = False,
-        interp_unvoiced_at: Optional[float] = None,
+        interp_unvoiced_at: Optional[float] = penn.DEFAULT_VOICING_THRESHOLD,
         gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation from audio on disk
 
@@ -131,7 +131,7 @@ def from_file_to_file(
         checkpoint: Path = penn.DEFAULT_CHECKPOINT,
         batch_size: Optional[int] = None,
         pad: bool = False,
-        interp_unvoiced_at: Optional[float] = None,
+        interp_unvoiced_at: Optional[float] = penn.DEFAULT_VOICING_THRESHOLD,
         gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from audio on disk and save
 
@@ -184,7 +184,7 @@ def from_files_to_files(
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
     pad: bool = False,
-    interp_unvoiced_at: Optional[float] = None,
+    interp_unvoiced_at: Optional[float] = penn.DEFAULT_VOICING_THRESHOLD,
     gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
 

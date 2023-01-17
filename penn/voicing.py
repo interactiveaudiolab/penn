@@ -25,6 +25,6 @@ def interpolate(pitch, periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
     return 2 ** pitch
 
 
-def threshold(periodicity, value):
+def threshold(periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
     """Threshold periodicity to produce voiced/unvoiced classifications"""
     return periodicity > value
