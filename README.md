@@ -28,7 +28,6 @@ Training, evaluation, and inference of neural pitch and periodicity estimators i
     * [Monitor](#monitor)
 - [Evaluation](#evaluation)
     * [Evaluate](#evaluate)
-    * [Analyze](#analyze)
     * [Plot](#plot)
 - [Citation](#citation)
 
