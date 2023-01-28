@@ -15,6 +15,7 @@ setup(
     install_requires=[
         'huggingface_hub', # 0.11.1
         'numpy',           # 1.23.4
+        'tensorboard',     # 2.11.0
         'torch',           # 1.12.1+cu113
         'tqdm',            # 4.64.1
         'torchaudio',      # 0.12.1+cu113
