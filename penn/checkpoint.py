@@ -16,6 +16,9 @@ def download(repo='maxrmorrison/fcnf0-plus-plus', file='fcnf0++.pt'):
     # Download model
     file = huggingface_hub.hf_hub_download(repo_id=repo, filename=file)
 
+    # Make sure folder exists
+    penn.DEFAULT_CHECKPOINT.parent.mkdir(exist_ok=True, parents=True)
+
     # Copy to checkpoint directory
     shutil.copyfile(file, penn.DEFAULT_CHECKPOINT)
 

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 with open('README.md') as file:
@@ -20,7 +20,7 @@ setup(
         'torchaudio',      # 0.12.1+cu113
         'yapecs'           # 0.0.6
     ],
-    packages=['penn'],
+    packages=find_packages(),
     package_data={'penn': ['assets/*', 'assets/*/*']},
     long_description=long_description,
     long_description_content_type='text/markdown',
