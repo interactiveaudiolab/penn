@@ -2,7 +2,7 @@
 # "Cross-domain Neural Pitch and Periodicity Estimation"
 
 # Args
-# $1 - list of indices of GPUs to use
+# $1 - index of GPU to use
 
 # Download datasets
 python -m penn.data.download
@@ -14,10 +14,10 @@ python -m penn.train --config config/crepe.py --gpus $1
 python -m penn.train --config config/deepf0.py --gpus $1
 
 # Evaluate baselines at 16 kHz
-python -m penn.evaluate --gpu 0 --config config/dio.py
-python -m penn.evaluate --gpu 0 --config config/pyin.py
+python -m penn.evaluate --gpu $1 --config config/dio.py
+python -m penn.evaluate --gpu $1 --config config/pyin.py
 python -m penn.evaluate \
-    --gpu 0 \
+    --gpu $1 \
     --method torchcrepe \
     --config config/torchcrepe.py
 
