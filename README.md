@@ -7,7 +7,7 @@
 
 </div>
 
-Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch. Includes the original code for the paper "Cross-domain Neural Pitch and Periodicity Estimation".
+Training, evaluation, and inference of neural pitch and periodicity estimators in PyTorch. Includes the original code for the paper ["Cross-domain Neural Pitch and Periodicity Estimation"](https://arxiv.org/abs/2301.12258).
 
 
 ## Table of contents
