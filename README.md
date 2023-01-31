@@ -330,7 +330,7 @@ each evaluation. `evaluations` are the names of the evaluations to plot.
 ## Citation
 
 ### IEEE
-M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," IEEE Transactions on Audio, Speech, and Language Processing, <TODO - month> 2023.
+M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," Submitted to IEEE Transactions on Audio, Speech, and Language Processing, <TODO - month> 2023.
 
 
 ### BibTex
@@ -339,7 +339,7 @@ M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and P
 @inproceedings{morrison2023cross,
     title={Cross-domain Neural Pitch and Periodicity Estimation},
     author={Morrison, Max and Hsieh, Caedon and Pruyne, Nathan and Pardo, Bryan},
-    booktitle={IEEE Transactions on Audio, Speech, and Language Processing},
+    booktitle={Submitted to IEEE Transactions on Audio, Speech, and Language Processing},
     month={TODO},
     year={2023}
 }
