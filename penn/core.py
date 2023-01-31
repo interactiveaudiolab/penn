@@ -410,7 +410,9 @@ def inference_context(model):
 
 def interpolate(x, xp, fp):
     """1D linear interpolation for monotonically increasing sample points"""
-    # Handle a single voiced frame
+    # Handle edge cases
+    if xp.shape[-1] == 0:
+        return x
     if xp.shape[-1] == 1:
         return torch.full(
             x.shape,

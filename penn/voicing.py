@@ -13,6 +13,10 @@ def interpolate(pitch, periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
     # Threshold periodicity
     voiced = threshold(periodicity, value)
 
+    # Handle no voiced frames
+    if not voiced.any():
+        return pitch
+
     # Pitch is linear in base-2 log-space
     pitch = torch.log2(pitch)
 
