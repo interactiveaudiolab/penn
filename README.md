@@ -72,8 +72,8 @@ checkpoint = penn.DEFAULT_CHECKPOINT
 # Centers frames at hopsize / 2, 3 * hopsize / 2, 5 * hopsize / 2, ...
 pad = True
 
-# Linearly interpolate unvoiced regions below a periodicity threshold
-interp_unvoiced_at = penn.DEFAULT_VOICING_THRESHOLD
+# (Optional) Linearly interpolate unvoiced regions below periodicity threshold
+interp_unvoiced_at = .065
 
 # Infer pitch and periodicity
 pitch, periodicity = penn.from_audio(

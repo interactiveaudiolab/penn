@@ -69,7 +69,6 @@ def parse_args():
     parser.add_argument(
         '--interp_unvoiced_at',
         type=float,
-        default=penn.DEFAULT_VOICING_THRESHOLD,
         help='Specifies voicing threshold for interpolation')
     parser.add_argument(
         '--gpu',

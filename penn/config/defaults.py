@@ -135,9 +135,6 @@ NORMALIZATION = 'layer'
 # Batch size
 BATCH_SIZE = 128
 
-# Default threshold for voiced/unvoiced classification
-DEFAULT_VOICING_THRESHOLD = .05
-
 # Whether to stop training when validation loss stops improving
 EARLY_STOPPING = False
 

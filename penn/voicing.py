@@ -8,7 +8,7 @@ import penn
 ###############################################################################
 
 
-def interpolate(pitch, periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
+def interpolate(pitch, periodicity, value):
     """Fill unvoiced regions via linear interpolation"""
     # Threshold periodicity
     voiced = threshold(periodicity, value)
@@ -29,6 +29,6 @@ def interpolate(pitch, periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
     return 2 ** pitch
 
 
-def threshold(periodicity, value=penn.DEFAULT_VOICING_THRESHOLD):
+def threshold(periodicity, value):
     """Threshold periodicity to produce voiced/unvoiced classifications"""
     return periodicity > value
