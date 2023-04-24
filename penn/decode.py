@@ -36,7 +36,8 @@ def viterbi(logits):
 
         # Viterbi REQUIRES a categorical distribution, even if the loss was BCE
         distributions = torch.nn.functional.softmax(logits, dim=1)
-        distributions = distributions.permute(2, 1, 0).numpy()
+        distributions = distributions.permute(2, 1, 0)
+        distributions = distributions.to(device=torch.device('cpu'), dtype=torch.float32).numpy()
 
     # Cache viterbi probabilities
     if not hasattr(viterbi, 'transition'):
@@ -44,7 +45,7 @@ def viterbi(logits):
         bins_per_octave = penn.OCTAVE / penn.CENTS_PER_BIN
         max_octaves_per_frame = \
             penn.MAX_OCTAVES_PER_SECOND * penn.HOPSIZE / penn.SAMPLE_RATE
-        max_bins_per_frame = max_octaves_per_frame * bins_per_octave+ 1
+        max_bins_per_frame = max_octaves_per_frame * bins_per_octave + 1
 
         # Construct the within voicing transition probabilities
         viterbi.transition = librosa.sequence.transition_local(
@@ -80,7 +81,7 @@ def viterbi(logits):
     if penn.DECODER.endswith('normal'):
 
         # Decode using an assumption of normality around to the viterbi path
-        pitch = locally_normal_from_bins(bins, logits)
+        pitch = locally_normal_from_bins(bins.T.to(logits.device), logits).T
 
     else:
 
