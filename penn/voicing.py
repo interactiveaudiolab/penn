@@ -20,6 +20,12 @@ def interpolate(pitch, periodicity, value):
     # Pitch is linear in base-2 log-space
     pitch = torch.log2(pitch)
 
+    # Anchor endpoints
+    pitch[..., 0] = pitch[voiced][..., 0]
+    pitch[..., -1] = pitch[voiced][..., -1]
+    voiced[..., 0] = True
+    voiced[..., -1] = True
+
     # Interpolate
     pitch[~voiced] = penn.interpolate(
         torch.where(~voiced[0])[0][None],
