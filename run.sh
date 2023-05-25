@@ -58,32 +58,32 @@ python -m penn.evaluate \
 # Plot data and inference distributions
 python -m penn.plot.density \
     --datasets mdb \
-    --output_file results/mdb_on_mdb.jpg \
+    --output_file results/mdb_on_mdb.pdf \
     --checkpoint runs/fcnf0++-mdb/00250000.pt \
     --gpu $1
 python -m penn.plot.density \
     --datasets ptdb \
-    --output_file results/mdb_on_ptdb.jpg \
+    --output_file results/mdb_on_ptdb.pdf \
     --checkpoint runs/fcnf0++-mdb/00250000.pt \
     --gpu $1
 python -m penn.plot.density \
     --datasets ptdb \
-    --output_file results/ptdb_on_ptdb.jpg \
+    --output_file results/ptdb_on_ptdb.pdf \
     --checkpoint runs/fcnf0++-ptdb/00250000.pt \
     --gpu $1
 python -m penn.plot.density \
     --datasets mdb \
-    --output_file results/ptdb_on_mdb.jpg \
+    --output_file results/ptdb_on_mdb.pdf \
     --checkpoint runs/fcnf0++-ptdb/00250000.pt \
     --gpu $1
 python -m penn.plot.density \
     --datasets mdb \
-    --output_file results/both_on_mdb.jpg \
+    --output_file results/both_on_mdb.pdf \
     --checkpoint runs/fcnf0++/00250000.pt \
     --gpu $1
 python -m penn.plot.density \
     --datasets ptdb \
-    --output_file results/both_on_ptdb.jpg \
+    --output_file results/both_on_ptdb.pdf \
     --checkpoint runs/fcnf0++/00250000.pt \
     --gpu $1
 
@@ -91,13 +91,13 @@ python -m penn.plot.density \
 python -m penn.plot.threshold \
     --names FCNF0++ "FCNF0++ (voiced only)" \
     --evaluations fcnf0++-ablate-decoder fcnf0++-ablate-unvoiced \
-    --output_file results/threshold.jpg
+    --output_file results/threshold.pdf
 
 # Plot pitch posteriorgram figures
 python -m penn.plot.logits \
     --config config/fcnf0++.py \
     --audio_file test/assets/gershwin.wav \
-    --output_file results/fcnf0++-gershwin.jpg \
+    --output_file results/fcnf0++-gershwin.pdf \
     --checkpoint runs/fcnf0++/00250000.pt \
     --gpu $1
 # Note - You will need to replace this checkpoint with the final checkpoint
@@ -105,6 +105,6 @@ python -m penn.plot.logits \
 python -m penn.plot.logits \
     --config config/fcnf0.py \
     --audio_file test/assets/gershwin.wav \
-    --output_file results/fcnf0-gershwin.jpg \
-    --checkpoint runs/fcnf0/00068000.pt \
+    --output_file results/fcnf0-gershwin.pdf \
+    --checkpoint runs/fcnf0/00071000.pt \
     --gpu $1

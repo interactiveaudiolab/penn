@@ -36,7 +36,7 @@ def to_file(
     axis.bar(
         x,
         y_true,
-        width=DOWNSAMPLE_RATE,
+        width=1.05 * DOWNSAMPLE_RATE,
         label=f'Data distribution')
 
     # Plot our guesses
@@ -44,7 +44,7 @@ def to_file(
     axis.bar(
         x,
         y_pred,
-        width=DOWNSAMPLE_RATE,
+        width=1.05 * DOWNSAMPLE_RATE,
         label='Inferred distribution')
 
     # Plot overlap
@@ -53,7 +53,7 @@ def to_file(
         x,
         overlap,
         color='gray',
-        width=DOWNSAMPLE_RATE,
+        width=1.05 * DOWNSAMPLE_RATE,
         label='Overlap')
 
     # Add legend

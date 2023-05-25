@@ -7,7 +7,7 @@ CONFIG = 'fcnf0'
 BATCH_SIZE = 32
 
 # Width of a pitch bin
-CENTS_PER_BIN = 25  # cents
+CENTS_PER_BIN = 12.5  # cents
 
 # The decoder to use for postprocessing
 DECODER = 'argmax'

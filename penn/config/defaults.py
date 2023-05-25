@@ -115,7 +115,7 @@ PERIODICITY = 'entropy'
 
 
 # The decoder to use for postprocessing
-DECODER = 'locally_normal'
+DECODER = 'local_expected_value'
 
 # The dropout rate. Set to None to turn off dropout.
 DROPOUT = None

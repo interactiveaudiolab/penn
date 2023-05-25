@@ -37,7 +37,10 @@ def viterbi(logits):
         # Viterbi REQUIRES a categorical distribution, even if the loss was BCE
         distributions = torch.nn.functional.softmax(logits, dim=1)
         distributions = distributions.permute(2, 1, 0)
-        distributions = distributions.to(device=torch.device('cpu'), dtype=torch.float32).numpy()
+        distributions = distributions.to(
+            device=torch.device('cpu'),
+            dtype=torch.float32
+        ).numpy()
 
     # Cache viterbi probabilities
     if not hasattr(viterbi, 'transition'):
@@ -81,7 +84,9 @@ def viterbi(logits):
     if penn.DECODER.endswith('normal'):
 
         # Decode using an assumption of normality around to the viterbi path
-        pitch = locally_normal_from_bins(bins.T.to(logits.device), logits).T
+        pitch = local_expected_value_from_bins(
+            bins.T.to(logits.device),
+            logits).T
 
     else:
 
@@ -98,12 +103,12 @@ def viterbi(logits):
     return bins.T, pitch.T
 
 
-def locally_normal(logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
+def local_expected_value(logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
     """Decode pitch using a normal assumption around the argmax"""
     # Get center bins
     bins = logits.argmax(dim=1)
 
-    return bins, locally_normal_from_bins(bins, logits, window)
+    return bins, local_expected_value_from_bins(bins, logits, window)
 
 
 ###############################################################################
@@ -132,7 +137,10 @@ def expected_value(logits, cents):
     return penn.convert.cents_to_frequency(pitch)
 
 
-def locally_normal_from_bins(bins, logits, window=penn.LOCAL_PITCH_WINDOW_SIZE):
+def local_expected_value_from_bins(
+    bins,
+    logits,
+    window=penn.LOCAL_PITCH_WINDOW_SIZE):
     """Decode pitch using normal assumption around argmax from bin indices"""
     # Pad
     padded = torch.nn.functional.pad(

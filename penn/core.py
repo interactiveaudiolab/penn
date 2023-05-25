@@ -288,8 +288,8 @@ def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX):
             bins, pitch = penn.decode.argmax(logits)
         elif penn.DECODER.startswith('viterbi'):
             bins, pitch = penn.decode.viterbi(logits)
-        elif penn.DECODER == 'locally_normal':
-            bins, pitch = penn.decode.locally_normal(logits)
+        elif penn.DECODER == 'local_expected_value':
+            bins, pitch = penn.decode.local_expected_value(logits)
         else:
             raise ValueError(f'Decoder method {penn.DECODER} is not defined')
 
