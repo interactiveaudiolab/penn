@@ -3,7 +3,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/penn.svg)](https://pypi.python.org/pypi/penn)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Downloads](https://pepy.tech/badge/penn)](https://pepy.tech/project/penn)
+[![Downloads](https://static.pepy.tech/badge/penn)](https://pepy.tech/project/penn)
 
 </div>
 
