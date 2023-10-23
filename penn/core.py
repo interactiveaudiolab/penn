@@ -314,20 +314,70 @@ def preprocess(
     batch_size=None,
     pad=False):
     """Convert audio to model input"""
-    # Convert hopsize to samples
-    hopsize = int(penn.convert.seconds_to_samples(hopsize))
 
-    # Resample
+    hopsize_samps = hopsize * sample_rate
+
+    # Option 1 for ensuring correct hopsize: pad audio (will add 1 frame)
+    # pad_amt = int(hopsize_samps) - audio.shape[-1] % int(hopsize_samps)
+    # audio = torch.nn.functional.pad(audio, (0, pad_amt))
+
+    # Calculate expected number of frames
+    window_size_resamp = penn.WINDOW_SIZE / penn.SAMPLE_RATE * sample_rate
+    if pad:
+        valid_starts = audio.shape[-1]
+    else:
+        valid_starts = audio.shape[-1] - (window_size_resamp - hopsize_samps)
+
+    #Option 2 for ensuring correct hopsize: set number of valid start frames to a multiple of hopsize_samps
+    #Became prone to roundoff error
+    #valid_starts = valid_starts - valid_starts % hopsize_samps
+
+
+    # print(f"Valid starts: {valid_starts}")
+    # print(f"Hopsize samps: {hopsize_samps}")
+
+    total_frames = int(valid_starts // hopsize_samps)
+    #Account for case where audio length < window size; just take one frame
+    if total_frames < 1:
+        total_frames = 1
+    
+    # print(f"Expected total frames: {total_frames}")
+
+    
+    # Check if hopsize is an integer in penn sample rate
+    hopsize_native = penn.convert.seconds_to_samples(hopsize)
+    if type(hopsize_native) is int or hopsize_native.is_integer():
+        # If so, calculation can use fold
+        hopsize_samps = int(hopsize_native)
+        start_idxs = None
+    else:
+        #Find start indices
+        #Option 4 for ensuring correct hopsize: generate start indices via list comprehension.
+        #Appears to avoid roundoff error better
+        start_idxs = torch.tensor([hopsize_samps * i for i in range(total_frames + 2)])[..., :-1]
+
+        # Option 3 for ensuring correct hopsize: use multiple of hopsize samps for end in linspace.
+        # Also seemed to be having roundoff error
+        # start_idxs = torch.linspace(
+        #     0, (total_frames + 1) * hopsize_samps, total_frames + 1).long()[..., :-1]
+
+        # start_idxs representation for options 1 and 2
+        # start_idxs = torch.linspace(
+        #     0, valid_starts, total_frames + 1).long()[..., :-1]
+
+    # If sample rate is different, resample audio and change start_idxs
     if sample_rate != penn.SAMPLE_RATE:
         audio = resample(audio, sample_rate)
+        if start_idxs is not None:
+            start_idxs = start_idxs * (penn.SAMPLE_RATE / sample_rate)
+
+    # Round start_idxs after possible resampling
+    if start_idxs is not None: start_idxs = torch.round(start_idxs).int()
 
     # Maybe pad audio
     padding = int((penn.WINDOW_SIZE - hopsize) / 2)
     if pad:
         audio = torch.nn.functional.pad(audio, (padding, padding))
-
-    # Get total number of frames
-    total_frames = int((audio.shape[-1] - 2 * padding) / hopsize)
 
     # Default to running all frames in a single batch
     batch_size = total_frames if batch_size is None else batch_size
@@ -338,29 +388,46 @@ def preprocess(
         # Size of this batch
         batch = min(total_frames - i, batch_size)
 
-        # Batch indices
-        start = i * hopsize
-        end = start + int((batch - 1) * hopsize) + penn.WINDOW_SIZE
-        end = min(end, audio.shape[-1])
-        batch_audio = audio[:, start:end]
+        # Make sure audio is not rewritten
+        batch_audio = audio
 
-        # Maybe pad to a single frame
-        if end - start < penn.WINDOW_SIZE:
-            padding = penn.WINDOW_SIZE - (end - start)
+        #If start_idxs exists, indicates that we're using manually calculated frame starts
+        if start_idxs is not None:
+            # print(f"start_idxs: {start_idxs}")
 
-            # Handle multiple of hopsize
-            remainder = (end - start) % penn.HOPSIZE
-            if remainder:
-                padding += end - start - penn.HOPSIZE
+            #Generate correct size frames
+            frames = torch.zeros(batch, batch_audio.shape[0], penn.WINDOW_SIZE).to(audio.device)
+            for j in range(batch):
+                #Fill each frame with a window starting at the start index
+                start = start_idxs[i + j]
+                end = min(start + penn.WINDOW_SIZE, batch_audio.shape[-1])
+                frames[j, :, : end - start] = batch_audio[:, start:end]
+        else:
+            #If no start indices, can use previous (faster) implementation
 
-            # Pad
-            batch_audio = torch.nn.functional.pad(batch_audio, (0, padding))
+            # Batch indices
+            start = i * hopsize_samps
+            end = start + int((batch - 1) * hopsize_samps) + penn.WINDOW_SIZE
+            end = min(end, batch_audio.shape[-1])
+            batch_audio = batch_audio[:, start:end]
 
-        # Slice and chunk audio
-        frames = torch.nn.functional.unfold(
-            batch_audio[:, None, None],
-            kernel_size=(1, penn.WINDOW_SIZE),
-            stride=(1, hopsize)).permute(2, 0, 1)
+            # Maybe pad to a single frame
+            if end - start < penn.WINDOW_SIZE:
+                padding = penn.WINDOW_SIZE - (end - start)
+
+                # Handle multiple of hopsize
+                remainder = (end - start) % hopsize_samps
+                if remainder:
+                    padding += end - start - hopsize_samps
+
+                # Pad
+                batch_audio = torch.nn.functional.pad(batch_audio, (0, padding))
+            
+            # Slice and chunk audio
+            frames = torch.nn.functional.unfold(
+                batch_audio[:, None, None],
+                kernel_size=(1, penn.WINDOW_SIZE),
+                stride=(1, hopsize_samps)).permute(2, 0, 1)
 
         yield frames, batch
 
