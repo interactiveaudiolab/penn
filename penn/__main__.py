@@ -61,11 +61,10 @@ def parse_args():
             'The number of frames per batch. '
             f'Defaults to {penn.EVALUATION_BATCH_SIZE}.'))
     parser.add_argument(
-        '--pad',
-        action='store_true',
-        help=(
-            'If true, centers frames at '
-            'hopsize / 2, 3 * hopsize / 2, 5 * ...'))
+        '--center',
+        choices=['half-frame', 'half-hop', 'zero'],
+        default='half-frame',
+        help='Padding options')
     parser.add_argument(
         '--interp_unvoiced_at',
         type=float,

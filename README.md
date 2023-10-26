@@ -48,8 +48,8 @@ Perform inference using FCNF0++
 ```
 import penn
 
-# Load audio at the correct sample rate
-audio = penn.load.audio('test/assets/gershwin.wav')
+# Load audio
+audio, sample_rate = torchaudio.load('test/assets/gershwin.wav')
 
 # Here we'll use a 10 millisecond hopsize
 hopsize = .01
@@ -70,7 +70,7 @@ batch_size = 2048
 checkpoint = penn.DEFAULT_CHECKPOINT
 
 # Centers frames at hopsize / 2, 3 * hopsize / 2, 5 * hopsize / 2, ...
-pad = True
+center = 'half-hop'
 
 # (Optional) Linearly interpolate unvoiced regions below periodicity threshold
 interp_unvoiced_at = .065
@@ -78,13 +78,13 @@ interp_unvoiced_at = .065
 # Infer pitch and periodicity
 pitch, periodicity = penn.from_audio(
     audio,
-    penn.SAMPLE_RATE,
+    sample_rate,
     hopsize=hopsize,
     fmin=fmin,
     fmax=fmax,
     checkpoint=checkpoint,
     batch_size=batch_size,
-    pad=pad,
+    center=center,
     interp_unvoiced_at=interp_unvoiced_at,
     gpu=gpu)
 ```
@@ -105,7 +105,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 
@@ -130,7 +130,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 
@@ -154,7 +154,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 """
@@ -174,7 +174,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 """
@@ -194,7 +194,7 @@ python -m penn
     [--fmax FMAX]
     [--checkpoint CHECKPOINT]
     [--batch_size BATCH_SIZE]
-    [--pad]
+    [--center {half-frame,half-hop,zero}]
     [--interp_unvoiced_at INTERP_UNVOICED_AT]
     [--gpu GPU]
 
@@ -220,8 +220,8 @@ optional arguments:
         The model checkpoint file. Defaults to ./penn/assets/checkpoints/fcnf0++.pt.
     --batch_size BATCH_SIZE
         The number of frames per batch. Defaults to 2048.
-    --pad
-        If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+    --center {half-frame,half-hop,zero}
+        Padding options
   --interp_unvoiced_at INTERP_UNVOICED_AT
         Specifies voicing threshold for interpolation. Defaults to 0.1625.
     --gpu GPU

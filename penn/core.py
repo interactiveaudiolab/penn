@@ -17,13 +17,13 @@ import penn
 
 def from_audio(
         audio: torch.Tensor,
-        sample_rate: int,
+        sample_rate: int = penn.SAMPLE_RATE,
         hopsize: float = penn.HOPSIZE_SECONDS,
         fmin: float = penn.FMIN,
         fmax: float = penn.FMAX,
         checkpoint: Path = penn.DEFAULT_CHECKPOINT,
         batch_size: Optional[int] = None,
-        pad: bool = False,
+        center: str = 'half-frame',
         interp_unvoiced_at: Optional[float] = None,
         gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation
@@ -36,7 +36,7 @@ def from_audio(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
 
@@ -49,7 +49,13 @@ def from_audio(
     pitch, periodicity = [], []
 
     # Preprocess audio
-    for frames, _ in preprocess(audio, sample_rate, hopsize, batch_size, pad):
+    for frames, _ in preprocess(
+        audio,
+        sample_rate,
+        hopsize,
+        batch_size,
+        center
+    ):
 
         # Copy to device
         with penn.time.timer('copy-to'):
@@ -84,7 +90,7 @@ def from_file(
         fmax: float = penn.FMAX,
         checkpoint: Path = penn.DEFAULT_CHECKPOINT,
         batch_size: Optional[int] = None,
-        pad: bool = False,
+        center: str = 'half-frame',
         interp_unvoiced_at: Optional[float] = None,
         gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation from audio on disk
@@ -96,7 +102,7 @@ def from_file(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
 
@@ -106,18 +112,18 @@ def from_file(
     """
     # Load audio
     with penn.time.timer('load'):
-        audio = penn.load.audio(file)
+        audio, sample_rate = torchaudio.load(file)
 
     # Inference
     return from_audio(
         audio,
-        penn.SAMPLE_RATE,
+        sample_rate,
         hopsize,
         fmin,
         fmax,
         checkpoint,
         batch_size,
-        pad,
+        center,
         interp_unvoiced_at,
         gpu)
 
@@ -130,7 +136,7 @@ def from_file_to_file(
         fmax: float = penn.FMAX,
         checkpoint: Path = penn.DEFAULT_CHECKPOINT,
         batch_size: Optional[int] = None,
-        pad: bool = False,
+        center: str = 'half-frame',
         interp_unvoiced_at: Optional[float] = None,
         gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from audio on disk and save
@@ -143,7 +149,7 @@ def from_file_to_file(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
     """
@@ -155,7 +161,7 @@ def from_file_to_file(
         fmax,
         checkpoint,
         batch_size,
-        pad,
+        center,
         interp_unvoiced_at,
         gpu)
 
@@ -183,7 +189,7 @@ def from_files_to_files(
     fmax: float = penn.FMAX,
     checkpoint: Path = penn.DEFAULT_CHECKPOINT,
     batch_size: Optional[int] = None,
-    pad: bool = False,
+    center: str = 'half-frame',
     interp_unvoiced_at: Optional[float] = None,
     gpu: Optional[int] = None) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
@@ -196,7 +202,7 @@ def from_files_to_files(
         fmax: The maximum allowable frequency in Hz
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
-        pad: If true, centers frames at hopsize / 2, 3 * hopsize / 2, 5 * ...
+        center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
     """
@@ -219,7 +225,7 @@ def from_files_to_files(
             fmax,
             checkpoint,
             batch_size,
-            pad,
+            center,
             interp_unvoiced_at,
             gpu)
 
@@ -309,75 +315,54 @@ def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX):
 
 def preprocess(
     audio,
-    sample_rate,
+    sample_rate=penn.SAMPLE_RATE,
     hopsize=penn.HOPSIZE_SECONDS,
     batch_size=None,
-    pad=False):
+    center='half-frame'):
     """Convert audio to model input"""
-
-    hopsize_samps = hopsize * sample_rate
-
-    # Option 1 for ensuring correct hopsize: pad audio (will add 1 frame)
-    # pad_amt = int(hopsize_samps) - audio.shape[-1] % int(hopsize_samps)
-    # audio = torch.nn.functional.pad(audio, (0, pad_amt))
-
     # Calculate expected number of frames
-    window_size_resamp = penn.WINDOW_SIZE / penn.SAMPLE_RATE * sample_rate
-    if pad:
-        valid_starts = audio.shape[-1]
+    hopsize_resampled = penn.convert.seconds_to_samples(
+        hopsize,
+        sample_rate)
+    if center == 'half-frame':
+        window_size_resampled = \
+            penn.WINDOW_SIZE / penn.SAMPLE_RATE * sample_rate
+        samples = audio.shape[-1] - (window_size_resampled - hopsize_resampled)
+    elif center == 'half-hop':
+        samples = audio.shape[-1]
+    elif center == 'zero':
+        samples = audio.shape[-1] + hopsize_resampled
     else:
-        valid_starts = audio.shape[-1] - (window_size_resamp - hopsize_samps)
+        raise ValueError(f'Unknown center sample {center}')
+    total_frames = max(1, int(samples / hopsize_resampled))
 
-    #Option 2 for ensuring correct hopsize: set number of valid start frames to a multiple of hopsize_samps
-    #Became prone to roundoff error
-    #valid_starts = valid_starts - valid_starts % hopsize_samps
-
-
-    # print(f"Valid starts: {valid_starts}")
-    # print(f"Hopsize samps: {hopsize_samps}")
-
-    total_frames = int(valid_starts // hopsize_samps)
-    #Account for case where audio length < window size; just take one frame
-    if total_frames < 1:
-        total_frames = 1
-    
-    # print(f"Expected total frames: {total_frames}")
-
-    
-    # Check if hopsize is an integer in penn sample rate
-    hopsize_native = penn.convert.seconds_to_samples(hopsize)
-    if type(hopsize_native) is int or hopsize_native.is_integer():
-        # If so, calculation can use fold
-        hopsize_samps = int(hopsize_native)
-        start_idxs = None
-    else:
-        #Find start indices
-        #Option 4 for ensuring correct hopsize: generate start indices via list comprehension.
-        #Appears to avoid roundoff error better
-        start_idxs = torch.tensor([hopsize_samps * i for i in range(total_frames + 2)])[..., :-1]
-
-        # Option 3 for ensuring correct hopsize: use multiple of hopsize samps for end in linspace.
-        # Also seemed to be having roundoff error
-        # start_idxs = torch.linspace(
-        #     0, (total_frames + 1) * hopsize_samps, total_frames + 1).long()[..., :-1]
-
-        # start_idxs representation for options 1 and 2
-        # start_idxs = torch.linspace(
-        #     0, valid_starts, total_frames + 1).long()[..., :-1]
-
-    # If sample rate is different, resample audio and change start_idxs
+    # Maybe resample
     if sample_rate != penn.SAMPLE_RATE:
         audio = resample(audio, sample_rate)
-        if start_idxs is not None:
-            start_idxs = start_idxs * (penn.SAMPLE_RATE / sample_rate)
-
-    # Round start_idxs after possible resampling
-    if start_idxs is not None: start_idxs = torch.round(start_idxs).int()
 
     # Maybe pad audio
-    padding = int((penn.WINDOW_SIZE - hopsize) / 2)
-    if pad:
-        audio = torch.nn.functional.pad(audio, (padding, padding))
+    hopsize = penn.convert.seconds_to_samples(hopsize)
+    if center in ['half-hop', 'zero']:
+        if center == 'half-hop':
+            padding = int((penn.WINDOW_SIZE - hopsize) / 2)
+        else:
+            padding = int(penn.WINDOW_SIZE / 2)
+        audio = torch.nn.functional.pad(
+            audio,
+            (padding, padding),
+            mode='reflect')
+
+    # Integer hopsizes permit a speedup using torch.unfold
+    if isinstance(hopsize, int) or hopsize.is_integer():
+        hopsize = int(round(hopsize))
+        start_idxs = None
+
+    else:
+
+        # Find start indices
+        start_idxs = torch.round(
+            torch.tensor([hopsize * i for i in range(total_frames + 1)])
+        ).int()
 
     # Default to running all frames in a single batch
     batch_size = total_frames if batch_size is None else batch_size
@@ -388,46 +373,46 @@ def preprocess(
         # Size of this batch
         batch = min(total_frames - i, batch_size)
 
-        # Make sure audio is not rewritten
-        batch_audio = audio
-
-        #If start_idxs exists, indicates that we're using manually calculated frame starts
-        if start_idxs is not None:
-            # print(f"start_idxs: {start_idxs}")
-
-            #Generate correct size frames
-            frames = torch.zeros(batch, batch_audio.shape[0], penn.WINDOW_SIZE).to(audio.device)
-            for j in range(batch):
-                #Fill each frame with a window starting at the start index
-                start = start_idxs[i + j]
-                end = min(start + penn.WINDOW_SIZE, batch_audio.shape[-1])
-                frames[j, :, : end - start] = batch_audio[:, start:end]
-        else:
-            #If no start indices, can use previous (faster) implementation
+        # Fast implementation for integer hopsizes
+        if start_idxs is None:
 
             # Batch indices
-            start = i * hopsize_samps
-            end = start + int((batch - 1) * hopsize_samps) + penn.WINDOW_SIZE
-            end = min(end, batch_audio.shape[-1])
-            batch_audio = batch_audio[:, start:end]
+            start = i * hopsize
+            end = start + int((batch - 1) * hopsize) + penn.WINDOW_SIZE
+            end = min(end, audio.shape[-1])
+            batch_audio = audio[:, start:end]
 
             # Maybe pad to a single frame
             if end - start < penn.WINDOW_SIZE:
                 padding = penn.WINDOW_SIZE - (end - start)
 
                 # Handle multiple of hopsize
-                remainder = (end - start) % hopsize_samps
+                remainder = (end - start) % hopsize
                 if remainder:
-                    padding += end - start - hopsize_samps
+                    padding += end - start - hopsize
 
                 # Pad
-                batch_audio = torch.nn.functional.pad(batch_audio, (0, padding))
-            
+                batch_audio = torch.nn.functional.pad(
+                    batch_audio,
+                    (0, padding))
+
             # Slice and chunk audio
             frames = torch.nn.functional.unfold(
                 batch_audio[:, None, None],
                 kernel_size=(1, penn.WINDOW_SIZE),
-                stride=(1, hopsize_samps)).permute(2, 0, 1)
+                stride=(1, hopsize)).permute(2, 0, 1)
+
+        # Slow implementation for floating-point hopsizes
+        else:
+
+            # Allocate frames
+            frames = torch.zeros(batch, 1, penn.WINDOW_SIZE)
+
+            # Fill each frame with a window starting at the start index
+            for j in range(batch):
+                start = start_idxs[i + j]
+                end = min(start + penn.WINDOW_SIZE, audio.shape[-1])
+                frames[j, :, : end - start] = audio[:, start:end]
 
         yield frames, batch
 

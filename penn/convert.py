@@ -66,9 +66,9 @@ def seconds_to_frames(seconds):
     return samples_to_frames(seconds_to_samples(seconds))
 
 
-def seconds_to_samples(seconds):
+def seconds_to_samples(seconds, sample_rate=penn.SAMPLE_RATE):
     """Convert seconds to number of samples"""
-    return seconds * penn.SAMPLE_RATE
+    return seconds * sample_rate
 
 
 def samples_to_frames(samples):
@@ -76,6 +76,6 @@ def samples_to_frames(samples):
     return samples // penn.HOPSIZE
 
 
-def samples_to_seconds(samples):
+def samples_to_seconds(samples, sample_rate=penn.SAMPLE_RATE):
     """Convert number of samples to seconds"""
-    return samples / penn.SAMPLE_RATE
+    return samples / sample_rate
