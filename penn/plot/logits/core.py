@@ -11,7 +11,7 @@ import penn
 def from_audio(
     audio,
     sample_rate,
-    checkpoint=penn.DEFAULT_CHECKPOINT,
+    checkpoint=None,
     gpu=None):
     """Plot logits with pitch overlay"""
     import matplotlib
@@ -27,7 +27,7 @@ def from_audio(
         audio,
         sample_rate,
         batch_size=penn.EVALUATION_BATCH_SIZE,
-        pad=True)
+        center='half-hop')
     for frames, _ in iterator:
 
         # Copy to device
@@ -77,7 +77,7 @@ def from_audio(
     return figure
 
 
-def from_file(audio_file, checkpoint=penn.DEFAULT_CHECKPOINT, gpu=None):
+def from_file(audio_file, checkpoint=None, gpu=None):
     """Plot logits and optional pitch"""
     # Load audio
     audio = penn.load.audio(audio_file)
@@ -86,11 +86,7 @@ def from_file(audio_file, checkpoint=penn.DEFAULT_CHECKPOINT, gpu=None):
     return from_audio(audio, penn.SAMPLE_RATE, checkpoint, gpu)
 
 
-def from_file_to_file(
-    audio_file,
-    output_file,
-    checkpoint=penn.DEFAULT_CHECKPOINT,
-    gpu=None):
+def from_file_to_file(audio_file, output_file, checkpoint=None, gpu=None):
     """Plot pitch and periodicity and save to disk"""
     # Plot
     figure = from_file(audio_file, checkpoint, gpu)

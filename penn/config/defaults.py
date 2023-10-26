@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -157,7 +158,7 @@ STEPS = 250000
 NUM_TRAINING_FRAMES = 1
 
 # Number of data loading worker threads
-NUM_WORKERS = 4
+NUM_WORKERS = os.cpu_count() // 4
 
 # Seed for all random number generators
 RANDOM_SEED = 1234

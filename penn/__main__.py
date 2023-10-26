@@ -49,10 +49,9 @@ def parse_args():
     parser.add_argument(
         '--checkpoint',
         type=Path,
-        default=penn.DEFAULT_CHECKPOINT,
         help=(
             'The model checkpoint file. '
-            f'Defaults to {penn.DEFAULT_CHECKPOINT}'))
+            f'Defaults to pretrained FCNF0++.'))
     parser.add_argument(
         '--batch_size',
         type=int,
@@ -62,8 +61,8 @@ def parse_args():
             f'Defaults to {penn.EVALUATION_BATCH_SIZE}.'))
     parser.add_argument(
         '--center',
-        choices=['half-frame', 'half-hop', 'zero'],
-        default='half-frame',
+        choices=['half-window', 'half-hop', 'zero'],
+        default='half-window',
         help='Padding options')
     parser.add_argument(
         '--interp_unvoiced_at',

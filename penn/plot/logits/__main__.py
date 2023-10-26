@@ -25,7 +25,6 @@ def parse_args():
     parser.add_argument(
         '--checkpoint',
         type=Path,
-        default=penn.DEFAULT_CHECKPOINT,
         help='The checkpoint file to use for inference')
     parser.add_argument(
         '--gpu',

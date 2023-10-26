@@ -2,6 +2,8 @@ import argparse
 import shutil
 from pathlib import Path
 
+import torchutil
+
 import penn
 
 
@@ -10,7 +12,7 @@ import penn
 ###############################################################################
 
 
-def main(config, datasets, gpus=None):
+def main(config, datasets, gpu):
     # Create output directory
     directory = penn.RUNS_DIR / config.stem
     directory.mkdir(parents=True, exist_ok=True)
@@ -19,15 +21,13 @@ def main(config, datasets, gpus=None):
     shutil.copyfile(config, directory / config.name)
 
     # Train
-    checkpoint = penn.train.run(
-        datasets,
-        directory,
-        directory,
-        directory,
-        gpus)
+    penn.train(datasets, directory, gpu)
+
+    # Get latest checkpoint
+    checkpoint = torchutil.checkpoint.latest_path(directory)
 
     # Evaluate
-    penn.evaluate.datasets(checkpoint=checkpoint, gpu=gpus[0])
+    penn.evaluate.datasets(penn.EVALUATION_DATASETS, checkpoint, gpu)
 
 
 def parse_args():
@@ -44,10 +44,9 @@ def parse_args():
         default=penn.DATASETS,
         help='The datasets to train on')
     parser.add_argument(
-        '--gpus',
+        '--gpu',
         type=int,
-        nargs='+',
-        help='The gpus to run training on')
+        help='The GPU index')
     return parser.parse_args()
 
 

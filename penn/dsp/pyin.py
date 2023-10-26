@@ -3,6 +3,7 @@ import multiprocessing as mp
 
 import numpy as np
 import torch
+import torchutil
 
 import penn
 
@@ -25,11 +26,11 @@ def from_audio(
     audio = torch.nn.functional.pad(audio, (pad, pad))
 
     # Infer pitch bin probabilities
-    with penn.time.timer('infer'):
+    with torchutil.time.context('infer'):
         logits = infer(audio, sample_rate, hopsize, fmin, fmax)
 
     # Decode pitch and periodicity
-    with penn.time.timer('postprocess'):
+    with torchutil.time.context('postprocess'):
         return penn.postprocess(logits)[1:]
 
 
@@ -40,7 +41,7 @@ def from_file(
     fmax=penn.FMAX):
     """Estimate pitch and periodicity with pyin from audio on disk"""
     # Load
-    with penn.time.timer('load'):
+    with torchutil.time.context('load'):
         audio = penn.load.audio(file)
 
     # Infer
@@ -58,7 +59,7 @@ def from_file_to_file(
     pitch, periodicity = from_file(file, hopsize, fmin, fmax)
 
     # Save to disk
-    with penn.time.timer('save'):
+    with torchutil.time.context('save'):
 
         # Maybe use same filename with new extension
         if output_prefix is None:

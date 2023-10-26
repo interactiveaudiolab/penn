@@ -1,8 +1,7 @@
 import shutil
-import ssl
-import tarfile
-import urllib
 import zipfile
+
+import torchutil
 
 import penn
 
@@ -12,6 +11,7 @@ import penn
 ###############################################################################
 
 
+@torchutil.notify.on_return('download')
 def datasets(datasets):
     """Download datasets"""
     if 'mdb' in datasets:
@@ -28,45 +28,26 @@ def datasets(datasets):
 
 def mdb():
     """Download mdb dataset"""
-    # Download
-    url = 'https://zenodo.org/record/1481172/files/MDB-stem-synth.tar.gz'
-    file = penn.SOURCE_DIR / 'mdb.tar.gz'
-    download_file(url, file)
+    torchutil.download.targz(
+        'https://zenodo.org/record/1481172/files/MDB-stem-synth.tar.gz',
+        penn.DATA_DIR)
 
-    with penn.chdir(penn.DATA_DIR):
+    # Delete previous directory
+    shutil.rmtree(penn.DATA_DIR / 'mdb', ignore_errors=True)
 
-        # Unzip
-        with tarfile.open(file, 'r:gz') as tfile:
-            tfile.extractall()
-
-            # Delete previous directory
-            shutil.rmtree('mdb', ignore_errors=True)
-
-            # Rename directory
-            shutil.move('MDB-stem-synth', 'mdb')
+    # Rename directory
+    shutil.move(penn.DATA_DIR / 'MDB-stem-synth', penn.DATA_DIR / 'mdb')
 
 
 def ptdb():
     """Download ptdb dataset"""
-    # Download
+    # directory = penn.DATA_DIR / 'ptdb'
+    # directory.mkdir(exist_ok=True, parents=True)
+    # torchutil.download.zip(
+    #     'https://www2.spsc.tugraz.at/databases/PTDB-TUG/SPEECH_DATA_ZIPPED.zip',
+    #     directory)
     url = 'https://www2.spsc.tugraz.at/databases/PTDB-TUG/SPEECH_DATA_ZIPPED.zip'
     file = penn.SOURCE_DIR / 'ptdb.zip'
-    download_file(url, file)
-
-    with penn.chdir(penn.DATA_DIR):
-
-        # Unzip
-        with zipfile.ZipFile(file, 'r') as zfile:
-            zfile.extractall('ptdb')
-
-
-###############################################################################
-# Utilities
-###############################################################################
-
-
-def download_file(url, file):
-    """Download file from url"""
-    with urllib.request.urlopen(url, context=ssl.SSLContext()) as response, \
-         open(file, 'wb') as output:
-        shutil.copyfileobj(response, output)
+    torchutil.download.file(url, file)
+    with zipfile.ZipFile(file, 'r') as zfile:
+        zfile.extractall(penn.DATA_DIR / 'ptdb')

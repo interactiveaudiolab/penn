@@ -1,4 +1,5 @@
 import torch
+import torchutil
 
 import penn
 
@@ -20,16 +21,18 @@ THRESHOLD = 50  # cents
 class Metrics:
 
     def __init__(self):
-        self.accuracy = Accuracy()
+        self.accuracy = torchutil.metrics.Accuracy()
         self.f1 = F1()
         self.loss = Loss()
         self.pitch_metrics = PitchMetrics()
 
     def __call__(self):
         return (
-            self.accuracy() |
+            {
+                'accuracy': self.accuracy(),
+                'loss': self.loss()
+            } |
             self.f1() |
-            self.loss() |
             self.pitch_metrics())
 
     def update(self, logits, bins, target, voiced):
@@ -40,7 +43,7 @@ class Metrics:
         self.loss.update(logits[:, :penn.PITCH_BINS], bins.T)
 
         # Decode bins, pitch, and periodicity
-        with penn.time.timer('decode'):
+        with torchutil.time.context('decode'):
             predicted, pitch, periodicity = penn.postprocess(logits)
 
         # Update bin accuracy
@@ -68,7 +71,11 @@ class PitchMetrics:
         self.rpa = RPA()
 
     def __call__(self):
-        return self.l1() | self.rca() | self.rmse() | self.rpa()
+        return {
+            'l1': self.l1(),
+            'rca': self.rca(),
+            'rmse': self.rmse(),
+            'rpa': self.rpa()}
 
     def update(self, pitch, target, voiced):
         # Mask unvoiced
@@ -92,23 +99,6 @@ class PitchMetrics:
 ###############################################################################
 
 
-class Accuracy:
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        return {'accuracy': (self.true_positives / self.count).item()}
-
-    def update(self, predicted, target):
-        self.true_positives += (predicted == target).sum()
-        self.count += predicted.shape[-1]
-
-    def reset(self):
-        self.true_positives = 0
-        self.count = 0
-
-
 class F1:
 
     def __init__(self, thresholds=None):
@@ -117,15 +107,17 @@ class F1:
                 [2 ** -i for i in range(1, 11)] +
                 [.1 * i for i in range(10)])))
         self.thresholds = thresholds
-        self.precision = [Precision() for _ in range(len(thresholds))]
-        self.recall = [Recall() for _ in range(len(thresholds))]
+        self.precision = [
+            torchutil.metrics.Precision() for _ in range(len(thresholds))]
+        self.recall = [
+            torchutil.metrics.Recall() for _ in range(len(thresholds))]
 
     def __call__(self):
         result = {}
         iterator = zip(self.thresholds, self.precision, self.recall)
         for threshold, precision, recall in iterator:
-            precision = precision()['precision']
-            recall = recall()['recall']
+            precision = precision()
+            recall = recall()
             try:
                 f1 = 2 * precision * recall / (precision + recall)
             except ZeroDivisionError:
@@ -150,90 +142,22 @@ class F1:
             recall.reset()
 
 
-class L1:
+class L1(torchutil.metrics.L1):
     """L1 pitch distance in cents"""
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        return {'l1': (self.sum / self.count).item()}
-
     def update(self, predicted, target):
-        self.sum += torch.abs(penn.cents(predicted, target)).sum()
-        self.count += predicted.shape[-1]
-
-    def reset(self):
-        self.count = 0
-        self.sum = 0.
+        super().update(
+            penn.OCTAVE * torch.log2(predicted),
+            penn.OCTAVE * torch.log2(target))
 
 
-class Loss():
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        return {'loss': (self.total / self.count).item()}
-
+class Loss(torchutil.metrics.Average):
+    """Batch-updating loss"""
     def update(self, logits, bins):
-        self.total += penn.train.loss(logits, bins)
-        self.count += bins.shape[0]
-
-    def reset(self):
-        self.count = 0
-        self.total = 0.
+        super().update(penn.loss(logits, bins), bins.numel())
 
 
-class Precision:
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        precision = (
-            self.true_positives /
-            (self.true_positives + self.false_positives)).item()
-        return {'precision': precision}
-
-    def update(self, predicted, voiced):
-        self.true_positives += (predicted & voiced).sum()
-        self.false_positives += (predicted & ~voiced).sum()
-
-    def reset(self):
-        self.true_positives = 0
-        self.false_positives = 0
-
-
-class Recall:
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        recall = (
-            self.true_positives /
-            (self.true_positives + self.false_negatives)).item()
-        return {'recall': recall}
-
-    def update(self, predicted, voiced):
-        self.true_positives += (predicted & voiced).sum()
-        self.false_negatives += (~predicted & voiced).sum()
-
-    def reset(self):
-        self.true_positives = 0
-        self.false_negatives = 0
-
-
-class RCA:
+class RCA(torchutil.metrics.Average):
     """Raw chroma accuracy"""
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        return {'rca': (self.sum / self.count).item()}
-
     def update(self, predicted, target):
         # Compute pitch difference in cents
         difference = penn.cents(predicted, target)
@@ -243,46 +167,23 @@ class RCA:
         difference[difference < -(penn.OCTAVE - THRESHOLD)] += penn.OCTAVE
 
         # Count predictions that are within 50 cents of target
-        self.sum += (torch.abs(difference) < THRESHOLD).sum()
-        self.count += predicted.shape[-1]
-
-    def reset(self):
-        self.count = 0
-        self.sum = 0
+        super().update(
+            (torch.abs(difference) < THRESHOLD).sum(),
+            predicted.shape[-1])
 
 
-class RMSE:
+class RMSE(torchutil.metrics.RMSE):
     """Root mean square error of pitch distance in cents"""
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        return {'rmse': torch.sqrt(self.sum / self.count).item()}
-
     def update(self, predicted, target):
-        self.sum += (penn.cents(predicted, target) ** 2).sum()
-        self.count += predicted.shape[-1]
-
-    def reset(self):
-        self.count = 0
-        self.sum = 0.
+        super().update(
+            penn.OCTAVE * torch.log2(predicted),
+            penn.OCTAVE * torch.log2(target))
 
 
-class RPA:
+class RPA(torchutil.metrics.Average):
     """Raw prediction accuracy"""
-
-    def __init__(self):
-        self.reset()
-
-    def __call__(self):
-        return {'rpa': (self.sum / self.count).item()}
-
     def update(self, predicted, target):
         difference = penn.cents(predicted, target)
-        self.sum += (torch.abs(difference) < THRESHOLD).sum()
-        self.count += predicted.shape[-1]
-
-    def reset(self):
-        self.count = 0
-        self.sum = 0
+        super().update(
+            (torch.abs(difference) < THRESHOLD).sum(),
+            predicted.shape[-1])

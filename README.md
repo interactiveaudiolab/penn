@@ -37,8 +37,8 @@ Training, evaluation, and inference of neural pitch and periodicity estimators i
 If you want to perform pitch estimation using a pretrained FCNF0++ model, run
 `pip install penn`
 
-If you want to train or use your own models, clone this repo and run
-`pip install -r requirements.txt`
+If you want to train or use your own models, run
+`pip install penn[train]`
 
 
 ## Inference
@@ -65,9 +65,9 @@ gpu = 0
 # on your gpu
 batch_size = 2048
 
-# Select a checkpoint to use for inference. The default checkpoint will
+# Select a checkpoint to use for inference. Selecting None will
 # download and use FCNF0++ pretrained on MDB-stem-synth and PTDB
-checkpoint = penn.DEFAULT_CHECKPOINT
+checkpoint = None
 
 # Centers frames at hopsize / 2, 3 * hopsize / 2, 5 * hopsize / 2, ...
 center = 'half-hop'
@@ -105,7 +105,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
+    center: Padding options. One of ['half-window', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 
@@ -130,7 +130,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
+    center: Padding options. One of ['half-window', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 
@@ -154,7 +154,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
+    center: Padding options. One of ['half-window', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 """
@@ -174,7 +174,7 @@ Args:
     fmax: The maximum allowable frequency in Hz
     checkpoint: The checkpoint file
     batch_size: The number of frames per batch
-    center: Padding options. One of ['half-frame', 'half-hop', 'zero'].
+    center: Padding options. One of ['half-window', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
     gpu: The index of the gpu to run inference on
 """
@@ -194,7 +194,7 @@ python -m penn
     [--fmax FMAX]
     [--checkpoint CHECKPOINT]
     [--batch_size BATCH_SIZE]
-    [--center {half-frame,half-hop,zero}]
+    [--center {half-window,half-hop,zero}]
     [--interp_unvoiced_at INTERP_UNVOICED_AT]
     [--gpu GPU]
 
@@ -220,7 +220,7 @@ optional arguments:
         The model checkpoint file. Defaults to ./penn/assets/checkpoints/fcnf0++.pt.
     --batch_size BATCH_SIZE
         The number of frames per batch. Defaults to 2048.
-    --center {half-frame,half-hop,zero}
+    --center {half-window,half-hop,zero}
         Padding options
   --interp_unvoiced_at INTERP_UNVOICED_AT
         Specifies voicing threshold for interpolation. Defaults to 0.1625.
@@ -258,20 +258,24 @@ run this step, as the original partitions are saved in
 
 ### Train
 
-`python -m penn.train --config <config> --gpus <gpus>`
+`python -m penn.train --config <config> --gpu <gpu>`
 
 Trains a model according to a given configuration on the `mdb` and `ptdb`
-datasets. Uses a list of GPU indices as an argument, and uses distributed
-data parallelism (DDP) if more than one index is given. For example,
-`--gpus 0 3` will train using DDP on GPUs `0` and `3`.
+datasets.
 
 
 ### Monitor
 
-Run `tensorboard --logdir runs/`. If you are running training remotely, you
-must create a SSH connection with port forwarding to view Tensorboard.
-This can be done with `ssh -L 6006:localhost:6006 <user>@<server-ip-address>`.
-Then, open `localhost:6006` in your browser.
+You can monitor training via `tensorboard`.
+
+```
+tensorboard --logdir runs/ --port <port> --load_fast true
+```
+
+To use the `torchutil` notification system to receive notifications for long
+jobs (download, preprocess, train, and evaluate), set the
+`PYTORCH_NOTIFICATION_URL` environment variable to a supported webhook as
+explained in [the Apprise documentation](https://pypi.org/project/apprise/).
 
 
 ## Evaluation

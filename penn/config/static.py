@@ -23,18 +23,6 @@ HOPSIZE_SECONDS = penn.HOPSIZE / penn.SAMPLE_RATE
 # Location to save dataset partitions
 PARTITION_DIR = penn.ASSETS_DIR / 'partitions'
 
-# Default checkpoint for generation
-DEFAULT_CHECKPOINT = penn.ASSETS_DIR / 'checkpoints' / 'fcnf0++.pt'
-
-
-###############################################################################
-# Evaluation
-###############################################################################
-
-
-# Timer for benchmarking generation
-TIMER = penn.time.Context()
-
 
 ###############################################################################
 # Training parameters

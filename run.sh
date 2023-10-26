@@ -10,8 +10,8 @@ python -m penn.data.download
 # Setup and run 16 kHz experiments
 python -m penn.data.preprocess --config config/crepe.py
 python -m penn.partition
-python -m penn.train --config config/crepe.py --gpus $1
-python -m penn.train --config config/deepf0.py --gpus $1
+python -m penn.train --config config/crepe.py --gpu $1
+python -m penn.train --config config/deepf0.py --gpu $1
 
 # Evaluate baselines at 16 kHz
 python -m penn.evaluate --gpu $1 --config config/dio.py
@@ -25,29 +25,29 @@ python -m penn.evaluate \
 python -m penn.data.preprocess
 
 # Run 8 kHz experiments
-python -m penn.train --config config/crepe++.py --gpus $1
-python -m penn.train --config config/deepf0++.py --gpus $1
-python -m penn.train --config config/fcnf0.py --gpus $1
-python -m penn.train --config config/fcnf0++.py --gpus $1
+python -m penn.train --config config/crepe++.py --gpu $1
+python -m penn.train --config config/deepf0++.py --gpu $1
+python -m penn.train --config config/fcnf0.py --gpu $1
+python -m penn.train --config config/fcnf0++.py --gpu $1
 
 # Train on individual datasets
 python -m penn.train \
     --config config/fcnf0++-mdb.py \
     --datasets mdb \
-    --gpus $1
+    --gpu $1
 python -m penn.train \
     --config config/fcnf0++-ptdb.py \
     --datasets ptdb \
-    --gpus $1
+    --gpu $1
 
 # Train ablations
-python -m penn.train --config config/fcnf0++-ablate-batchsize.py --gpus $1
-python -m penn.train --config config/fcnf0++-ablate-earlystop.py --gpus $1
-python -m penn.train --config config/fcnf0++-ablate-inputnorm.py --gpus $1
-python -m penn.train --config config/fcnf0++-ablate-layernorm.py --gpus $1
-python -m penn.train --config config/fcnf0++-ablate-loss.py --gpus $1
-python -m penn.train --config config/fcnf0++-ablate-quantization.py --gpus $1
-python -m penn.train --config config/fcnf0++-ablate-unvoiced.py --gpus $1
+python -m penn.train --config config/fcnf0++-ablate-batchsize.py --gpu $1
+python -m penn.train --config config/fcnf0++-ablate-earlystop.py --gpu $1
+python -m penn.train --config config/fcnf0++-ablate-inputnorm.py --gpu $1
+python -m penn.train --config config/fcnf0++-ablate-layernorm.py --gpu $1
+python -m penn.train --config config/fcnf0++-ablate-loss.py --gpu $1
+python -m penn.train --config config/fcnf0++-ablate-quantization.py --gpu $1
+python -m penn.train --config config/fcnf0++-ablate-unvoiced.py --gpu $1
 
 # Evaluate locally normal decoding
 python -m penn.evaluate \

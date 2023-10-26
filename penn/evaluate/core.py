@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torchutil
 
 import penn
 
@@ -15,9 +16,10 @@ import penn
 ###############################################################################
 
 
+@torchutil.notify.on_return('evaluate')
 def datasets(
     datasets=penn.EVALUATION_DATASETS,
-    checkpoint=penn.DEFAULT_CHECKPOINT,
+    checkpoint=None,
     gpu=None):
     """Perform evaluation"""
     # Make output directory
@@ -74,7 +76,7 @@ def datasets(
 
 def benchmark(
     datasets=penn.EVALUATION_DATASETS,
-    checkpoint=penn.DEFAULT_CHECKPOINT,
+    checkpoint=None,
     gpu=None):
     """Perform benchmarking"""
     # Get audio files
@@ -99,7 +101,7 @@ def benchmark(
 
         # Start benchmarking
         penn.BENCHMARK = True
-        penn.TIMER.reset()
+        torchutil.time.reset()
         start_time = time.time()
 
         # Infer to temporary storage
@@ -111,7 +113,7 @@ def benchmark(
                 output_prefixes,
                 checkpoint=checkpoint,
                 batch_size=batch_size,
-                pad=True,
+                center='half-hop',
                 gpu=gpu)
 
         elif penn.METHOD == 'torchcrepe':
@@ -149,7 +151,7 @@ def benchmark(
         penn.BENCHMARK = False
 
         # Get benchmarking information
-        benchmark = penn.TIMER()
+        benchmark = torchutil.time.results()
         benchmark['total'] = time.time() - start_time
 
     # Get total number of samples and seconds in test data
@@ -173,7 +175,7 @@ def periodicity_quality(
         periodicity_fn,
         datasets=penn.EVALUATION_DATASETS,
         steps=8,
-        checkpoint=penn.DEFAULT_CHECKPOINT,
+        checkpoint=None,
         gpu=None):
     """Fine-grained periodicity estimation quality evaluation"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
@@ -186,7 +188,7 @@ def periodicity_quality(
 
         # Setup dataset
         iterator = penn.iterator(
-            penn.data.loader([dataset], 'valid', gpu, True),
+            penn.data.loader([dataset], 'valid', True),
             f'Evaluating {penn.CONFIG} periodicity quality on {dataset}')
 
         # Iterate over validation set
@@ -204,7 +206,7 @@ def periodicity_quality(
                     audio[0],
                     penn.SAMPLE_RATE,
                     batch_size=batch_size,
-                    pad=True)
+                    center='half-hop')
                 for frames, _ in iterator:
 
                     # Copy to device
@@ -276,7 +278,7 @@ def periodicity_quality(
         for dataset in datasets:
 
             # Setup loader
-            loader = penn.data.loader([dataset], 'valid', gpu, True)
+            loader = penn.data.loader([dataset], 'valid', True)
 
             # Iterate over validation set
             for _, _, _, voiced, stem in loader:
@@ -313,7 +315,7 @@ def periodicity_quality(
     metrics = penn.evaluate.metrics.F1([best_threshold])
 
     # Setup test loader
-    loader = penn.data.loader(datasets, 'test', gpu)
+    loader = penn.data.loader(datasets, 'test')
 
     # Iterate over test set
     for audio, _, _, voiced, stem in loader:
@@ -330,7 +332,7 @@ def periodicity_quality(
                 audio[0],
                 penn.SAMPLE_RATE,
                 batch_size=batch_size,
-                pad=True)
+                center='half-hop')
             for frames, _ in iterator:
 
                 # Copy to device
@@ -399,7 +401,7 @@ def periodicity_quality(
 def pitch_quality(
     directory,
     datasets=penn.EVALUATION_DATASETS,
-    checkpoint=penn.DEFAULT_CHECKPOINT,
+    checkpoint=None,
     gpu=None):
     """Evaluate pitch estimation quality"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
@@ -450,7 +452,7 @@ def pitch_quality(
                     audio[0],
                     penn.SAMPLE_RATE,
                     batch_size=batch_size,
-                    pad=True)
+                    center='half-hop')
                 for i, (frames, size) in enumerate(iterator):
 
                     # Copy to device

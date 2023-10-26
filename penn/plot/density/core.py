@@ -72,7 +72,7 @@ def histograms(datasets, checkpoint=None, gpu=None):
     infer_result = torch.zeros((penn.PITCH_BINS,))
 
     # Setup loader
-    loader = penn.data.loader(datasets, 'test', gpu)
+    loader = penn.data.loader(datasets, 'test')
 
     # Update counts
     for audio, bins, pitch, voiced, _ in loader:
@@ -84,7 +84,7 @@ def histograms(datasets, checkpoint=None, gpu=None):
             audio[0],
             penn.SAMPLE_RATE,
             batch_size=batch_size,
-            pad=True)
+            center='half-hop')
         for i, (frames, size) in enumerate(iterator):
 
             # Copy to device

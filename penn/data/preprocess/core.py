@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import torchaudio
+import torchutil
 
 import penn
 
@@ -28,6 +29,7 @@ PTDB_HOPSIZE_SECONDS = PTDB_HOPSIZE / PTDB_SAMPLE_RATE
 ###############################################################################
 
 
+@torchutil.notify.on_return('preprocess')
 def datasets(datasets):
     """Preprocess datasets"""
     if 'mdb' in datasets:
