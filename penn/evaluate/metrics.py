@@ -153,7 +153,7 @@ class L1(torchutil.metrics.L1):
 class Loss(torchutil.metrics.Average):
     """Batch-updating loss"""
     def update(self, logits, bins):
-        super().update(penn.loss(logits, bins), bins.numel())
+        super().update(penn.loss(logits, bins), bins.shape[0])
 
 
 class RCA(torchutil.metrics.Average):

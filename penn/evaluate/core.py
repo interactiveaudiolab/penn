@@ -207,7 +207,7 @@ def periodicity_quality(
                     penn.SAMPLE_RATE,
                     batch_size=batch_size,
                     center='half-hop')
-                for frames, _ in iterator:
+                for frames in iterator:
 
                     # Copy to device
                     frames = frames.to(device)
@@ -333,7 +333,7 @@ def periodicity_quality(
                 penn.SAMPLE_RATE,
                 batch_size=batch_size,
                 center='half-hop')
-            for frames, _ in iterator:
+            for frames in iterator:
 
                 # Copy to device
                 frames = frames.to(device)
@@ -453,14 +453,14 @@ def pitch_quality(
                     penn.SAMPLE_RATE,
                     batch_size=batch_size,
                     center='half-hop')
-                for i, (frames, size) in enumerate(iterator):
+                for i, frames in enumerate(iterator):
 
                     # Copy to device
                     frames = frames.to(device)
 
                     # Slice features and copy to GPU
                     start = i * penn.EVALUATION_BATCH_SIZE
-                    end = start + size
+                    end = start + len(frames)
                     batch_bins = bins[:, start:end].to(device)
                     batch_pitch = pitch[:, start:end].to(device)
                     batch_voiced = voiced[:, start:end].to(device)

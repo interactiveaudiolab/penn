@@ -1,6 +1,5 @@
 import contextlib
 import functools
-import math
 import multiprocessing as mp
 import time
 from pathlib import Path
@@ -217,8 +216,8 @@ def from_files_to_files(
     if output_prefixes is None:
         output_prefixes = len(files) * [None]
 
-    # Single-threaded
-    if num_workers == 0:
+    # CPU or single-threaded GPU
+    if gpu is None or num_workers == 0:
 
         # Iterate over files
         for file, output_prefix in iterator(
@@ -239,7 +238,7 @@ def from_files_to_files(
                 interp_unvoiced_at,
                 gpu)
 
-    # Multi-threaded
+    # Multi-threaded GPU
     else:
 
         # Initialize multi-threaded dataloader
@@ -263,8 +262,6 @@ def from_files_to_files(
             residual_frames = torch.zeros((0, 1, 1024))
             residual_lengths = torch.zeros((0,), dtype=torch.long)
 
-            inferred_frames, saved_frames = 0, 0
-
             # Iterate over data
             pitch, periodicity = torch.zeros((1, 0)), torch.zeros((1, 0))
             for frames, lengths, input_files in loader:
@@ -285,7 +282,6 @@ def from_files_to_files(
 
                     # Infer
                     logits = infer(batch_frames, checkpoint).detach()
-                    inferred_frames += len(logits)
 
                     # Postprocess
                     results = postprocess(logits, fmin, fmax)
@@ -316,7 +312,6 @@ def from_files_to_files(
                         while pool._taskqueue.qsize() > 100:
                             time.sleep(1)
                         i += length
-                        saved_frames += length
                         progress.update()
                     else:
                         break
@@ -336,7 +331,6 @@ def from_files_to_files(
 
                 # Infer
                 logits = infer(batch_frames, checkpoint).detach()
-                inferred_frames += len(logits)
 
                 # Postprocess
                 results = postprocess(logits, fmin, fmax)
@@ -359,7 +353,6 @@ def from_files_to_files(
                         while pool._taskqueue.qsize() > 100:
                             time.sleep(1)
                         i += length
-                        saved_frames += length
                         progress.update()
 
         finally:
@@ -701,8 +694,13 @@ def inference_context(model):
     model.eval()
 
     # Turn off gradient computation
-    with torch.inference_mode(), torch.autocast(device_type):
-        yield
+    with torch.inference_mode():
+
+        if device_type == 'cuda':
+            with torch.autocast(device_type):
+                yield
+        else:
+            yield
 
     # Prepare model for training
     model.train()
