@@ -1,5 +1,6 @@
 import contextlib
 import functools
+import math
 import multiprocessing as mp
 import time
 from pathlib import Path
@@ -242,7 +243,12 @@ def from_files_to_files(
     else:
 
         # Initialize multi-threaded dataloader
-        loader = inference_loader(files, hopsize, batch_size, center)
+        loader = inference_loader(
+            files,
+            hopsize,
+            batch_size,
+            center,
+            int(math.ceil(num_workers / 2)))
 
         # Maintain file correspondence
         output_prefixes = {
@@ -250,7 +256,7 @@ def from_files_to_files(
             for file, output_prefix in zip(files, output_prefixes)}
 
         # Setup multiprocessing
-        pool = mp.get_context('spawn').Pool(max(1, penn.NUM_WORKERS // 2))
+        pool = mp.get_context('spawn').Pool(max(1, num_workers // 2))
 
         # Setup progress bar
         progress = iterator(range(len(files)), penn.CONFIG, total=len(files))
@@ -308,7 +314,8 @@ def from_files_to_files(
                             args=(
                                 output_prefixes[file],
                                 pitch[:, i:i + length],
-                                periodicity[:, i:i + length]))
+                                periodicity[:, i:i + length],
+                                interp_unvoiced_at))
                         while pool._taskqueue.qsize() > 100:
                             time.sleep(1)
                         i += length
@@ -349,7 +356,8 @@ def from_files_to_files(
                             args=(
                                 output_prefixes[file],
                                 pitch[:, i:i + length],
-                                periodicity[:, i:i + length]))
+                                periodicity[:, i:i + length],
+                                interp_unvoiced_at))
                         while pool._taskqueue.qsize() > 100:
                             time.sleep(1)
                         i += length
@@ -569,20 +577,27 @@ def inference_loader(
     files,
     hopsize=penn.HOPSIZE_SECONDS,
     batch_size=None,
-    center='half-window'
+    center='half-window',
+    num_workers=penn.NUM_WORKERS // 2
 ):
     dataset = InferenceDataset(files, hopsize, batch_size, center)
     return torch.utils.data.DataLoader(
         dataset,
         batch_sampler=InferenceSampler(dataset),
-        # TEMPORARY
-        num_workers=max(1, penn.NUM_WORKERS // 2),
-        # num_workers=0,
+        num_workers=num_workers,
         collate_fn=inference_collate)
 
 
-def save_worker(prefix, pitch, periodicity):
+def save_worker(prefix, pitch, periodicity, interp_unvoiced_at=None):
     """Save pitch and periodicity to disk"""
+    # Maybe interpolate unvoiced regions
+    if interp_unvoiced_at is not None:
+        pitch = penn.voicing.interpolate(
+            pitch,
+            periodicity,
+            interp_unvoiced_at)
+
+    # Save
     prefix.parent.mkdir(exist_ok=True, parents=True)
     torch.save(pitch, f'{prefix}-pitch.pt')
     torch.save(periodicity, f'{prefix}-periodicity.pt')
