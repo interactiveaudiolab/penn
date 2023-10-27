@@ -169,7 +169,7 @@ class RCA(torchutil.metrics.Average):
         # Count predictions that are within 50 cents of target
         super().update(
             (torch.abs(difference) < THRESHOLD).sum(),
-            predicted.shape[-1])
+            predicted.numel())
 
 
 class RMSE(torchutil.metrics.RMSE):
@@ -186,4 +186,4 @@ class RPA(torchutil.metrics.Average):
         difference = penn.cents(predicted, target)
         super().update(
             (torch.abs(difference) < THRESHOLD).sum(),
-            predicted.shape[-1])
+            predicted.numel())

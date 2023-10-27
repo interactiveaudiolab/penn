@@ -254,10 +254,7 @@ def from_files_to_files(
         pool = mp.get_context('spawn').Pool(max(1, penn.NUM_WORKERS // 2))
 
         # Setup progress bar
-        progress = iterator(
-            range(len(files)),
-            penn.CONFIG,
-            total=len(files))
+        progress = iterator(range(len(files)), penn.CONFIG, total=len(files))
 
         try:
 
@@ -266,18 +263,20 @@ def from_files_to_files(
             residual_frames = torch.zeros((0, 1, 1024))
             residual_lengths = torch.zeros((0,), dtype=torch.long)
 
+            inferred_frames, saved_frames = 0, 0
+
             # Iterate over data
             pitch, periodicity = torch.zeros((1, 0)), torch.zeros((1, 0))
             for frames, lengths, input_files in loader:
 
                 # Prepend residual
-                if residual_frames.numel():
+                if residual_files:
                     frames = torch.cat((residual_frames, frames), dim=0)
-                    lengths = torch.cat(residual_lengths, lengths)
+                    lengths = torch.cat((residual_lengths, lengths))
                     input_files = residual_files + input_files
 
                 i = 0
-                while batch_size is None or i + batch_size < len(frames):
+                while batch_size is None or i + batch_size <= len(frames):
 
                     # Copy to device
                     size = len(frames) if batch_size is None else batch_size
@@ -286,6 +285,7 @@ def from_files_to_files(
 
                     # Infer
                     logits = infer(batch_frames, checkpoint).detach()
+                    inferred_frames += len(logits)
 
                     # Postprocess
                     results = postprocess(logits, fmin, fmax)
@@ -296,38 +296,36 @@ def from_files_to_files(
                         (periodicity, results[2].cpu()),
                         dim=1)
 
-                    i += size
+                    i += len(batch_frames)
 
                 # Keep extra frames for next batch
-                residual_frames = frames[i + size:]
+                residual_frames = frames[i:]
 
                 # Save to disk
                 i = 0
                 for j, (length, file) in enumerate(zip(lengths, input_files)):
 
                     # Slice and save in another process
-                    if i + length < len(frames):
-                        # pool.apply_async(
-                        #     save_worker,
-                        #     args=(
-                        #         output_prefixes[file],
-                        #         pitch[:, i:i + length],
-                        #         periodicity[:, i:i + length]))
-                        # while pool._taskqueue.qsize() > 100:
-                        #     time.sleep(1)
-                        save_worker(
-                            output_prefixes[file],
-                            pitch[:, i:i + length],
-                            periodicity[:, i:i + length])
+                    if i + length <= pitch.shape[-1]:
+                        pool.apply_async(
+                            save_worker,
+                            args=(
+                                output_prefixes[file],
+                                pitch[:, i:i + length],
+                                periodicity[:, i:i + length]))
+                        while pool._taskqueue.qsize() > 100:
+                            time.sleep(1)
                         i += length
+                        saved_frames += length
                         progress.update()
-
-                    # Setup residual for next iteration
                     else:
-                        pitch = pitch[:, i:]
-                        periodicity = periodicity[:, i:]
-                        residual_files = input_files[j:]
-                        residual_lengths = lengths[j:]
+                        break
+
+                # Setup residual for next iteration
+                pitch = pitch[:, i:]
+                periodicity = periodicity[:, i:]
+                residual_files = input_files[j:]
+                residual_lengths = lengths[j:]
 
             # Handle final files
             if residual_frames.numel():
@@ -338,32 +336,30 @@ def from_files_to_files(
 
                 # Infer
                 logits = infer(batch_frames, checkpoint).detach()
+                inferred_frames += len(logits)
 
                 # Postprocess
                 results = postprocess(logits, fmin, fmax)
 
                 # Append to residual
-                pitch = torch.cat((pitch, results[1].cpu()))
-                periodicity = torch.cat((periodicity, results[2].cpu()))
+                pitch = torch.cat((pitch, results[1].cpu()), dim=1)
+                periodicity = torch.cat((periodicity, results[2].cpu()), dim=1)
 
                 # Save
                 for length, file in zip(residual_lengths, residual_files):
 
                     # Slice and save in another process
-                    if i + length < len(frames):
-                        # pool.apply_async(
-                        #     save_worker,
-                        #     args=(
-                        #         output_prefixes[file],
-                        #         pitch[:, i:i + length],
-                        #         periodicity[:, i:i + length]))
-                        # while pool._taskqueue.qsize() > 100:
-                        #     time.sleep(1)ty[:, i:i + length]))
-                        save_worker(
-                            output_prefixes[file],
-                            pitch[:, i:i + length],
-                            periodicity[:, i:i + length])
+                    if i + length <= pitch.shape[-1]:
+                        pool.apply_async(
+                            save_worker,
+                            args=(
+                                output_prefixes[file],
+                                pitch[:, i:i + length],
+                                periodicity[:, i:i + length]))
+                        while pool._taskqueue.qsize() > 100:
+                            time.sleep(1)
                         i += length
+                        saved_frames += length
                         progress.update()
 
         finally:
@@ -374,6 +370,7 @@ def from_files_to_files(
 
             # Close progress bar
             progress.close()
+
 
 ###############################################################################
 # Inference pipeline stages
@@ -431,7 +428,7 @@ def infer(frames, checkpoint=None):
 def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX):
     """Convert model output to pitch and periodicity"""
     # Turn off gradients
-    with torch.no_grad():
+    with torch.inference_mode():
 
         # Convert frequency range to pitch bin range
         minidx = penn.convert.frequency_to_bins(torch.tensor(fmin))
@@ -586,8 +583,8 @@ def inference_loader(
         dataset,
         batch_sampler=InferenceSampler(dataset),
         # TEMPORARY
-        # num_workers=max(1, penn.NUM_WORKERS // 2),
-        num_workers=0,
+        num_workers=max(1, penn.NUM_WORKERS // 2),
+        # num_workers=0,
         collate_fn=inference_collate)
 
 
@@ -624,7 +621,6 @@ class InferenceDataset(torch.utils.data.Dataset):
             center=center)
 
     def __getitem__(self, index):
-        import pdb; pdb.set_trace()
         frames = torch.cat(
             [
                 frame for frame in
@@ -656,12 +652,15 @@ class InferenceSampler(torch.utils.data.Sampler):
             batch.append(i)
             if self.dataset.batch_size is None:
                 batches.append(batch)
+                batch = []
             else:
                 count += length
                 if count >= self.dataset.batch_size:
                     batches.append(batch)
                     batch = []
                     count = 0
+        if batch:
+            batches.append(batch)
         return batches
 
 
