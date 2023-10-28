@@ -1,5 +1,4 @@
 import shutil
-import zipfile
 
 import torchutil
 
@@ -41,13 +40,8 @@ def mdb():
 
 def ptdb():
     """Download ptdb dataset"""
-    # directory = penn.DATA_DIR / 'ptdb'
-    # directory.mkdir(exist_ok=True, parents=True)
-    # torchutil.download.zip(
-    #     'https://www2.spsc.tugraz.at/databases/PTDB-TUG/SPEECH_DATA_ZIPPED.zip',
-    #     directory)
-    url = 'https://www2.spsc.tugraz.at/databases/PTDB-TUG/SPEECH_DATA_ZIPPED.zip'
-    file = penn.SOURCE_DIR / 'ptdb.zip'
-    torchutil.download.file(url, file)
-    with zipfile.ZipFile(file, 'r') as zfile:
-        zfile.extractall(penn.DATA_DIR / 'ptdb')
+    directory = penn.DATA_DIR / 'ptdb'
+    directory.mkdir(exist_ok=True, parents=True)
+    torchutil.download.zip(
+        'https://www2.spsc.tugraz.at/databases/PTDB-TUG/SPEECH_DATA_ZIPPED.zip',
+        directory)
