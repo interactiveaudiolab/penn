@@ -217,12 +217,12 @@ def from_files_to_files(
     if output_prefixes is None:
         output_prefixes = len(files) * [None]
 
-    # CPU or single-threaded GPU
-    if gpu is None or num_workers == 0:
+    # Single-threaded
+    if num_workers == 0:
 
         # Iterate over files
-        for file, output_prefix in iterator(
-            zip(files, output_prefixes),
+        for i, (file, output_prefix) in iterator(
+            enumerate(zip(files, output_prefixes)),
             f'{penn.CONFIG}',
             total=len(files)):
 
@@ -239,7 +239,7 @@ def from_files_to_files(
                 interp_unvoiced_at,
                 gpu)
 
-    # Multi-threaded GPU
+    # Multi-threaded
     else:
 
         # Initialize multi-threaded dataloader

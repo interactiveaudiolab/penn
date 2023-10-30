@@ -106,13 +106,11 @@ def benchmark(
 
         # Infer to temporary storage
         if penn.METHOD == 'penn':
-            batch_size = \
-                    None if gpu is None else penn.EVALUATION_BATCH_SIZE
             penn.from_files_to_files(
                 files,
                 output_prefixes,
                 checkpoint=checkpoint,
-                batch_size=batch_size,
+                batch_size=penn.EVALUATION_BATCH_SIZE,
                 center='half-hop',
                 gpu=gpu)
 
@@ -131,15 +129,13 @@ def benchmark(
             # Infer
             # Note - this does not perform the correct padding, but suffices
             #        for benchmarking purposes
-            batch_size = \
-                    None if gpu is None else penn.EVALUATION_BATCH_SIZE
             torchcrepe.predict_from_files_to_files(
                 files,
                 pitch_files,
                 output_periodicity_files=periodicity_files,
                 hop_length=penn.HOPSIZE,
                 decoder=torchcrepe.decode.argmax,
-                batch_size=batch_size,
+                batch_size=penn.EVALUATION_BATCH_SIZE,
                 device='cpu' if gpu is None else f'cuda:{gpu}',
                 pad=False)
         elif penn.METHOD == 'dio':
