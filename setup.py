@@ -28,6 +28,7 @@ setup(
         'torch',           # 1.12.1+cu113
         'tqdm',            # 4.64.1
         'torchaudio',      # 0.12.1+cu113
+        'torchutil',       # 0.0.4
         'yapecs'           # 0.0.6
     ],
     packages=find_packages(),
