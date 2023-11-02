@@ -401,7 +401,7 @@ def infer(frames, checkpoint=None):
                 infer.checkpoint = None
             else:
                 infer.checkpoint = checkpoint
-            checkpoint = torch.load(checkpoint)
+            checkpoint = torch.load(checkpoint, map_location='cpu')
 
             # Load from disk
             model.load_state_dict(checkpoint['model'])
