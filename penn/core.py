@@ -300,34 +300,32 @@ def from_files_to_files(
 
                     i += len(batch_frames)
 
-                # Keep extra frames for next batch
-                residual_frames = frames[i:]
-
                 # Save to disk
-                i = 0
-                for j, (length, file) in enumerate(zip(lengths, input_files)):
+                j = 0
+                for k, (length, file) in enumerate(zip(lengths, input_files)):
 
                     # Slice and save in another process
-                    if i + length <= pitch.shape[-1]:
+                    if j + length <= pitch.shape[-1]:
                         pool.apply_async(
                             save_worker,
                             args=(
                                 output_prefixes[file],
-                                pitch[:, i:i + length],
-                                periodicity[:, i:i + length],
+                                pitch[:, j:j + length],
+                                periodicity[:, j:j + length],
                                 interp_unvoiced_at))
                         while pool._taskqueue.qsize() > 100:
                             time.sleep(1)
-                        i += length
+                        j += length
                         progress.update()
                     else:
                         break
 
                 # Setup residual for next iteration
-                pitch = pitch[:, i:]
-                periodicity = periodicity[:, i:]
-                residual_files = input_files[j:]
-                residual_lengths = lengths[j:]
+                pitch = pitch[:, j:]
+                periodicity = periodicity[:, j:]
+                residual_files = input_files[k:]
+                residual_lengths = lengths[k:]
+                residual_frames = frames[i:]
 
             # Handle final files
             if residual_frames.numel():
@@ -347,6 +345,7 @@ def from_files_to_files(
                 periodicity = torch.cat((periodicity, results[2].cpu()), dim=1)
 
                 # Save
+                i = 0
                 for length, file in zip(residual_lengths, residual_files):
 
                     # Slice and save in another process
@@ -598,7 +597,7 @@ def save_worker(prefix, pitch, periodicity, interp_unvoiced_at=None):
             interp_unvoiced_at)
 
     # Save
-    prefix.parent.mkdir(exist_ok=True, parents=True)
+    Path(prefix).parent.mkdir(exist_ok=True, parents=True)
     torch.save(pitch, f'{prefix}-pitch.pt')
     torch.save(periodicity, f'{prefix}-periodicity.pt')
 
