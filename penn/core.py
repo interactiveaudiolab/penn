@@ -386,7 +386,7 @@ def infer(frames, checkpoint=None):
         if (
             not hasattr(infer, 'model') or
             infer.checkpoint != checkpoint or
-            infer.device_type != frames.device.type
+            infer.device != frames.device
         ):
 
             # Initialize model
@@ -404,7 +404,7 @@ def infer(frames, checkpoint=None):
 
             # Load from disk
             model.load_state_dict(checkpoint['model'])
-            infer.device_type = frames.device.type
+            infer.device = frames.device
 
             # Move model to correct device (no-op if devices are the same)
             infer.model = model.to(frames.device)
