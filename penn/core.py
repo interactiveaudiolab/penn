@@ -1,13 +1,13 @@
 import contextlib
 import functools
 import math
-import multiprocessing as mp
 import time
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import huggingface_hub
 import torch
+import torch.multiprocessing as mp
 import torchaudio
 import torchutil
 import tqdm
@@ -215,7 +215,7 @@ def from_files_to_files(
     """
     # Maybe use default output filenames
     if output_prefixes is None:
-        output_prefixes = len(files) * [None]
+        output_prefixes = [file.parent / file.stem for file in files]
 
     # Single-threaded
     if num_workers == 0:
@@ -256,6 +256,7 @@ def from_files_to_files(
             for file, output_prefix in zip(files, output_prefixes)}
 
         # Setup multiprocessing
+        futures = []
         pool = mp.get_context('spawn').Pool(max(1, num_workers // 2))
 
         # Setup progress bar
@@ -270,6 +271,7 @@ def from_files_to_files(
 
             # Iterate over data
             pitch, periodicity = torch.zeros((1, 0)), torch.zeros((1, 0))
+
             for frames, lengths, input_files in loader:
 
                 # Prepend residual
@@ -301,21 +303,24 @@ def from_files_to_files(
                     i += len(batch_frames)
 
                 # Save to disk
-                j = 0
-                for k, (length, file) in enumerate(zip(lengths, input_files)):
+                j, k = 0, 0
+                for length, file in zip(lengths, input_files):
 
                     # Slice and save in another process
                     if j + length <= pitch.shape[-1]:
-                        pool.apply_async(
-                            save_worker,
-                            args=(
-                                output_prefixes[file],
-                                pitch[:, j:j + length],
-                                periodicity[:, j:j + length],
-                                interp_unvoiced_at))
-                        while pool._taskqueue.qsize() > 100:
-                            time.sleep(1)
+                        futures.append(
+                            pool.apply_async(
+                                save_worker,
+                                args=(
+                                    output_prefixes[file],
+                                    pitch[:, j:j + length],
+                                    periodicity[:, j:j + length],
+                                    interp_unvoiced_at)))
+                        while len(futures) > 100:
+                            futures = [f for f in futures if not f.ready()]
+                            time.sleep(.1)
                         j += length
+                        k += 1
                         progress.update()
                     else:
                         break
@@ -350,17 +355,23 @@ def from_files_to_files(
 
                     # Slice and save in another process
                     if i + length <= pitch.shape[-1]:
-                        pool.apply_async(
-                            save_worker,
-                            args=(
-                                output_prefixes[file],
-                                pitch[:, i:i + length],
-                                periodicity[:, i:i + length],
-                                interp_unvoiced_at))
-                        while pool._taskqueue.qsize() > 100:
-                            time.sleep(1)
+                        futures.append(
+                            pool.apply_async(
+                                save_worker,
+                                args=(
+                                    output_prefixes[file],
+                                    pitch[:, i:i + length],
+                                    periodicity[:, i:i + length],
+                                    interp_unvoiced_at)))
+                        while len(futures) > 100:
+                            futures = [f for f in futures if not f.ready()]
+                            time.sleep(.1)
                         i += length
                         progress.update()
+
+            # Wait
+            for future in futures:
+                future.wait()
 
         finally:
 
@@ -600,6 +611,10 @@ def save_worker(prefix, pitch, periodicity, interp_unvoiced_at=None):
     Path(prefix).parent.mkdir(exist_ok=True, parents=True)
     torch.save(pitch, f'{prefix}-pitch.pt')
     torch.save(periodicity, f'{prefix}-periodicity.pt')
+
+    # Clean-up
+    del pitch
+    del periodicity
 
 
 class InferenceDataset(torch.utils.data.Dataset):
