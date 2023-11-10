@@ -30,7 +30,8 @@ def from_audio(
         batch_size: Optional[int] = None,
         center: str = 'half-window',
         interp_unvoiced_at: Optional[float] = None,
-        gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        gpu: Optional[int] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation
 
     Args:
@@ -97,7 +98,8 @@ def from_file(
         batch_size: Optional[int] = None,
         center: str = 'half-window',
         interp_unvoiced_at: Optional[float] = None,
-        gpu: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        gpu: Optional[int] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Perform pitch and periodicity estimation from audio on disk
 
     Args:
@@ -143,7 +145,8 @@ def from_file_to_file(
         batch_size: Optional[int] = None,
         center: str = 'half-window',
         interp_unvoiced_at: Optional[float] = None,
-        gpu: Optional[int] = None) -> None:
+        gpu: Optional[int] = None
+) -> None:
     """Perform pitch and periodicity estimation from audio on disk and save
 
     Args:
@@ -197,7 +200,8 @@ def from_files_to_files(
     center: str = 'half-window',
     interp_unvoiced_at: Optional[float] = None,
     num_workers: int = penn.NUM_WORKERS,
-    gpu: Optional[int] = None) -> None:
+    gpu: Optional[int] = None
+) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
 
     Args:
@@ -210,7 +214,7 @@ def from_files_to_files(
         batch_size: The number of frames per batch
         center: Padding options. One of ['half-window', 'half-hop', 'zero'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
-        num_workers: Number of CPU threads for multiprocessing
+        num_workers: Number of CPU threads for async data I/O
         gpu: The index of the gpu to run inference on
     """
     # Maybe use default output filenames

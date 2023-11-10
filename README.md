@@ -95,6 +95,18 @@ pitch, periodicity = penn.from_audio(
 #### `penn.from_audio`
 
 ```
+def from_audio(
+        audio: torch.Tensor,
+        sample_rate: int = penn.SAMPLE_RATE,
+        hopsize: float = penn.HOPSIZE_SECONDS,
+        fmin: float = penn.FMIN,
+        fmax: float = penn.FMAX,
+        checkpoint: Optional[Path] = None,
+        batch_size: Optional[int] = None,
+        center: str = 'half-window',
+        interp_unvoiced_at: Optional[float] = None,
+        gpu: Optional[int] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
 """Perform pitch and periodicity estimation
 
 Args:
@@ -121,6 +133,17 @@ Returns:
 #### `penn.from_file`
 
 ```
+def from_file(
+        file: Path,
+        hopsize: float = penn.HOPSIZE_SECONDS,
+        fmin: float = penn.FMIN,
+        fmax: float = penn.FMAX,
+        checkpoint: Optional[Path] = None,
+        batch_size: Optional[int] = None,
+        center: str = 'half-window',
+        interp_unvoiced_at: Optional[float] = None,
+        gpu: Optional[int] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
 """Perform pitch and periodicity estimation from audio on disk
 
 Args:
@@ -144,6 +167,18 @@ Returns:
 #### `penn.from_file_to_file`
 
 ```
+def from_file_to_file(
+        file: Path,
+        output_prefix: Optional[Path] = None,
+        hopsize: float = penn.HOPSIZE_SECONDS,
+        fmin: float = penn.FMIN,
+        fmax: float = penn.FMAX,
+        checkpoint: Optional[Path] = None,
+        batch_size: Optional[int] = None,
+        center: str = 'half-window',
+        interp_unvoiced_at: Optional[float] = None,
+        gpu: Optional[int] = None
+) -> None:
 """Perform pitch and periodicity estimation from audio on disk and save
 
 Args:
@@ -164,6 +199,19 @@ Args:
 #### `penn.from_files_to_files`
 
 ```
+def from_files_to_files(
+    files: List[Path],
+    output_prefixes: Optional[List[Path]] = None,
+    hopsize: float = penn.HOPSIZE_SECONDS,
+    fmin: float = penn.FMIN,
+    fmax: float = penn.FMAX,
+    checkpoint: Optional[Path] = None,
+    batch_size: Optional[int] = None,
+    center: str = 'half-window',
+    interp_unvoiced_at: Optional[float] = None,
+    num_workers: int = penn.NUM_WORKERS,
+    gpu: Optional[int] = None
+) -> None:
 """Perform pitch and periodicity estimation from files on disk and save
 
 Args:
@@ -176,6 +224,7 @@ Args:
     batch_size: The number of frames per batch
     center: Padding options. One of ['half-window', 'half-hop', 'zero'].
     interp_unvoiced_at: Specifies voicing threshold for interpolation
+    num_workers: Number of CPU threads for async data I/O
     gpu: The index of the gpu to run inference on
 """
 ```
