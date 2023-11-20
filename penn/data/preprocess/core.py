@@ -29,7 +29,7 @@ PTDB_HOPSIZE_SECONDS = PTDB_HOPSIZE / PTDB_SAMPLE_RATE
 ###############################################################################
 
 
-@torchutil.notify.on_return('preprocess')
+@torchutil.notify('preprocess')
 def datasets(datasets):
     """Preprocess datasets"""
     if 'mdb' in datasets:
@@ -63,11 +63,11 @@ def mdb():
     output_directory.mkdir(exist_ok=True, parents=True)
 
     # Write audio and pitch to cache
-    iterator = penn.iterator(
+    for i, (audio_file, pitch_file) in torchutil.iterator(
         enumerate(zip(audio_files, pitch_files)),
         'Preprocessing mdb',
-        total=len(audio_files))
-    for i, (audio_file, pitch_file) in iterator:
+        total=len(audio_files)
+    ):
         stem = f'{i:06d}'
 
         # Load and resample audio
@@ -134,11 +134,11 @@ def ptdb():
     output_directory.mkdir(exist_ok=True, parents=True)
 
     # Write audio and pitch to cache
-    iterator = penn.iterator(
+    for i, (audio_file, pitch_file) in torchutil.iterator(
         enumerate(zip(audio_files, pitch_files)),
         'Preprocessing ptdb',
-        total=len(audio_files))
-    for i, (audio_file, pitch_file) in iterator:
+        total=len(audio_files)
+    ):
         stem = f'{i:06d}'
 
         # Load and resample to PTDB sample rate

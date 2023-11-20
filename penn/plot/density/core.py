@@ -80,12 +80,14 @@ def histograms(datasets, checkpoint=None, gpu=None):
         # Preprocess audio
         batch_size = \
             None if gpu is None else penn.EVALUATION_BATCH_SIZE
-        iterator = penn.preprocess(
-            audio[0],
-            penn.SAMPLE_RATE,
-            batch_size=batch_size,
-            center='half-hop')
-        for i, (frames, size) in enumerate(iterator):
+        for i, (frames, size) in enumerate(
+            penn.preprocess(
+                audio[0],
+                penn.SAMPLE_RATE,
+                batch_size=batch_size,
+                center='half-hop'
+            )
+        ):
 
             # Copy to device
             frames = frames.to(device)

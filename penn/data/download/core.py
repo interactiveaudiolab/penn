@@ -10,7 +10,7 @@ import penn
 ###############################################################################
 
 
-@torchutil.notify.on_return('download')
+@torchutil.notify('download')
 def datasets(datasets):
     """Download datasets"""
     if 'mdb' in datasets:

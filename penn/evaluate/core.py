@@ -16,7 +16,7 @@ import penn
 ###############################################################################
 
 
-@torchutil.notify.on_return('evaluate')
+@torchutil.notify('evaluate')
 def datasets(
     datasets=penn.EVALUATION_DATASETS,
     checkpoint=None,
@@ -182,13 +182,11 @@ def periodicity_quality(
         # Create output directory
         (directory / dataset).mkdir(exist_ok=True, parents=True)
 
-        # Setup dataset
-        iterator = penn.iterator(
-            penn.data.loader([dataset], 'valid', True),
-            f'Evaluating {penn.CONFIG} periodicity quality on {dataset}')
-
         # Iterate over validation set
-        for audio, _, _, voiced, stem in iterator:
+        for audio, _, _, voiced, stem in torchutil.iterator(
+            penn.data.loader([dataset], 'valid', True),
+            f'Evaluating {penn.CONFIG} periodicity quality on {dataset}'
+        ):
 
             if penn.METHOD == 'penn':
 
@@ -198,12 +196,12 @@ def periodicity_quality(
                 # Preprocess audio
                 batch_size = \
                     None if gpu is None else penn.EVALUATION_BATCH_SIZE
-                iterator = penn.preprocess(
+                for frames in penn.preprocess(
                     audio[0],
                     penn.SAMPLE_RATE,
                     batch_size=batch_size,
-                    center='half-hop')
-                for frames in iterator:
+                    center='half-hop'
+                ):
 
                     # Copy to device
                     frames = frames.to(device)
@@ -324,12 +322,12 @@ def periodicity_quality(
             # Preprocess audio
             batch_size = \
                 None if gpu is None else penn.EVALUATION_BATCH_SIZE
-            iterator = penn.preprocess(
+            for frames in penn.preprocess(
                 audio[0],
                 penn.SAMPLE_RATE,
                 batch_size=batch_size,
-                center='half-hop')
-            for frames in iterator:
+                center='half-hop'
+            ):
 
                 # Copy to device
                 frames = frames.to(device)
@@ -425,13 +423,11 @@ def pitch_quality(
         # Reset dataset metrics
         dataset_metrics.reset()
 
-        # Setup test dataset
-        iterator = penn.iterator(
-            penn.data.loader([dataset], 'test'),
-            f'Evaluating {penn.CONFIG} pitch quality on {dataset}')
-
         # Iterate over test set
-        for audio, bins, pitch, voiced, stem in iterator:
+        for audio, bins, pitch, voiced, stem in torchutil.iterator(
+            penn.data.loader([dataset], 'test'),
+            f'Evaluating {penn.CONFIG} pitch quality on {dataset}'
+        ):
 
             # Reset file metrics
             file_metrics.reset()
@@ -444,12 +440,14 @@ def pitch_quality(
                 # Preprocess audio
                 batch_size = \
                     None if gpu is None else penn.EVALUATION_BATCH_SIZE
-                iterator = penn.preprocess(
-                    audio[0],
-                    penn.SAMPLE_RATE,
-                    batch_size=batch_size,
-                    center='half-hop')
-                for i, frames in enumerate(iterator):
+                for i, frames in enumerate(
+                    penn.preprocess(
+                        audio[0],
+                        penn.SAMPLE_RATE,
+                        batch_size=batch_size,
+                        center='half-hop'
+                    )
+                ):
 
                     # Copy to device
                     frames = frames.to(device)

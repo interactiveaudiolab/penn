@@ -86,11 +86,11 @@ def from_files_to_files(
 
     # Turn off multiprocessing for benchmarking
     if penn.BENCHMARK:
-        iterator = penn.iterator(
+        for item in torchutil.iterator(
             iterator,
             f'{penn.CONFIG}',
-            total=len(files))
-        for item in iterator:
+            total=len(files)
+        ):
             pitch_fn(*item)
     else:
         with mp.get_context('spawn').Pool() as pool:

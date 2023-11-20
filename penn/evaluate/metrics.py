@@ -114,8 +114,11 @@ class F1:
 
     def __call__(self):
         result = {}
-        iterator = zip(self.thresholds, self.precision, self.recall)
-        for threshold, precision, recall in iterator:
+        for threshold, precision, recall in zip(
+            self.thresholds,
+            self.precision,
+            self.recall
+        ):
             precision = precision()
             recall = recall()
             try:
@@ -129,8 +132,11 @@ class F1:
         return result
 
     def update(self, periodicity, voiced):
-        iterator = zip(self.thresholds, self.precision, self.recall)
-        for threshold, precision, recall in iterator:
+        for threshold, precision, recall in zip(
+            self.thresholds,
+            self.precision,
+            self.recall
+        ):
             predicted = penn.voicing.threshold(periodicity, threshold)
             precision.update(predicted, voiced)
             recall.update(predicted, voiced)

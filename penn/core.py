@@ -10,7 +10,6 @@ import torch
 import torch.multiprocessing as mp
 import torchaudio
 import torchutil
-import tqdm
 
 import penn
 
@@ -225,10 +224,11 @@ def from_files_to_files(
     if num_workers == 0:
 
         # Iterate over files
-        for i, (file, output_prefix) in iterator(
+        for i, (file, output_prefix) in torchutil.iterator(
             enumerate(zip(files, output_prefixes)),
             f'{penn.CONFIG}',
-            total=len(files)):
+            total=len(files)
+        ):
 
             # Infer
             from_file_to_file(
@@ -264,7 +264,10 @@ def from_files_to_files(
         pool = mp.get_context('spawn').Pool(max(1, num_workers // 2))
 
         # Setup progress bar
-        progress = iterator(range(len(files)), penn.CONFIG, total=len(files))
+        progress = torchutil.iterator(
+            range(len(files)),
+            penn.CONFIG,
+            total=len(files))
 
         try:
 
@@ -766,17 +769,6 @@ def interpolate(x, xp, fp):
 
     # Interpolate
     return m[line_idx, indicies].mul(x) + b[line_idx, indicies]
-
-
-def iterator(iterable, message, initial=0, total=None):
-    """Create a tqdm iterator"""
-    total = len(iterable) if total is None else total
-    return tqdm.tqdm(
-        iterable,
-        desc=message,
-        dynamic_ncols=True,
-        initial=initial,
-        total=total)
 
 
 def normalize(frames):

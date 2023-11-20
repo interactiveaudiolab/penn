@@ -11,7 +11,7 @@ import penn
 ###############################################################################
 
 
-@torchutil.notify.on_return('train')
+@torchutil.notify('train')
 def train(datasets, directory, gpu=None):
     """Train a model"""
     device = torch.device('cpu' if gpu is None else f'cuda:{gpu}')
@@ -68,7 +68,7 @@ def train(datasets, directory, gpu=None):
     scaler = torch.cuda.amp.GradScaler()
 
     # Setup progress bar
-    progress = penn.iterator(
+    progress = torchutil.iterator(
         range(step, penn.STEPS),
         f'Training {penn.CONFIG}',
         step,

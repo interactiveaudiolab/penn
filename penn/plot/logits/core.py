@@ -23,12 +23,12 @@ def from_audio(
     matplotlib.rcParams.update({'font.size': 16})
 
     # Preprocess audio
-    iterator = penn.preprocess(
+    for frames, _ in penn.preprocess(
         audio,
         sample_rate,
         batch_size=penn.EVALUATION_BATCH_SIZE,
-        center='half-hop')
-    for frames, _ in iterator:
+        center='half-hop'
+    ):
 
         # Copy to device
         frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
