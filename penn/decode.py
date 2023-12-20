@@ -1,4 +1,5 @@
 import numpy as np
+import torbi
 import torch
 
 import penn
@@ -22,8 +23,6 @@ def argmax(logits):
 
 def viterbi(logits):
     """Decode pitch using viterbi decoding (from librosa)"""
-    import librosa
-
     # Normalize and convert to numpy
     if penn.METHOD == 'pyin':
         periodicity = penn.periodicity.sum(logits).T
@@ -31,74 +30,76 @@ def viterbi(logits):
             (1 - periodicity) / penn.PITCH_BINS).repeat(penn.PITCH_BINS, 1)
         distributions = torch.cat(
             (torch.exp(logits.permute(2, 1, 0)), unvoiced[None]),
-            dim=1).numpy()
+            dim=1)
+
     else:
 
         # Viterbi REQUIRES a categorical distribution, even if the loss was BCE
         distributions = torch.nn.functional.softmax(logits, dim=1)
         distributions = distributions.permute(2, 1, 0)
-        distributions = distributions.to(
-            device=torch.device('cpu'),
-            dtype=torch.float32
-        ).numpy()
+        distributions = distributions.to(device='cpu', dtype=torch.float32)
 
     # Cache viterbi probabilities
     if not hasattr(viterbi, 'transition'):
-        # Get number of bins per frame
+        xx, yy = torch.meshgrid(
+            torch.arange(penn.PITCH_BINS),
+            torch.arange(penn.PITCH_BINS),
+            indexing='ij')
         bins_per_octave = penn.OCTAVE / penn.CENTS_PER_BIN
         max_octaves_per_frame = \
             penn.MAX_OCTAVES_PER_SECOND * penn.HOPSIZE / penn.SAMPLE_RATE
         max_bins_per_frame = max_octaves_per_frame * bins_per_octave + 1
-
-        # Construct the within voicing transition probabilities
-        viterbi.transition = librosa.sequence.transition_local(
-            penn.PITCH_BINS,
-            max_bins_per_frame,
-            window='triangle',
-            wrap=False)
+        transition = torch.clip(max_bins_per_frame - (xx - yy).abs(), 0)
+        transition = transition / transition.sum(dim=1, keepdims=True)
+        viterbi.transition = transition
 
         if penn.METHOD == 'pyin':
 
             # Add unvoiced probabilities
-            viterbi.transition = np.kron(
-                librosa.sequence.transition_loop(2, .99),
+            viterbi.transition = torch.kron(
+                torch.tensor([[.99, .01], [.01, .99]]),
                 viterbi.transition)
 
             # Uniform initial probabilities
-            viterbi.initial = np.zeros(2 * penn.PITCH_BINS)
+            viterbi.initial = torch.zeros(2 * penn.PITCH_BINS)
             viterbi.initial[penn.PITCH_BINS:] = 1 / penn.PITCH_BINS
 
         else:
 
             # Uniform initial probabilities
-            viterbi.initial = np.full(penn.PITCH_BINS, 1 / penn.PITCH_BINS)
+            viterbi.initial = torch.full(
+                (penn.PITCH_BINS,),
+                1 / penn.PITCH_BINS)
 
     # Viterbi decoding
-    bins = librosa.sequence.viterbi(
-        distributions,
+    bins = torbi.decode(
+        distributions[0].T,
         viterbi.transition,
-        p_init=viterbi.initial)
-    bins = torch.from_numpy(bins.astype(np.int32))
+        viterbi.initial,
+        penn.VITERBI_MAX_CHUNK_SIZE
+    )[:, None]
 
     # Convert to frequency in Hz
     if penn.DECODER.endswith('normal'):
 
         # Decode using an assumption of normality around to the viterbi path
-        pitch = local_expected_value_from_bins(
-            bins.T.to(logits.device),
-            logits).T
+        bins = bins.to(logits.device).T
+        pitch = local_expected_value_from_bins(bins, logits).T
+
+    elif penn.METHOD == 'pyin':
+
+        # Linearly interpolate unvoiced regions
+        pitch = penn.convert.bins_to_frequency(bins)
+        pitch[bins >= penn.PITCH_BINS] = 0
+        pitch = penn.data.preprocess.interpolate_unvoiced(pitch.numpy())[0]
+        pitch = torch.from_numpy(pitch).to(logits.device)
+        bins = bins.to(logits.device)
 
     else:
 
         # Argmax decoding
+        bins = bins.to(logits.device).T
         pitch = penn.convert.bins_to_frequency(bins)
-
-    if penn.METHOD == 'pyin':
-
-        # Linearly interpolate unvoiced regions
-        pitch[bins >= penn.PITCH_BINS] = 0
-        pitch = penn.data.preprocess.interpolate_unvoiced(pitch.numpy())[0]
-        pitch = torch.from_numpy(pitch)
 
     return bins.T, pitch.T
 

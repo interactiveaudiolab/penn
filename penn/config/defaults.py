@@ -32,7 +32,7 @@ HOPSIZE = 80  # samples
 LOCAL_PITCH_WINDOW_SIZE = 19
 
 # Pitch velocity constraint for viterbi decoding
-MAX_OCTAVES_PER_SECOND = 35.92
+MAX_OCTAVES_PER_SECOND = 6.
 
 # Whether to normalize input audio to mean zero and variance one
 NORMALIZE_INPUT = False
@@ -48,6 +48,9 @@ PITCH_BINS = 1440
 
 # Audio sample rate
 SAMPLE_RATE = 8000  # hz
+
+# Maximum chunk size for chunked Viterbi decoding
+VITERBI_MAX_CHUNK_SIZE = None
 
 # Size of the analysis window
 WINDOW_SIZE = 1024  # samples
