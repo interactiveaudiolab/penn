@@ -198,7 +198,7 @@ def from_files_to_files(
     batch_size: Optional[int] = None,
     center: str = 'half-window',
     interp_unvoiced_at: Optional[float] = None,
-    num_workers: int = penn.NUM_WORKERS,
+    num_workers: int = 0,
     gpu: Optional[int] = None
 ) -> None:
     """Perform pitch and periodicity estimation from files on disk and save

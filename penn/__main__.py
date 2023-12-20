@@ -69,6 +69,11 @@ def parse_args():
         type=float,
         help='Specifies voicing threshold for interpolation')
     parser.add_argument(
+        '--num_workers',
+        type=int,
+        default=0,
+        help='Number of CPU threads for async data I/O')
+    parser.add_argument(
         '--gpu',
         type=int,
         help='The index of the gpu to perform inference on. Defaults to CPU.')

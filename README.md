@@ -245,6 +245,7 @@ python -m penn
     [--batch_size BATCH_SIZE]
     [--center {half-window,half-hop,zero}]
     [--interp_unvoiced_at INTERP_UNVOICED_AT]
+    [--num_workers NUM_WORKERS]
     [--gpu GPU]
 
 required arguments:
@@ -271,8 +272,10 @@ optional arguments:
         The number of frames per batch. Defaults to 2048.
     --center {half-window,half-hop,zero}
         Padding options
-  --interp_unvoiced_at INTERP_UNVOICED_AT
+    --interp_unvoiced_at INTERP_UNVOICED_AT
         Specifies voicing threshold for interpolation. Defaults to 0.1625.
+    --num_workers
+        Number of CPU threads for async data I/O
     --gpu GPU
         The index of the gpu to perform inference on. Defaults to CPU.
 ```
