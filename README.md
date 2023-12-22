@@ -234,7 +234,7 @@ Args:
 
 ```
 python -m penn
-    --audio_files AUDIO_FILES [AUDIO_FILES ...]
+    --files FILES [FILES ...]
     [-h]
     [--config CONFIG]
     [--output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]]
@@ -248,7 +248,7 @@ python -m penn
     [--gpu GPU]
 
 required arguments:
-    --audio_files AUDIO_FILES [AUDIO_FILES ...]
+    --files FILES [FILES ...]
         The audio files to process
 
 optional arguments:
@@ -258,7 +258,7 @@ optional arguments:
         The configuration file. Defaults to using FCNF0++.
     --output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]
         The files to save pitch and periodicity without extension.
-        Defaults to audio_files without extensions.
+        Defaults to files without extensions.
     --hopsize HOPSIZE
         The hopsize in seconds. Defaults to 0.01 seconds.
     --fmin FMIN
