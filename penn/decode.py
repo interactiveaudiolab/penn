@@ -73,11 +73,11 @@ class PYIN(Decoder):
         gpu = (
             None if distributions.device.type == 'cpu'
             else distributions.device.index)
-        bins = torbi.decode(
-            distributions[0].T,
-            self.transition,
-            self.initial,
-            gpu)
+        bins = torbi.from_probabilities(
+            observation=distributions[0].T.unsqueeze(dim=0),
+            transition=self.transition,
+            initial=self.initial,
+            gpu=gpu)
 
         # Convert to frequency in Hz
         if self.local_expected_value:
@@ -131,11 +131,11 @@ class Viterbi(Decoder):
         gpu = (
             None if distributions.device.type == 'cpu'
             else distributions.device.index)
-        bins = torbi.decode(
-            distributions[0].T,
-            self.transition,
-            self.initial,
-            gpu)
+        bins = torbi.from_probabilities(
+            observation=distributions[0].T.unsqueeze(dim=0),
+            transition=self.transition,
+            initial=self.initial,
+            gpu=gpu)
 
         # Convert to frequency in Hz
         if self.local_expected_value:
