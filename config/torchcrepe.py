@@ -32,6 +32,9 @@ FMIN = torchcrepe.convert.cents_to_frequency(1997.3794084376191)
 # Distance between adjacent frames
 HOPSIZE = 160  # samples
 
+# Whether to perform local expected value decoding of pitch
+LOCAL_EXPECTED_VALUE = False
+
 # Number of steps between logging to Tensorboard
 LOG_INTERVAL = 500  # steps
 

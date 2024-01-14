@@ -4,7 +4,7 @@ MODULE = 'penn'
 CONFIG = 'fcnf0++-ablate-chunkviterbi-normal'
 
 # The decoder to use for postprocessing
-DECODER = 'viterbi-normal'
+DECODER = 'viterbi'
 
 # Maximum chunk size for chunked Viterbi decoding
-VITERBI_MAX_CHUNK_SIZE = 64
+VITERBI_MIN_CHUNK_SIZE = 64

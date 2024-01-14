@@ -75,6 +75,9 @@ center = 'half-hop'
 # (Optional) Linearly interpolate unvoiced regions below periodicity threshold
 interp_unvoiced_at = .065
 
+# (Optional) Select a decoding method. One of ['argmax', 'pyin', 'viterbi'].
+decoder = 'viterbi'
+
 # Infer pitch and periodicity
 pitch, periodicity = penn.from_audio(
     audio,
@@ -85,6 +88,7 @@ pitch, periodicity = penn.from_audio(
     checkpoint=checkpoint,
     batch_size=batch_size,
     center=center,
+    decoder=decoder,
     interp_unvoiced_at=interp_unvoiced_at,
     gpu=gpu)
 ```
@@ -96,16 +100,17 @@ pitch, periodicity = penn.from_audio(
 
 ```
 def from_audio(
-        audio: torch.Tensor,
-        sample_rate: int = penn.SAMPLE_RATE,
-        hopsize: float = penn.HOPSIZE_SECONDS,
-        fmin: float = penn.FMIN,
-        fmax: float = penn.FMAX,
-        checkpoint: Optional[Path] = None,
-        batch_size: Optional[int] = None,
-        center: str = 'half-window',
-        interp_unvoiced_at: Optional[float] = None,
-        gpu: Optional[int] = None
+    audio: torch.Tensor,
+    sample_rate: int = penn.SAMPLE_RATE,
+    hopsize: float = penn.HOPSIZE_SECONDS,
+    fmin: float = penn.FMIN,
+    fmax: float = penn.FMAX,
+    checkpoint: Optional[Path] = None,
+    batch_size: Optional[int] = None,
+    center: str = 'half-window',
+    decoder: str = penn.DECODER,
+    interp_unvoiced_at: Optional[float] = None,
+    gpu: Optional[int] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
 """Perform pitch and periodicity estimation
 
@@ -134,15 +139,16 @@ Returns:
 
 ```
 def from_file(
-        file: Path,
-        hopsize: float = penn.HOPSIZE_SECONDS,
-        fmin: float = penn.FMIN,
-        fmax: float = penn.FMAX,
-        checkpoint: Optional[Path] = None,
-        batch_size: Optional[int] = None,
-        center: str = 'half-window',
-        interp_unvoiced_at: Optional[float] = None,
-        gpu: Optional[int] = None
+    file: Path,
+    hopsize: float = penn.HOPSIZE_SECONDS,
+    fmin: float = penn.FMIN,
+    fmax: float = penn.FMAX,
+    checkpoint: Optional[Path] = None,
+    batch_size: Optional[int] = None,
+    center: str = 'half-window',
+    decoder: str = penn.DECODER,
+    interp_unvoiced_at: Optional[float] = None,
+    gpu: Optional[int] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
 """Perform pitch and periodicity estimation from audio on disk
 
@@ -168,16 +174,17 @@ Returns:
 
 ```
 def from_file_to_file(
-        file: Path,
-        output_prefix: Optional[Path] = None,
-        hopsize: float = penn.HOPSIZE_SECONDS,
-        fmin: float = penn.FMIN,
-        fmax: float = penn.FMAX,
-        checkpoint: Optional[Path] = None,
-        batch_size: Optional[int] = None,
-        center: str = 'half-window',
-        interp_unvoiced_at: Optional[float] = None,
-        gpu: Optional[int] = None
+    file: Path,
+    output_prefix: Optional[Path] = None,
+    hopsize: float = penn.HOPSIZE_SECONDS,
+    fmin: float = penn.FMIN,
+    fmax: float = penn.FMAX,
+    checkpoint: Optional[Path] = None,
+    batch_size: Optional[int] = None,
+    center: str = 'half-window',
+    decoder: str = penn.DECODER,
+    interp_unvoiced_at: Optional[float] = None,
+    gpu: Optional[int] = None
 ) -> None:
 """Perform pitch and periodicity estimation from audio on disk and save
 
@@ -208,6 +215,7 @@ def from_files_to_files(
     checkpoint: Optional[Path] = None,
     batch_size: Optional[int] = None,
     center: str = 'half-window',
+    decoder: str = penn.DECODER,
     interp_unvoiced_at: Optional[float] = None,
     num_workers: int = penn.NUM_WORKERS,
     gpu: Optional[int] = None
@@ -244,6 +252,7 @@ python -m penn
     [--checkpoint CHECKPOINT]
     [--batch_size BATCH_SIZE]
     [--center {half-window,half-hop,zero}]
+    [--decoder {argmax,pyin,viterbi}]
     [--interp_unvoiced_at INTERP_UNVOICED_AT]
     [--num_workers NUM_WORKERS]
     [--gpu GPU]
@@ -272,6 +281,8 @@ optional arguments:
         The number of frames per batch. Defaults to 2048.
     --center {half-window,half-hop,zero}
         Padding options
+    --decoder {argmax,pyin,viterbi}
+        Posteriorgram decoder
     --interp_unvoiced_at INTERP_UNVOICED_AT
         Specifies voicing threshold for interpolation. Defaults to 0.1625.
     --num_workers

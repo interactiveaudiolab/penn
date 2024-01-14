@@ -65,6 +65,11 @@ def parse_args():
         default='half-window',
         help='Padding options')
     parser.add_argument(
+        '--decoder',
+        choices=['argmax', 'pyin', 'viterbi'],
+        default=penn.DECODER,
+        help='Posteriorgram decoder')
+    parser.add_argument(
         '--interp_unvoiced_at',
         type=float,
         help='Specifies voicing threshold for interpolation')
