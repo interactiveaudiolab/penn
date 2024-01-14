@@ -75,8 +75,8 @@ class PYIN(Decoder):
             else distributions.device.index)
         bins = torbi.decode(
             distributions[0].T,
-            self.transition(),
-            self.initial(),
+            self.transition,
+            self.initial,
             gpu)
 
         # Convert to frequency in Hz
@@ -103,6 +103,7 @@ class PYIN(Decoder):
         """Create initial probability matrix for PYIN"""
         initial = torch.zeros(2 * penn.PITCH_BINS)
         initial[penn.PITCH_BINS:] = 1 / penn.PITCH_BINS
+        return initial
 
     @functools.cached_property
     def transition(self):
@@ -113,6 +114,7 @@ class PYIN(Decoder):
         transition = torch.kron(
             torch.tensor([[.99, .01], [.01, .99]]),
             transition)
+        return transition
 
 
 class Viterbi(Decoder):
@@ -123,7 +125,7 @@ class Viterbi(Decoder):
     def __call__(self, logits):
         """Decode pitch using viterbi decoding (from librosa)"""
         distributions = torch.nn.functional.softmax(logits, dim=1)
-        distributions = distributions.permute(2, 1, 0)
+        distributions = distributions.permute(2, 1, 0) # F x C x 1 -> 1 x C x F
 
         # Viterbi decoding
         gpu = (
@@ -131,8 +133,8 @@ class Viterbi(Decoder):
             else distributions.device.index)
         bins = torbi.decode(
             distributions[0].T,
-            self.transition(),
-            self.initial(),
+            self.transition,
+            self.initial,
             gpu)
 
         # Convert to frequency in Hz
@@ -149,7 +151,7 @@ class Viterbi(Decoder):
         return bins.T, pitch.T
 
     @functools.cached_property
-    def transition(self):
+    def initial(self):
         """Create uniform initial probabilities"""
         return torch.full((penn.PITCH_BINS,), 1 / penn.PITCH_BINS)
 
