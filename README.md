@@ -369,7 +369,7 @@ python -m penn.plot.logits \
 Plot the pitch posteriorgram of an audio file and save to a jpg file.
 
 ```
-python -m penn.plot.thresholds \
+python -m penn.plot.threshold \
     --names <names> \
     --evaluations <evaluations> \
     --output_file <output_file>
@@ -383,7 +383,7 @@ each evaluation. `evaluations` are the names of the evaluations to plot.
 ## Citation
 
 ### IEEE
-M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," Submitted to IEEE Transactions on Audio, Speech, and Language Processing, <TODO - month> 2023.
+M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and Periodicity Estimation," arXiv preprint arXiv:2301.12258, 2023.
 
 
 ### BibTex
@@ -392,7 +392,6 @@ M. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, "Cross-domain Neural Pitch and P
 @inproceedings{morrison2023cross,
     title={Cross-domain Neural Pitch and Periodicity Estimation},
     author={Morrison, Max and Hsieh, Caedon and Pruyne, Nathan and Pardo, Bryan},
-    booktitle={Submitted to IEEE Transactions on Audio, Speech, and Language Processing},
-    month={TODO},
+    booktitle={arXiv preprint arXiv:2301.12258},
     year={2023}
 }
