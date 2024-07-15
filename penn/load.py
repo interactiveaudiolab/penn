@@ -10,7 +10,7 @@ def audio(file):
     """Load audio from disk"""
     audio, sample_rate = torchaudio.load(file)
 
-    # if audio is stereo convert to mono
+    # If audio is stereo, convert to mono
     if audio.size(0) == 2:
         warnings.warn(f'Converting stereo audio to mono: {file}')
         audio = audio.mean(dim=0, keepdim=True)

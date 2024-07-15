@@ -15,6 +15,7 @@ def test_infer(audio):
     shape = (1, audio.shape[1] // penn.HOPSIZE)
     assert pitch.shape == periodicity.shape == shape
 
+
 def test_infer_stereo(audio_stereo):
     """Test that inference on stereo audio produces the correct shape"""
     pitch, periodicity = penn.from_audio(
