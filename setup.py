@@ -19,6 +19,9 @@ setup(
             'pyworld',     # 0.3.2
             'scipy',       # 1.9.3
             'torchcrepe'   # 0.0.17
+        ],
+        'test': [
+            'librosa',     # 0.9.1
         ]
     },
     install_requires=[

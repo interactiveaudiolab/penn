@@ -45,6 +45,21 @@ def frequency_to_samples(frequency, sample_rate=penn.SAMPLE_RATE):
     """Convert frequency in Hz to number of samples per period"""
     return sample_rate / frequency
 
+def frequency_to_midi(frequency):
+    """
+    Convert frequency to MIDI note number(s)
+    Based on librosa.hz_to_midi(frequencies) implementation
+    https://librosa.org/doc/main/_modules/librosa/core/convert.html#hz_to_midi
+    """
+    return 12 * (torch.log2(frequency) - torch.log2(torch.tensor(440.0))) + 69
+
+def midi_to_frequency(midi):
+    """
+    Convert MIDI note number to frequency
+    Based on librosa.midi_to_hz(notes) implementation
+    https://librosa.org/doc/main/_modules/librosa/core/convert.html#midi_to_hz
+    """
+    return 440.0 * (2.0 ** ((midi - 69.0) / 12.0))
 
 ###############################################################################
 # Time conversions

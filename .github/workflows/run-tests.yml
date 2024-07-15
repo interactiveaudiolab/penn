@@ -1,0 +1,31 @@
+name: run
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install base dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install soundfile pytest
+      - name: Run core tests
+        run: |
+          python -m pytest --ignore test/test_convert.py
+      - name: Install additional test dependencies
+        run: |
+          pip install -e '.[test]'
+      - name: Run all tests
+        run: |
+          python -m pytest
