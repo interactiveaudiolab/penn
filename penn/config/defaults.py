@@ -62,7 +62,7 @@ LOCAL_EXPECTED_VALUE = True
 LOCAL_PITCH_WINDOW_SIZE = 19
 
 # Pitch velocity constraint for viterbi decoding
-MAX_OCTAVES_PER_SECOND = 6.
+MAX_OCTAVES_PER_SECOND = 32.
 
 # Maximum chunk size for chunked Viterbi decoding
 VITERBI_MIN_CHUNK_SIZE = None

@@ -1,7 +1,6 @@
 import abc
 import functools
 
-import numpy as np
 import torbi
 import torch
 
