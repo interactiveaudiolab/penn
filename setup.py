@@ -8,7 +8,7 @@ with open('README.md') as file:
 setup(
     name='penn',
     description='Pitch Estimating Neural Networks (PENN)',
-    version='0.0.13',
+    version='0.0.14',
     author='Max Morrison, Caedon Hsieh, Nathan Pruyne, and Bryan Pardo',
     author_email='interactiveaudiolab@gmail.com',
     url='https://github.com/interactiveaudiolab/penn',
@@ -22,6 +22,7 @@ setup(
         ],
         'test': [
             'librosa',     # 0.9.1
+            'pytest',      # 8.2.2
         ]
     },
     install_requires=[
