@@ -18,6 +18,9 @@ EARLY_STOPPING = True
 # Minimum representable frequency
 FMIN = 30.  # Hz
 
+# Whether to perform local expected value decoding of pitch
+LOCAL_EXPECTED_VALUE = False
+
 # Number of steps between logging to Tensorboard
 LOG_INTERVAL = 500  # steps
 
