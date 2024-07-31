@@ -89,6 +89,8 @@ pitch, periodicity = penn.from_audio(
     gpu=gpu)
 ```
 
+Note that pitch estimation is performed independently on each frame of audio. Then, a _decoding_ step occurs, which may or may not be computed independently on each frame. Most often, Viterbi decoding is used (as in, e.g., PYIN and CREPE). However, Viterbi decoding is slow. We made a fast Viterbi decoder called [torbi](https://github.com/maxrmorrison/torbi), which [we are working on adding to PyTorch](https://github.com/pytorch/pytorch/issues/121160). Until `torbi` is integrated into PyTorch (or otherwise made pip-installable), it is recommended to use the `dev` branch of `penn`, which uses `torbi` decoding by default, but is not pip-installable. Our paper [_Fine-Grained and Interpretable Neural Speech Editing_](https://www.maxrmorrison.com/sites/promonet/) introduces and demonstrates the efficacy of `torbi` for pitch decoding. 
+
 
 ### Application programming interface
 
