@@ -28,6 +28,7 @@ def from_audio(
         checkpoint: Optional[Path] = None,
         batch_size: Optional[int] = None,
         center: str = 'half-window',
+        decoder: str = penn.DECODER,
         interp_unvoiced_at: Optional[float] = None,
         gpu: Optional[int] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -42,6 +43,7 @@ def from_audio(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         center: Padding options. One of ['half-window', 'half-hop', 'zero'].
+        decoder: Posteriorgram decoder. One of ['argmax', 'pyin', 'viterbi'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
 
@@ -51,7 +53,14 @@ def from_audio(
         periodicity: torch.tensor(
             shape=(1, int(samples // penn.seconds_to_sample(hopsize))))
     """
-    pitch, periodicity = [], []
+    device = 'cpu' if gpu is None else f'cuda:{gpu}'
+
+    # Storage for batching
+    if batch_size is not None:
+        if decoder == 'argmax':
+            pitch, periodicity = [], []
+        else:
+            logits = []
 
     # Preprocess audio
     for frames in preprocess(
@@ -64,19 +73,50 @@ def from_audio(
 
         # Copy to device
         with torchutil.time.context('copy-to'):
-            frames = frames.to('cpu' if gpu is None else f'cuda:{gpu}')
+            frames = frames.to(device)
 
         # Infer
-        logits = infer(frames, checkpoint).detach()
+        inferred = infer(frames, checkpoint).detach()
 
-        # Postprocess
-        with torchutil.time.context('postprocess'):
-            result = postprocess(logits, fmin, fmax)
-            pitch.append(result[1])
-            periodicity.append(result[2])
+        if batch_size is None:
 
-    # Concatenate results
-    pitch, periodicity = torch.cat(pitch, 1), torch.cat(periodicity, 1)
+            # Postprocess full file
+            with torchutil.time.context('postprocess'):
+                _, pitch, periodicity = postprocess(
+                    inferred,
+                    fmin,
+                    fmax,
+                    decoder)
+
+        elif decoder == 'argmax':
+
+            # Postprocess partial file
+            with torchutil.time.context('postprocess'):
+                result = postprocess(inferred, fmin, fmax, decoder)
+                pitch.append(result[1])
+                periodicity.append(result[2])
+
+        else:
+
+            # Save logits off GPU for later decoding
+            logits.append(inferred.cpu())
+
+    if batch_size is not None:
+
+        if decoder == 'argmax':
+
+                # Concatenate results
+                pitch = torch.cat(pitch, 1)
+                periodicity = torch.cat(periodicity, 1)
+
+        else:
+
+                # Postprocess full file
+                _, pitch, periodicity = postprocess(
+                    torch.cat(logits, 0).to(device),
+                    fmin,
+                    fmax,
+                    decoder)
 
     # Maybe interpolate unvoiced regions
     if interp_unvoiced_at is not None:
@@ -96,6 +136,7 @@ def from_file(
         checkpoint: Optional[Path] = None,
         batch_size: Optional[int] = None,
         center: str = 'half-window',
+        decoder: str = penn.DECODER,
         interp_unvoiced_at: Optional[float] = None,
         gpu: Optional[int] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -109,6 +150,7 @@ def from_file(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         center: Padding options. One of ['half-window', 'half-hop', 'zero'].
+        decoder: Posteriorgram decoder. One of ['argmax', 'pyin', 'viterbi'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
 
@@ -130,6 +172,7 @@ def from_file(
         checkpoint,
         batch_size,
         center,
+        decoder,
         interp_unvoiced_at,
         gpu)
 
@@ -143,6 +186,7 @@ def from_file_to_file(
         checkpoint: Optional[Path] = None,
         batch_size: Optional[int] = None,
         center: str = 'half-window',
+        decoder: str = penn.DECODER,
         interp_unvoiced_at: Optional[float] = None,
         gpu: Optional[int] = None
 ) -> None:
@@ -157,6 +201,7 @@ def from_file_to_file(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         center: Padding options. One of ['half-window', 'half-hop', 'zero'].
+        decoder: Posteriorgram decoder. One of ['argmax', 'pyin', 'viterbi'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         gpu: The index of the gpu to run inference on
     """
@@ -169,6 +214,7 @@ def from_file_to_file(
         checkpoint,
         batch_size,
         center,
+        decoder,
         interp_unvoiced_at,
         gpu)
 
@@ -197,8 +243,9 @@ def from_files_to_files(
     checkpoint: Optional[Path] = None,
     batch_size: Optional[int] = None,
     center: str = 'half-window',
+    decoder: str = penn.DECODER,
     interp_unvoiced_at: Optional[float] = None,
-    num_workers: int = penn.NUM_WORKERS,
+    num_workers: int = 0,
     gpu: Optional[int] = None
 ) -> None:
     """Perform pitch and periodicity estimation from files on disk and save
@@ -212,6 +259,7 @@ def from_files_to_files(
         checkpoint: The checkpoint file
         batch_size: The number of frames per batch
         center: Padding options. One of ['half-window', 'half-hop', 'zero'].
+        decoder: Posteriorgram decoder. One of ['argmax', 'pyin', 'viterbi'].
         interp_unvoiced_at: Specifies voicing threshold for interpolation
         num_workers: Number of CPU threads for async data I/O
         gpu: The index of the gpu to run inference on
@@ -240,6 +288,7 @@ def from_files_to_files(
                 checkpoint,
                 batch_size,
                 center,
+                decoder,
                 interp_unvoiced_at,
                 gpu)
 
@@ -271,14 +320,22 @@ def from_files_to_files(
 
         try:
 
+            device = 'cpu' if gpu is None else f'cuda:{gpu}'
+
             # Track residual to fill batch
             residual_files = []
             residual_frames = torch.zeros((0, 1, 1024))
             residual_lengths = torch.zeros((0,), dtype=torch.long)
 
-            # Iterate over data
-            pitch, periodicity = torch.zeros((1, 0)), torch.zeros((1, 0))
+            # Storage for batching within files
+            if batch_size is not None:
+                if decoder == 'argmax':
+                    pitch, periodicity = torch.zeros((1, 0)), torch.zeros((1, 0))
+                else:
+                    logits = torch.zeros((1, 0, 0))
 
+            # Iterate over data
+            num_inferred_unsaved = 0
             for frames, lengths, input_files in loader:
 
                 # Prepend residual
@@ -292,40 +349,77 @@ def from_files_to_files(
 
                     # Copy to device
                     size = len(frames) if batch_size is None else batch_size
-                    batch_frames = frames[i:i + size].to(
-                        'cpu' if gpu is None else f'cuda:{gpu}')
+                    batch_frames = frames[i:i + size].to(device)
 
                     # Infer
-                    logits = infer(batch_frames, checkpoint).detach()
-
-                    # Postprocess
-                    results = postprocess(logits, fmin, fmax)
-
-                    # Append to residual
-                    pitch = torch.cat((pitch, results[1].cpu()), dim=1)
-                    periodicity = torch.cat(
-                        (periodicity, results[2].cpu()),
-                        dim=1)
-
+                    inferred = infer(batch_frames, checkpoint).detach()
                     i += len(batch_frames)
+                    num_inferred_unsaved += len(batch_frames)
+
+                    if batch_size is None:
+
+                        # Postprocess full file
+                        _, pitch, periodicity = postprocess(
+                            inferred,
+                            fmin,
+                            fmax,
+                            decoder)
+                        break
+
+                    elif decoder == 'argmax':
+
+                        # Postprocess partial file
+                        results = postprocess(inferred, fmin, fmax, decoder)
+                        pitch = torch.cat((pitch, results[1].cpu()), dim=1)
+                        periodicity = torch.cat(
+                            (periodicity, results[2].cpu()),
+                            dim=1)
+
+                    else:
+
+                        # Save logits for later decoding
+                        # NOTE - This differs from from_audio and does not
+                        #        handle large files that do not fit on GPU.
+                        #        However, it saves a GPU -> CPU -> GPU copy.
+                        logits = torch.cat((logits, inferred), dim=0)
 
                 # Save to disk
                 j, k = 0, 0
                 for length, file in zip(lengths, input_files):
 
                     # Slice and save in another process
-                    if j + length <= pitch.shape[-1]:
+                    if j + length <= num_inferred_unsaved:
+
+                        if batch_size is not None:
+
+                            if decoder == 'argmax':
+
+                                # Slice results
+                                save_pitch = pitch[:, j:j + length]
+                                save_periodicity = periodicity[:, j:j + length]
+
+                            else:
+
+                                # Postprocess full file
+                                _, save_pitch, save_periodicity = postprocess(
+                                    logits[j:j + length],
+                                    fmin,
+                                    fmax,
+                                    decoder)
+
+                        # Async save
                         futures.append(
                             pool.apply_async(
                                 save_worker,
                                 args=(
                                     output_prefixes[file],
-                                    pitch[:, j:j + length],
-                                    periodicity[:, j:j + length],
+                                    save_pitch,
+                                    save_periodicity,
                                     interp_unvoiced_at)))
                         while len(futures) > 100:
                             futures = [f for f in futures if not f.ready()]
                             time.sleep(.1)
+
                         j += length
                         k += 1
                         progress.update()
@@ -333,8 +427,10 @@ def from_files_to_files(
                         break
 
                 # Setup residual for next iteration
+                num_inferred_unsaved -= j
                 pitch = pitch[:, j:]
                 periodicity = periodicity[:, j:]
+                logits = logits[j:]
                 residual_files = input_files[k:]
                 residual_lengths = lengths[k:]
                 residual_frames = frames[i:]
@@ -343,32 +439,57 @@ def from_files_to_files(
             if residual_frames.numel():
 
                 # Copy to device
-                batch_frames = residual_frames.to(
-                    'cpu' if gpu is None else f'cuda:{gpu}')
+                batch_frames = residual_frames.to(device)
 
                 # Infer
-                logits = infer(batch_frames, checkpoint).detach()
+                inferred = infer(batch_frames, checkpoint).detach()
+                num_inferred_unsaved += len(batch_frames)
 
-                # Postprocess
-                results = postprocess(logits, fmin, fmax)
+                if decoder == 'argmax':
 
-                # Append to residual
-                pitch = torch.cat((pitch, results[1].cpu()), dim=1)
-                periodicity = torch.cat((periodicity, results[2].cpu()), dim=1)
+                    # Postprocess partial file
+                    results = postprocess(inferred, fmin, fmax, decoder)
+                    pitch = torch.cat((pitch, results[1].cpu()), dim=1)
+                    periodicity = torch.cat(
+                        (periodicity, results[2].cpu()),
+                        dim=1)
+
+                else:
+
+                    # Save logits for later decoding
+                    # NOTE - This differs from from_audio and does not
+                    #        handle large files that do not fit on GPU.
+                    #        However, it saves a GPU -> CPU -> GPU copy.
+                    logits = torch.cat((logits, inferred), dim=0)
 
                 # Save
                 i = 0
                 for length, file in zip(residual_lengths, residual_files):
 
+                    if decoder == 'argmax':
+
+                        # Slice results
+                        save_pitch = pitch[:, i:i + length]
+                        save_periodicity = periodicity[:, i:i + length]
+
+                    else:
+
+                        # Postprocess full file
+                        _, save_pitch, save_periodicity = postprocess(
+                            logits[i:i + length],
+                            fmin,
+                            fmax,
+                            decoder)
+
                     # Slice and save in another process
-                    if i + length <= pitch.shape[-1]:
+                    if i + length <= num_inferred_unsaved:
                         futures.append(
                             pool.apply_async(
                                 save_worker,
                                 args=(
                                     output_prefixes[file],
-                                    pitch[:, i:i + length],
-                                    periodicity[:, i:i + length],
+                                    save_pitch,
+                                    save_periodicity,
                                     interp_unvoiced_at)))
                         while len(futures) > 100:
                             futures = [f for f in futures if not f.ready()]
@@ -443,8 +564,23 @@ def infer(frames, checkpoint=None):
         return logits
 
 
-def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX):
+def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX, decoder=penn.DECODER):
     """Convert model output to pitch and periodicity"""
+    # Cache decoder
+    if (
+        not hasattr(postprocess, 'decoder') or
+        postprocess.decoder_name != decoder
+    ):
+        if decoder == 'argmax':
+            postprocess.decoder = penn.decode.Argmax()
+        elif decoder == 'pyin':
+            postprocess.decoder = penn.decode.PYIN()
+        elif decoder == 'viterbi':
+            postprocess.decoder = penn.decode.Viterbi()
+        else:
+            raise ValueError(f'Decoder method {decoder} is not defined')
+        postprocess.decoder_name = decoder
+
     # Turn off gradients
     with torch.inference_mode():
 
@@ -459,14 +595,7 @@ def postprocess(logits, fmin=penn.FMIN, fmax=penn.FMAX):
         logits[:, maxidx:] = -float('inf')
 
         # Decode pitch from logits
-        if penn.DECODER == 'argmax':
-            bins, pitch = penn.decode.argmax(logits)
-        elif penn.DECODER.startswith('viterbi'):
-            bins, pitch = penn.decode.viterbi(logits)
-        elif penn.DECODER == 'local_expected_value':
-            bins, pitch = penn.decode.local_expected_value(logits)
-        else:
-            raise ValueError(f'Decoder method {penn.DECODER} is not defined')
+        bins, pitch = postprocess.decoder(logits)
 
         # Decode periodicity from logits
         if penn.PERIODICITY == 'entropy':
