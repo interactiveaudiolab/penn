@@ -28,12 +28,6 @@ FMIN = 31.  # Hz
 # Distance between adjacent frames
 HOPSIZE = 80  # samples
 
-# The size of the window used for locally normal pitch decoding
-LOCAL_PITCH_WINDOW_SIZE = 19
-
-# Pitch velocity constraint for viterbi decoding
-MAX_OCTAVES_PER_SECOND = 35.92
-
 # Whether to normalize input audio to mean zero and variance one
 NORMALIZE_INPUT = False
 
@@ -51,6 +45,27 @@ SAMPLE_RATE = 8000  # hz
 
 # Size of the analysis window
 WINDOW_SIZE = 1024  # samples
+
+
+###############################################################################
+# Decoder parameters
+###############################################################################
+
+
+# The decoder to use for postprocessing. One of ['argmax', 'pyin', 'viterbi'].
+DECODER = 'viterbi'
+
+# Whether to perform local expected value decoding of pitch
+LOCAL_EXPECTED_VALUE = True
+
+# The size of the window used for local expected value pitch decoding
+LOCAL_PITCH_WINDOW_SIZE = 19
+
+# Pitch velocity constraint for viterbi decoding
+MAX_OCTAVES_PER_SECOND = 32.
+
+# Maximum chunk size for chunked Viterbi decoding
+VITERBI_MIN_CHUNK_SIZE = None
 
 
 ###############################################################################
@@ -114,9 +129,6 @@ PERIODICITY = 'entropy'
 # Model parameters
 ###############################################################################
 
-
-# The decoder to use for postprocessing
-DECODER = 'local_expected_value'
 
 # The dropout rate. Set to None to turn off dropout.
 DROPOUT = None

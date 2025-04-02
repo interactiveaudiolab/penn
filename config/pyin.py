@@ -4,7 +4,7 @@ MODULE = 'penn'
 CONFIG = 'pyin'
 
 # The decoder to use for postprocessing
-DECODER = 'argmax'
+DECODER = 'pyin'
 
 # Distance between adjacent frames
 HOPSIZE = 160  # samples
